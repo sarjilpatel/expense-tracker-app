@@ -1,53 +1,64 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Modern Theme configuration for Expense Tracker
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const primary = '#5856D6'; // Premium Indigo
+const success = '#34C759'; // Apple Green
+const danger = '#FF3B30';  // Apple Red
+const warning = '#FF9500'; // Apple Orange
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: '#1C1C1E',
+    background: '#F8F9FE',
+    tint: primary,
+    icon: '#8E8E93',
+    tabIconDefault: '#C7C7CC',
+    tabIconSelected: primary,
+    income: success,
+    expense: danger,
+    card: '#FFFFFF',
+    border: '#E5E5E7',
+    secondaryText: '#8E8E93',
+    primary: primary,
+    success: success,
+    danger: danger,
+    warning: warning,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: '#FFFFFF',
+    background: '#0D0D0E',
+    tint: '#5E5CE6',
+    icon: '#98989D',
+    tabIconDefault: '#48484A',
+    tabIconSelected: '#5E5CE6',
+    income: '#32D74B',
+    expense: '#FF453A',
+    card: '#1C1C1E',
+    border: '#38383A',
+    secondaryText: '#8E8E93',
+    primary: '#5E5CE6',
+    success: '#32D74B',
+    danger: '#FF453A',
+    warning: '#FF9F0A',
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+export const Currency = {
+  symbol: '₹',
+  code: 'INR',
+  format: (amount: number) => {
+    return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+};
+
+export const CATEGORIES = [
+  { id: '1', name: 'Food', icon: 'fast-food' },
+  { id: '2', name: 'Transport', icon: 'car' },
+  { id: '3', name: 'Shopping', icon: 'cart' },
+  { id: '4', name: 'Rent', icon: 'home' },
+  { id: '5', name: 'Entertainment', icon: 'game-controller' },
+  { id: '6', name: 'Other', icon: 'ellipsis-horizontal' },
+];
