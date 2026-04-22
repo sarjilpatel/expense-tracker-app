@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import socketService from '../services/socketService';
+// import socketService from '../services/socketService';
 
 export interface User {
   _id: string;
@@ -47,6 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Handle Socket connection lifecycle
+  /* 
   useEffect(() => {
     if (user && token) {
       socketService.connect();
@@ -57,6 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       socketService.disconnect();
     }
   }, [user, token, loading]);
+  */
 
   const login = async (newToken: string, newUser: User) => {
     try {
