@@ -96,7 +96,7 @@ export default function LoginScreen() {
           </ThemedView>
 
           <ThemedView style={styles.footer}>
-            <ThemedText>Don't have an account? </ThemedText>
+            <ThemedText>Don&apos;t have an account? </ThemedText>
             <TouchableOpacity onPress={() => router.replace('/signup')}>
               <ThemedText style={[styles.link, { color: theme.tint }]}>Sign Up</ThemedText>
             </TouchableOpacity>

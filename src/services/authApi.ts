@@ -20,3 +20,23 @@ export const signupUser = async (userData) => {
     throw error.response?.data?.message || 'Signup failed';
   }
 };
+
+export const getProfile = async () => {
+  try {
+    const response = await apiClient.get('/auth/me');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || 'Failed to fetch profile';
+  }
+};
+
+export const updateProfile = async (formData: FormData) => {
+  try {
+    const response = await apiClient.put('/auth/update-profile', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to update profile';
+  }
+};

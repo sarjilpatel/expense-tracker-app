@@ -1,13 +1,10 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
-// Dynamically set the API URL based on the platform
-const API_BASE_URL = Platform.select({
-  web: 'http://10.189.35.72:5000/api',
-  android: 'http://10.189.35.72:5000/api',
-  ios: 'http://10.189.35.72:5000/api',
-});
+
+// Dynamically set the API URL based on the environment variable
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+
 
 interface ApiClientInstance extends ReturnType<typeof axios.create> {
   logout?: () => Promise<void> | void;

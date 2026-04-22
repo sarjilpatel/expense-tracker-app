@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,16 +11,20 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Dropdown } from 'react-native-element-dropdown';
-import { Colors, CATEGORIES, Currency } from '@/constants/theme';
+import { Colors, Currency } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { addTransaction } from '@/src/services/transactionApi';
-import { router } from 'expo-router';
+import { getCurrentGroup, Category } from '@/src/services/groupApi';
+import { router, useFocusEffect } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '@/src/i18n/LanguageContext';
 
 export default function AddTransactionScreen() {
+  const { t } = useLanguage();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme || 'light'];
 
@@ -28,17 +32,81 @@ export default function AddTransactionScreen() {
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [category, setCategory] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [fetching, setFetching] = useState(true);
 
-  const dropdownData = CATEGORIES.map(cat => ({ 
-    label: cat.name, 
-    value: cat.name,
-    icon: cat.icon
-  }));
+  const fetchCategories = useCallback(async () => {
+    try {
+      setFetching(true);
+      const groupData = await getCurrentGroup();
+      setCategories(groupData.categories || []);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setFetching(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchCategories();
+    }, [fetchCategories])
+  );
+
+  const dropdownData = categories
+    .filter(cat => cat.type === type || cat.type === 'both' || !cat.type)
+    .map(cat => ({ 
+      label: t(cat.name), 
+      value: cat.name,
+      icon: cat.icon
+    }));
+
+  const handleTypeChange = (newType: 'income' | 'expense') => {
+      setType(newType);
+      setCategory(null); // Reset category when switching between income/expense
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+        // On Android, the picker is already closed when this is called
+        if (selectedDate) setDate(selectedDate);
+    } else {
+        setShowDatePicker(false);
+        if (selectedDate) setDate(selectedDate);
+    }
+  };
+
+  const showPicker = () => {
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: date,
+        onChange: (event, selectedDate) => {
+          if (selectedDate) {
+            // After date is picked, show time picker
+            DateTimePickerAndroid.open({
+              value: selectedDate,
+              onChange: (e, selectedTime) => {
+                if (selectedTime) setDate(selectedTime);
+              },
+              mode: 'time',
+              is24Hour: true,
+            });
+          }
+        },
+        mode: 'date',
+        is24Hour: true,
+      });
+    } else {
+      setShowDatePicker(true);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!amount || !category) {
-      Alert.alert('Missing Information', 'Please provide an amount and select a category.');
+      Alert.alert(t('missing_info') || 'Missing Information', 'Please provide an amount and select a category.');
       return;
     }
 
@@ -49,6 +117,7 @@ export default function AddTransactionScreen() {
         type,
         category,
         note,
+        date: date.toISOString(),
       };
       await addTransaction(data);
       Alert.alert('Success', 'Transaction saved successfully!', [
@@ -57,6 +126,7 @@ export default function AddTransactionScreen() {
       setAmount('');
       setCategory(null);
       setNote('');
+      setDate(new Date());
     } catch (error: any) {
       const errorMsg = error.msg || error.message || error.toString() || 'Failed to add transaction';
       Alert.alert('Error', errorMsg);
@@ -73,7 +143,7 @@ export default function AddTransactionScreen() {
       <ThemedView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <ThemedText type="title">New Record</ThemedText>
+            <ThemedText type="title">{t('new_record')}</ThemedText>
             <ThemedText style={styles.subtitle}>Keep your history accurate</ThemedText>
           </View>
 
@@ -83,25 +153,25 @@ export default function AddTransactionScreen() {
                 styles.typeButton,
                 type === 'expense' && { backgroundColor: theme.expense }
               ]}
-              onPress={() => setType('expense')}
+              onPress={() => handleTypeChange('expense')}
             >
               <Ionicons name="arrow-up-circle" size={20} color={type === 'expense' ? '#FFF' : theme.expense} />
-              <Text style={[styles.typeText, type === 'expense' && styles.activeTypeText]}>Expense</Text>
+              <Text style={[styles.typeText, type === 'expense' && styles.activeTypeText]}>{t('expenses')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.typeButton,
                 type === 'income' && { backgroundColor: theme.income }
               ]}
-              onPress={() => setType('income')}
+              onPress={() => handleTypeChange('income')}
             >
               <Ionicons name="arrow-down-circle" size={20} color={type === 'income' ? '#FFF' : theme.income} />
-              <Text style={[styles.typeText, type === 'income' && styles.activeTypeText]}>Income</Text>
+              <Text style={[styles.typeText, type === 'income' && styles.activeTypeText]}>{t('income')}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Amount</ThemedText>
+            <ThemedText style={styles.label}>{t('amount')}</ThemedText>
             <View style={[styles.amountWrapper, { backgroundColor: 'rgba(150, 150, 150, 0.05)', borderColor: theme.border }]}>
               <Text style={[styles.currencySymbol, { color: theme.text }]}>{Currency.symbol}</Text>
               <TextInput
@@ -116,31 +186,59 @@ export default function AddTransactionScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Category</ThemedText>
-            <Dropdown
-              style={[styles.dropdown, { backgroundColor: 'rgba(150, 150, 150, 0.05)', borderColor: theme.border }]}
-              placeholderStyle={styles.placeholderStyle}
-              selectedTextStyle={[styles.selectedTextStyle, { color: theme.text }]}
-              itemTextStyle={{ color: theme.text }}
-              containerStyle={{ backgroundColor: theme.card, borderRadius: 12 }}
-              activeColor={`${theme.tint}20`}
-              data={dropdownData}
-              maxHeight={300}
-              labelField="label"
-              valueField="value"
-              placeholder="Select Category"
-              value={category}
-              onChange={item => setCategory(item.value)}
-              renderLeftIcon={() => (
-                <View style={styles.dropdownIcon}>
-                    <Ionicons name="grid-outline" size={20} color={theme.tint} />
-                </View>
-              )}
-            />
+            <ThemedText style={styles.label}>{t('category')}</ThemedText>
+            {fetching ? (
+                 <ActivityIndicator size="small" color={theme.tint} />
+            ) : (
+                <Dropdown
+                style={[styles.dropdown, { backgroundColor: 'rgba(150, 150, 150, 0.05)', borderColor: theme.border }]}
+                placeholderStyle={styles.placeholderStyle}
+                selectedTextStyle={[styles.selectedTextStyle, { color: theme.text }]}
+                itemTextStyle={{ color: theme.text }}
+                containerStyle={{ backgroundColor: theme.card, borderRadius: 12 }}
+                activeColor={`${theme.tint}20`}
+                data={dropdownData}
+                maxHeight={300}
+                labelField="label"
+                valueField="value"
+                placeholder="Select Category"
+                search
+                searchPlaceholder="Search..."
+                value={category}
+                onChange={item => setCategory(item.value)}
+                renderLeftIcon={() => (
+                    <View style={styles.dropdownIcon}>
+                        <Ionicons name="grid-outline" size={20} color={theme.tint} />
+                    </View>
+                )}
+                />
+            )}
           </View>
 
           <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Note (Optional)</ThemedText>
+            <ThemedText style={styles.label}>Date & Time</ThemedText>
+            <TouchableOpacity 
+                style={[styles.datePickerBtn, { backgroundColor: 'rgba(150, 150, 150, 0.05)', borderColor: theme.border }]}
+                onPress={showPicker}
+            >
+                <Ionicons name="calendar-outline" size={20} color={theme.tint} />
+                <ThemedText style={styles.dateText}>
+                    {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </ThemedText>
+            </TouchableOpacity>
+
+            {Platform.OS === 'ios' && showDatePicker && (
+                <DateTimePicker
+                    value={date}
+                    mode="datetime"
+                    is24Hour={true}
+                    onChange={onDateChange}
+                />
+            )}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>{t('note')}</ThemedText>
             <TextInput
               style={[
                 styles.noteInput,
@@ -169,7 +267,7 @@ export default function AddTransactionScreen() {
             ) : (
               <View style={styles.submitContainer}>
                 <Ionicons name="checkmark-circle" size={24} color="#FFF" />
-                <Text style={styles.submitButtonText}>Save Transaction</Text>
+                <Text style={styles.submitButtonText}>{t('save')}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -261,6 +359,19 @@ const styles = StyleSheet.create({
   },
   dropdownIcon: {
     marginRight: 12,
+  },
+  datePickerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: 56,
+      borderRadius: 16,
+      paddingHorizontal: 16,
+      borderWidth: 1,
+      gap: 12,
+  },
+  dateText: {
+      fontSize: 16,
+      fontWeight: '500',
   },
   noteInput: {
     borderRadius: 16,

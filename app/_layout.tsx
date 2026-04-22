@@ -8,6 +8,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import apiClient from '@/src/services/apiClient';
+import { LanguageProvider } from '@/src/i18n/LanguageContext';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -49,7 +50,7 @@ function RootLayoutNav() {
 
     // Hide the splash screen once auth is determined and redirection is handled
     SplashScreen.hideAsync();
-  }, [user, loading, segments]);
+  }, [user, loading, segments, router]);
 
   if (loading) {
     return (
@@ -65,8 +66,11 @@ function RootLayoutNav() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="signup" options={{ headerShown: false }} />
         <Stack.Screen name="group-setup" options={{ headerShown: false }} />
-        <Stack.Screen name="manage-group" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="manage-group" options={{ presentation: 'modal', title: 'Group Settings' }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-transaction" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="manage-categories" options={{ headerShown: false }} />
+        <Stack.Screen name="import-categories" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
@@ -76,8 +80,10 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <LanguageProvider>
+        <AuthProvider>
+            <RootLayoutNav />
+        </AuthProvider>
+    </LanguageProvider>
   );
 }
