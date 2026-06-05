@@ -11,10 +11,12 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Modal,
 } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getCurrentGroup, addCategory, removeCategory, setupWeddingPreset, Category } from '@/src/services/groupApi';
+import { getBudgets, setBudget, deleteBudget } from '@/src/services/budgetApi';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -40,10 +42,25 @@ export default function ManageCategoriesScreen() {
   const [selectedType, setSelectedType] = useState<CategoryType>('expense');
   const [isAdding, setIsAdding] = useState(false);
 
+  const [budgetModalVisible, setBudgetModalVisible] = useState(false);
+  const [budgetCategory, setBudgetCategory] = useState<string | null>(null);
+  const [budgetAmount, setBudgetAmount] = useState('');
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [categoryBudgets, setCategoryBudgets] = useState<Record<string, any>>({});
+
   const fetchCategories = useCallback(async () => {
     try {
-      const group = await getCurrentGroup();
+      const now = new Date();
+      const [group, budgets] = await Promise.all([
+        getCurrentGroup(),
+        getBudgets(now.getMonth() + 1, now.getFullYear()),
+      ]);
       setCategories(group.categories || []);
+      const budgetMap: Record<string, any> = {};
+      (budgets || []).forEach((b: any) => {
+        if (b.category) budgetMap[b.category] = b;
+      });
+      setCategoryBudgets(budgetMap);
     } catch (error) {
       console.error(error);
     } finally {
@@ -97,6 +114,58 @@ export default function ManageCategoriesScreen() {
         }
       ]
     );
+  };
+
+  const handleApplyWeddingPreset = async () => {
+    try {
+      const updatedCategories = await setupWeddingPreset();
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+      setCategories(updatedCategories);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to apply wedding preset');
+    }
+  };
+
+  const openBudgetModal = (categoryName: string) => {
+    setBudgetCategory(categoryName);
+    const existing = categoryBudgets[categoryName];
+    setBudgetAmount(existing ? existing.amount.toString() : '');
+    setBudgetModalVisible(true);
+  };
+
+  const handleSaveCategoryBudget = async () => {
+    if (!budgetCategory || !budgetAmount) return;
+    setBudgetSaving(true);
+    try {
+      const now = new Date();
+      const budget = await setBudget({
+        amount: parseFloat(budgetAmount),
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+        category: budgetCategory,
+      });
+      setCategoryBudgets(prev => ({ ...prev, [budgetCategory]: budget }));
+      setBudgetModalVisible(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save budget');
+    } finally {
+      setBudgetSaving(false);
+    }
+  };
+
+  const handleRemoveCategoryBudget = async (categoryName: string) => {
+    const existing = categoryBudgets[categoryName];
+    if (!existing?._id) return;
+    try {
+      await deleteBudget(existing._id);
+      setCategoryBudgets(prev => {
+        const next = { ...prev };
+        delete next[categoryName];
+        return next;
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to remove budget');
+    }
   };
 
   const getTypeBadge = (type?: string) => {
@@ -188,8 +257,8 @@ export default function ManageCategoriesScreen() {
             .map((item, index) => {
             const badge = getTypeBadge(item.type);
             return (
-              <Animated.View 
-                key={item._id} 
+              <Animated.View
+                key={item._id}
                 entering={FadeInDown.delay(index * 50)}
                 style={[styles.categoryItem, { backgroundColor: theme.card }]}
               >
@@ -199,17 +268,31 @@ export default function ManageCategoriesScreen() {
                   </View>
                   <View>
                     <ThemedText style={styles.catName}>{t(item.name)}</ThemedText>
-                    <View style={[styles.typeBadge, { backgroundColor: badge.bg }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={[styles.typeBadge, { backgroundColor: badge.bg }]}>
                         <Text style={[styles.typeBadgeText, { color: badge.color }]}>{badge.label}</Text>
+                      </View>
+                      {categoryBudgets[item.name] && (
+                        <View style={[styles.typeBadge, { backgroundColor: `${theme.tint}15` }]}>
+                          <Text style={[styles.typeBadgeText, { color: theme.tint }]}>
+                            ₹{categoryBudgets[item.name].amount}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
-                <TouchableOpacity 
-                    onPress={() => handleRemoveCategory(item._id, item.name)}
-                    hitSlop={10}
-                >
-                  <Ionicons name="trash-outline" size={20} color={theme.danger} style={{ opacity: 0.4 }} />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <TouchableOpacity onPress={() => openBudgetModal(item.name)} hitSlop={10}>
+                    <Ionicons name="wallet-outline" size={20} color={theme.tint} style={{ opacity: 0.7 }} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                      onPress={() => handleRemoveCategory(item._id, item.name)}
+                      hitSlop={10}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={theme.danger} style={{ opacity: 0.4 }} />
+                  </TouchableOpacity>
+                </View>
               </Animated.View>
             );
           })}
@@ -242,6 +325,57 @@ export default function ManageCategoriesScreen() {
             )}
         </View>
       </ScrollView>
+
+      <Modal visible={budgetModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { backgroundColor: theme.card }]}>
+            <ThemedText type="subtitle" style={{ marginBottom: 4 }}>Set Category Budget</ThemedText>
+            <ThemedText style={{ opacity: 0.5, marginBottom: 20, fontSize: 13 }}>{budgetCategory}</ThemedText>
+            <View style={[styles.budgetInputWrapper, { borderColor: theme.border }]}>
+              <Text style={{ color: theme.text, fontSize: 22, marginRight: 8, fontWeight: '700' }}>₹</Text>
+              <TextInput
+                style={[styles.budgetInput, { color: theme.text }]}
+                placeholder="Enter amount"
+                placeholderTextColor="#A0A0A0"
+                keyboardType="numeric"
+                value={budgetAmount}
+                onChangeText={setBudgetAmount}
+                autoFocus
+              />
+            </View>
+            <View style={styles.modalActions}>
+              {categoryBudgets[budgetCategory ?? ''] && (
+                <TouchableOpacity
+                  style={[styles.modalBtn, { backgroundColor: `${theme.danger}15` }]}
+                  onPress={() => {
+                    handleRemoveCategoryBudget(budgetCategory!);
+                    setBudgetModalVisible(false);
+                  }}
+                >
+                  <Text style={{ color: theme.danger, fontWeight: '700' }}>Remove</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: 'rgba(150,150,150,0.1)' }]}
+                onPress={() => setBudgetModalVisible(false)}
+              >
+                <Text style={{ color: theme.text, fontWeight: '700' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: theme.tint }]}
+                onPress={handleSaveCategoryBudget}
+                disabled={budgetSaving}
+              >
+                {budgetSaving ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -408,5 +542,41 @@ const styles = StyleSheet.create({
   footerBtnText: {
     fontWeight: '800',
     fontSize: 14,
-  }
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    padding: 28,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+  },
+  budgetInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 60,
+    marginBottom: 20,
+  },
+  budgetInput: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  modalBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

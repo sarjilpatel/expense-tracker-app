@@ -11,6 +11,8 @@ interface ApiClientInstance extends ReturnType<typeof axios.create> {
   injectLogout: (logoutFn: () => Promise<void> | void) => void;
 }
 
+let isLoggingOut = false;
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -41,8 +43,13 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response && error.response.status === 401) {
-      if (apiClient.logout) {
-        await apiClient.logout();
+      if (apiClient.logout && !isLoggingOut) {
+        isLoggingOut = true;
+        try {
+          await apiClient.logout();
+        } finally {
+          isLoggingOut = false;
+        }
       }
     }
     return Promise.reject(error);

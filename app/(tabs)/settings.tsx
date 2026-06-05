@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Clipboard,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { Image } from 'expo-image';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -21,6 +23,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { getBudgets, setBudget, deleteBudget } from '@/src/services/budgetApi';
 import { getProfile } from '@/src/services/authApi';
 import { getCurrentGroup } from '@/src/services/groupApi';
+import { getTransactions } from '@/src/services/transactionApi';
+import { Currency } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen() {
@@ -34,6 +38,7 @@ export default function SettingsScreen() {
   const [currentBudget, setCurrentBudget] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [budgetLoading, setBudgetLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -118,6 +123,43 @@ export default function SettingsScreen() {
     if (!group?.joinCode) return;
     Clipboard.setString(group.joinCode);
     Alert.alert('Copied', 'Group code copied to clipboard');
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const now = new Date();
+      const transactions = await getTransactions(now.getMonth() + 1, now.getFullYear());
+
+      const rows = [
+        ['Date', 'Type', 'Category', 'Amount', 'Note'],
+        ...transactions.map((tx: any) => [
+          new Date(tx.date || tx.createdAt).toLocaleDateString(),
+          tx.type,
+          tx.category,
+          tx.amount.toString(),
+          tx.note ? `"${tx.note.replace(/"/g, '""')}"` : '',
+        ]),
+      ];
+      const csv = rows.map(r => r.join(',')).join('\n');
+
+      const monthName = now.toLocaleString('default', { month: 'long' });
+      const fileName = `transactions_${monthName}_${now.getFullYear()}.csv`;
+      const filePath = `${FileSystem.documentDirectory}${fileName}`;
+
+      await FileSystem.writeAsStringAsync(filePath, csv, { encoding: FileSystem.EncodingType.UTF8 });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(filePath, { mimeType: 'text/csv', dialogTitle: 'Export Transactions' });
+      } else {
+        Alert.alert('Exported', `File saved to: ${filePath}`);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to export transactions');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -288,6 +330,29 @@ export default function SettingsScreen() {
                 <ThemedText style={{ fontWeight: '600' }}>{t('category_management')}</ThemedText>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.icon} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionLabel}>Data</ThemedText>
+          <TouchableOpacity
+            style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, padding: 16 }]}
+            onPress={handleExport}
+            disabled={exporting}
+          >
+            <View style={styles.rowBetween}>
+              <View style={styles.row}>
+                <View style={[styles.iconBox, { backgroundColor: `${theme.income}15` }]}>
+                  <Ionicons name="download-outline" size={20} color={theme.income} />
+                </View>
+                <ThemedText style={{ fontWeight: '600' }}>Export This Month (CSV)</ThemedText>
+              </View>
+              {exporting ? (
+                <ActivityIndicator size="small" color={theme.income} />
+              ) : (
+                <Ionicons name="chevron-forward" size={20} color={theme.icon} />
+              )}
             </View>
           </TouchableOpacity>
         </View>

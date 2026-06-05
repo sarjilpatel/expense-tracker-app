@@ -16,9 +16,11 @@ export const addTransaction = async (data: any) => {
 /**
  * Get transactions with optional date filter
  */
-export const getTransactions = async (month?: number, year?: number) => {
+export const getTransactions = async (month?: number, year?: number, search?: string) => {
   try {
-    const params = (month && year) ? { month, year } : {};
+    const params: any = {};
+    if (month && year) { params.month = month; params.year = year; }
+    if (search && search.trim()) params.search = search.trim();
     const response = await apiClient.get('/transactions', { params });
     return response.data;
   } catch (error: any) {
@@ -58,6 +60,25 @@ export const deleteTransaction = async (id: string) => {
   try {
     const response = await apiClient.delete(`/transactions/${id}`);
     return response.data;
+  } catch (error: any) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Get monthly income/expense trend for the last N months
+ */
+export const getTrend = async (months = 6) => {
+  try {
+    const response = await apiClient.get('/transactions/analytics/trend', { params: { months } });
+    return response.data as Array<{
+      month: number;
+      year: number;
+      monthLabel: string;
+      income: number;
+      expense: number;
+      net: number;
+    }>;
   } catch (error: any) {
     throw error.response?.data || error.message;
   }

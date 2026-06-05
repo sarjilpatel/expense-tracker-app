@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import socketService from '@/src/services/socketService';
+import { useAuth } from '@/src/context/AuthContext';
+import { sendLocalNotification, LARGE_TRANSACTION_THRESHOLD } from '@/src/services/notificationService';
 import {
   StyleSheet,
   View,
@@ -6,15 +9,12 @@ import {
   TouchableOpacity,
   SectionList,
   RefreshControl,
-  ActivityIndicator,
   Alert,
   TextInput,
   Image,
-  Dimensions,
   Modal,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Currency } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getTransactions, deleteTransaction, getAnalytics } from '@/src/services/transactionApi';
@@ -22,49 +22,69 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import Animated, { 
-    FadeInDown, 
-    FadeInRight, 
-    Layout, 
-    FadeIn 
-} from 'react-native-reanimated';
+import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { useLanguage } from '@/src/i18n/LanguageContext';
 import { getBudgets } from '@/src/services/budgetApi';
-
-const { width: screenWidth } = Dimensions.get('window');
+import { SkeletonLoader } from '@/components/SkeletonLoader';
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-// Map categories to modern icons
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 const CATEGORY_ICONS: Record<string, any> = {
-  'Food': 'fast-food-outline',
-  'Transport': 'bus-outline',
-  'Shopping': 'cart-outline',
-  'Rent': 'home-outline',
-  'Entertainment': 'game-controller-outline',
-  'Health': 'heart-outline',
-  'Bills': 'receipt-outline',
-  'Education': 'book-outline',
-  'Investment': 'trending-up-outline',
-  'Income': 'cash-outline',
-  'Salary': 'wallet-outline',
-  'Other': 'ellipsis-horizontal-outline',
+  Food: 'fast-food-outline',
+  Transport: 'bus-outline',
+  Shopping: 'cart-outline',
+  Rent: 'home-outline',
+  Entertainment: 'game-controller-outline',
+  Health: 'heart-outline',
+  Bills: 'receipt-outline',
+  Education: 'book-outline',
+  Investment: 'trending-up-outline',
+  Income: 'cash-outline',
+  Salary: 'wallet-outline',
+  Other: 'ellipsis-horizontal-outline',
 };
+
+// Groups a flat transaction array into dated sections with daily totals.
+function buildSections(transactions: any[]) {
+  const groups: Record<string, any> = {};
+  transactions.forEach((tx: any) => {
+    const d = new Date(tx.date || tx.createdAt);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (!groups[key]) groups[key] = { dateObj: d, income: 0, expense: 0, data: [] };
+    groups[key].data.push(tx);
+    if (tx.type === 'income') groups[key].income += tx.amount;
+    else groups[key].expense += tx.amount;
+  });
+  return Object.values(groups)
+    .sort((a: any, b: any) => b.dateObj.getTime() - a.dateObj.getTime())
+    .map((g: any) => ({
+      title: g.dateObj.toLocaleDateString([], {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      }),
+      dateObj: g.dateObj,
+      income: g.income,
+      expense: g.expense,
+      data: g.data,
+    }));
+}
 
 export default function HomeScreen() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme || 'light'];
 
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [budget, setBudget] = useState<any>(null);
@@ -72,6 +92,48 @@ export default function HomeScreen() {
   const [notifications, setNotifications] = useState<any[]>([]);
 
   const searchInputRef = useRef<TextInput>(null);
+  const hasData = useRef(false);
+  const isMounted = useRef(false);
+
+  useEffect(() => {
+    socketService.onNewTransaction((tx) => {
+      if (!user || tx.userId?._id === user._id) return;
+      if (tx.amount >= LARGE_TRANSACTION_THRESHOLD) {
+        sendLocalNotification(
+          `Large ${tx.type} by ${tx.userId?.name || 'Member'}`,
+          `${tx.type === 'expense' ? '-' : '+'}₹${tx.amount} · ${tx.category}`
+        );
+      }
+      setAllTransactions(prev => [tx, ...prev]);
+      setSummary(prev => ({
+        ...prev,
+        income: tx.type === 'income' ? prev.income + tx.amount : prev.income,
+        expense: tx.type === 'expense' ? prev.expense + tx.amount : prev.expense,
+        balance: tx.type === 'income' ? prev.balance + tx.amount : prev.balance - tx.amount,
+      }));
+      setNotifications(prev => [{
+        id: tx._id,
+        type: tx.type,
+        title: `${tx.userId?.name || 'Someone'} added a transaction`,
+        message: `${tx.type === 'expense' ? '-' : '+'}₹${tx.amount} · ${tx.category}`,
+        time: new Date(tx.date || tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+      }, ...prev].slice(0, 20));
+    });
+
+    socketService.onTransactionUpdated((updated) => {
+      setAllTransactions(prev => prev.map(tx => tx._id === updated._id ? updated : tx));
+    });
+
+    socketService.onTransactionDeleted((deletedId) => {
+      setAllTransactions(prev => prev.filter(tx => tx._id !== deletedId));
+    });
+
+    return () => {
+      socketService.off('new_transaction');
+      socketService.off('transaction_updated');
+      socketService.off('transaction_deleted');
+    };
+  }, [user]);
 
   const fetchData = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
@@ -79,24 +141,22 @@ export default function HomeScreen() {
       const [txData, analyticsData, budgetsData] = await Promise.all([
         getTransactions(currentMonth, currentYear),
         getAnalytics(currentMonth, currentYear),
-        getBudgets()
+        getBudgets(),
       ]);
-
       setAllTransactions(txData);
-      groupTransactionsByDate(txData);
-      
       setSummary({
         income: analyticsData.totalIncome || 0,
         expense: analyticsData.totalExpense || 0,
-        balance: analyticsData.balance || 0
+        balance: analyticsData.balance || 0,
       });
-
-      // Find budget for current month
-      if (budgetsData && budgetsData.length > 0) {
-        setBudget(budgetsData[0]);
-      } else {
-        setBudget(null);
+      const mainBudget = budgetsData?.find((b: any) => !b.category) || null;
+      setBudget(mainBudget);
+      if (mainBudget && analyticsData.totalExpense) {
+        const pct = (analyticsData.totalExpense / mainBudget.amount) * 100;
+        if (pct >= 80 && pct < 100) sendLocalNotification('Budget Warning', t('budget_warning') || "You've used 80% of your monthly budget");
+        else if (pct >= 100) sendLocalNotification('Budget Exceeded', t('budget_exceeded') || 'Budget exceeded!');
       }
+      hasData.current = true;
     } catch (error) {
       console.error(error);
     } finally {
@@ -106,101 +166,69 @@ export default function HomeScreen() {
   }, [currentMonth, currentYear]);
 
   useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [fetchData])
+    useCallback(() => { fetchData(hasData.current); }, [fetchData])
   );
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchData(true);
-  };
+  useEffect(() => {
+    if (!isMounted.current) { isMounted.current = true; return; }
+    hasData.current = false;
+    fetchData(false);
+  }, [currentMonth, currentYear]);
+
+  const onRefresh = () => { setRefreshing(true); fetchData(true); };
 
   const changeMonth = (delta: number) => {
-    let newMonth = currentMonth + delta;
-    let newYear = currentYear;
-    if (newMonth > 12) {
-      newMonth = 1;
-      newYear++;
-    } else if (newMonth < 1) {
-      newMonth = 12;
-      newYear--;
-    }
-    setCurrentMonth(newMonth);
-    setCurrentYear(newYear);
+    let m = currentMonth + delta, y = currentYear;
+    if (m > 12) { m = 1; y++; } else if (m < 1) { m = 12; y--; }
+    setCurrentMonth(m);
+    setCurrentYear(y);
   };
 
-  const groupTransactionsByDate = (transactions: any[]) => {
-    const groups = transactions.reduce((acc: any, tx: any) => {
-      const dateKey = new Date(tx.date || tx.createdAt).toLocaleDateString([], {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-      if (!acc[dateKey]) acc[dateKey] = [];
-      acc[dateKey].push(tx);
-      return acc;
-    }, {});
+  const filteredSections = useMemo(() => buildSections(
+    searchQuery
+      ? allTransactions.filter(tx =>
+          tx.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (tx.note && tx.note.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+      : allTransactions
+  ), [searchQuery, allTransactions]);
 
-    const sectionData = Object.keys(groups).map((date) => ({
-      title: date,
-      data: groups[date],
-    }));
-    setSections(sectionData);
-  };
-
-  const filteredSections = useMemo(() => {
-    let listToGroup = allTransactions;
-    if (searchQuery) {
-        listToGroup = allTransactions.filter(tx => 
-            tx.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (tx.note && tx.note.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-    }
-
-    const groups = listToGroup.reduce((acc: any, tx: any) => {
-      const dateKey = new Date(tx.date || tx.createdAt).toLocaleDateString([], {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-      if (!acc[dateKey]) acc[dateKey] = [];
-      acc[dateKey].push(tx);
-      return acc;
-    }, {});
-
-    return Object.keys(groups).map((date) => ({
-      title: date,
-      data: groups[date],
-    }));
-  }, [searchQuery, sections, allTransactions]);
-
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      t('delete') || 'Delete',
-      'Are you sure you want to delete this record?',
-      [
-        { text: t('cancel') || 'Cancel', style: 'cancel' },
-        { 
-          text: t('delete') || 'Delete', 
-          style: 'destructive', 
-          onPress: async () => {
-            try {
-              await deleteTransaction(id);
-              fetchData(true);
-            } catch (error) {
-              console.error(error);
-              Alert.alert('Error', 'Failed to delete transaction');
-            }
+  const handleDelete = useCallback((id: string) => {
+    Alert.alert(t('delete') || 'Delete', 'Are you sure you want to delete this record?', [
+      { text: t('cancel') || 'Cancel', style: 'cancel' },
+      {
+        text: t('delete') || 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const previous = allTransactions;
+          const removed = previous.find(tx => tx._id === id);
+          setAllTransactions(prev => prev.filter(tx => tx._id !== id));
+          if (removed) {
+            setSummary(prev => ({
+              income: removed.type === 'income' ? prev.income - removed.amount : prev.income,
+              expense: removed.type === 'expense' ? prev.expense - removed.amount : prev.expense,
+              balance: removed.type === 'income' ? prev.balance - removed.amount : prev.balance + removed.amount,
+            }));
           }
-        }
-      ]
-    );
-  };
+          try {
+            await deleteTransaction(id);
+          } catch {
+            setAllTransactions(previous);
+            if (removed) {
+              setSummary(prev => ({
+                income: removed.type === 'income' ? prev.income + removed.amount : prev.income,
+                expense: removed.type === 'expense' ? prev.expense + removed.amount : prev.expense,
+                balance: removed.type === 'income' ? prev.balance + removed.amount : prev.balance - removed.amount,
+              }));
+            }
+            Alert.alert('Error', 'Failed to delete transaction');
+          }
+        },
+      },
+    ]);
+  }, [allTransactions, t]);
 
-  const handleEdit = (item: any) => {
+  const handleEdit = useCallback((item: any) => {
     router.push({
       pathname: '/edit-transaction',
       params: {
@@ -209,122 +237,240 @@ export default function HomeScreen() {
         type: item.type,
         category: item.category,
         note: item.note || '',
-        date: item.date || item.createdAt
-      }
+        date: item.date || item.createdAt,
+      },
     });
-  };
+  }, []);
 
   const budgetProgress = useMemo(() => {
-    if (!budget || !budget.amount || budget.amount === 0) return 0;
-    const expense = summary.expense || 0;
-    return Math.min((expense / budget.amount) * 100, 100);
+    if (!budget?.amount) return 0;
+    return Math.min((summary.expense / budget.amount) * 100, 100);
   }, [budget, summary.expense]);
 
-  const renderSectionHeader = ({ section: { title } }: any) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionHeaderText}>{title}</Text>
-    </View>
-  );
+  const renderSectionHeader = useCallback(({ section }: any) => {
+    const d: Date = section.dateObj;
+    const dayNum = d.getDate();
+    const dayName = DAY_NAMES[d.getDay()];
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+    const monthYr = d.toLocaleDateString([], { month: '2-digit', year: 'numeric' });
+    const isToday = d.toDateString() === new Date().toDateString();
 
-  const renderItem = ({ item, index }: { item: any, index: number }) => {
+    return (
+      <TouchableOpacity
+        style={[styles.sectionHeader, { borderBottomColor: theme.border }]}
+        onPress={() => router.push({ pathname: '/(tabs)/add', params: { prefillDate: d.toISOString() } })}
+        activeOpacity={0.55}
+      >
+        <View style={styles.sectionLeft}>
+          <Text style={[styles.sectionDayNum, { color: isToday ? theme.tint : theme.text }]}>
+            {String(dayNum).padStart(2, '0')}
+          </Text>
+          <View>
+            <View style={[styles.sectionDayBadge, { backgroundColor: isWeekend ? `${theme.expense}22` : `${theme.tint}18` }]}>
+              <Text style={[styles.sectionDayName, { color: isWeekend ? theme.expense : theme.tint }]}>
+                {dayName}
+              </Text>
+            </View>
+            <Text style={[styles.sectionMonthYr, { color: theme.secondaryText }]}>{monthYr}</Text>
+          </View>
+        </View>
+        <View style={styles.sectionRight}>
+          {section.income > 0 && (
+            <Text style={[styles.sectionAmount, { color: theme.income }]}>
+              +{Currency.format(section.income)}
+            </Text>
+          )}
+          {section.expense > 0 && (
+            <Text style={[styles.sectionAmount, { color: theme.expense }]}>
+              -{Currency.format(section.expense)}
+            </Text>
+          )}
+          <Ionicons name="add-circle-outline" size={15} color={theme.tint} style={{ opacity: 0.5, marginLeft: 4 }} />
+        </View>
+      </TouchableOpacity>
+    );
+  }, [theme]);
+
+  const renderItem = useCallback(({ item, index }: { item: any; index: number }) => {
     const isExpense = item.type === 'expense';
     const iconName = CATEGORY_ICONS[item.category] || 'receipt-outline';
-    
+    const iconColor = isExpense ? theme.expense : theme.income;
+    const iconBg = isExpense ? `${theme.expense}15` : `${theme.income}15`;
+    const time = new Date(item.date || item.createdAt).toLocaleTimeString([], {
+      hour: '2-digit', minute: '2-digit', hour12: true,
+    });
+
     return (
-      <Animated.View 
-        entering={FadeInDown.delay(index * 50)}
-        layout={Layout.springify()}
+      <Animated.View
+        entering={FadeInDown.delay(Math.min(index * 30, 150)).duration(220)}
+        layout={LinearTransition.springify().damping(18)}
       >
-        <TouchableOpacity 
-          style={[styles.transactionItem, { backgroundColor: theme.card }]}
+        <TouchableOpacity
+          style={[styles.txRow, { borderBottomColor: theme.border }]}
           onPress={() => handleEdit(item)}
-          activeOpacity={0.7}
+          onLongPress={() => handleDelete(item._id)}
+          delayLongPress={500}
+          activeOpacity={0.65}
         >
-          <View style={[styles.iconContainer, { backgroundColor: isExpense ? `${theme.expense}10` : `${theme.income}10` }]}>
-            <Ionicons name={iconName} size={24} color={isExpense ? theme.expense : theme.income} />
+          {/* Category icon + label */}
+          <View style={styles.txLeft}>
+            <View style={[styles.txIconWrap, { backgroundColor: iconBg }]}>
+              <Ionicons name={iconName} size={20} color={iconColor} />
+            </View>
+            <Text style={[styles.txCatLabel, { color: theme.secondaryText }]} numberOfLines={1}>
+              {t(item.category)}
+            </Text>
           </View>
-          
-          <View style={styles.details}>
-            <ThemedText type="defaultSemiBold" style={styles.categoryName}>{t(item.category)}</ThemedText>
-            <View style={styles.userRow}>
-               <View style={styles.userBadge}>
-                    {item.userId?.profilePhoto ? (
-                        <Image source={{ uri: item.userId.profilePhoto }} style={styles.userTinyPhoto} />
-                    ) : (
-                        <View style={[styles.userInitials, { backgroundColor: theme.tint + '40' }]}>
-                            <Text style={styles.initialsText}>{(item.userId?.name || 'U').charAt(0)}</Text>
-                        </View>
-                    )}
-                    <ThemedText style={styles.userName}>{item.userId?.name || 'Unknown'}</ThemedText>
-               </View>
-               {item.note && (
-                   <View style={styles.noteIndicator}>
-                       <Ionicons name="document-text-outline" size={12} color={theme.secondaryText} />
-                   </View>
-               )}
+
+          {/* Note / title + user · time */}
+          <View style={styles.txMiddle}>
+            <Text style={[styles.txTitle, { color: theme.text }]} numberOfLines={1}>
+              {item.note || t(item.category)}
+            </Text>
+            <View style={styles.txMetaRow}>
+              {item.userId?.profilePhoto ? (
+                <Image source={{ uri: item.userId.profilePhoto }} style={styles.txUserPhoto} />
+              ) : (
+                <View style={[styles.txUserInitials, { backgroundColor: `${theme.tint}30` }]}>
+                  <Text style={[styles.txInitialsText, { color: theme.tint }]}>
+                    {(item.userId?.name || 'U').charAt(0)}
+                  </Text>
+                </View>
+              )}
+              <Text style={[styles.txMeta, { color: theme.secondaryText }]} numberOfLines={1}>
+                {item.userId?.name || 'Me'} · {time}
+              </Text>
+              {item.isRecurring && (
+                <Ionicons name="repeat-outline" size={11} color={theme.tint} style={{ opacity: 0.7 }} />
+              )}
             </View>
           </View>
 
-          <View style={styles.amountContainer}>
-            <Text style={[
-              styles.amountText,
-              { color: isExpense ? theme.expense : theme.income }
-            ]}>
-              {isExpense ? '-' : '+'}{Currency.format(item.amount)}
-            </Text>
-            <ThemedText style={styles.timeText}>
-              {new Date(item.date || item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-            </ThemedText>
-          </View>
-
-          <TouchableOpacity 
-            style={styles.actionBtn} 
-            onPress={() => handleDelete(item._id)}
-          >
-            <Ionicons name="trash-outline" size={18} color={theme.danger} style={{ opacity: 0.3 }} />
-          </TouchableOpacity>
+          {/* Amount */}
+          <Text style={[styles.txAmount, { color: isExpense ? theme.expense : theme.income }]}>
+            {isExpense ? '-' : '+'}{Currency.format(item.amount)}
+          </Text>
         </TouchableOpacity>
       </Animated.View>
     );
-  };
+  }, [theme, t, handleDelete, handleEdit]);
 
   if (loading && !refreshing) {
     return (
-      <ThemedView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.tint} />
+      <ThemedView style={styles.container}>
+        <View style={styles.header}>
+          <View style={{ width: 140, height: 24, borderRadius: 8, backgroundColor: 'rgba(150,150,150,0.1)' }} />
+        </View>
+        <View style={[styles.summaryStrip, { backgroundColor: theme.card }]}>
+          {[0, 1, 2].map(i => (
+            <View key={i} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+              <View style={{ width: 50, height: 11, borderRadius: 5, backgroundColor: 'rgba(150,150,150,0.12)' }} />
+              <View style={{ width: 72, height: 16, borderRadius: 6, backgroundColor: 'rgba(150,150,150,0.1)' }} />
+            </View>
+          ))}
+        </View>
+        <SkeletonLoader rows={6} />
       </ThemedView>
     );
   }
 
   return (
     <ThemedView style={styles.container}>
+      {/* ── Header ── */}
       <View style={styles.header}>
-        <View>
-          <ThemedText style={styles.greeting}>{t('hello')}, 👋</ThemedText>
-          <View style={styles.monthSelector}>
-            <TouchableOpacity onPress={() => changeMonth(-1)} hitSlop={15}>
-              <Ionicons name="chevron-back" size={20} color={theme.text} />
-            </TouchableOpacity>
-            <ThemedText type="title" style={styles.welcomeText}>
-              {MONTHS[currentMonth - 1]} {currentYear}
-            </ThemedText>
-            <TouchableOpacity onPress={() => changeMonth(1)} hitSlop={15}>
-              <Ionicons name="chevron-forward" size={20} color={theme.text} />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.monthSelector}>
+          <TouchableOpacity onPress={() => changeMonth(-1)} hitSlop={15}>
+            <Ionicons name="chevron-back" size={20} color={theme.text} />
+          </TouchableOpacity>
+          <ThemedText type="title" style={styles.monthText}>
+            {MONTHS[currentMonth - 1]} {currentYear}
+          </ThemedText>
+          <TouchableOpacity onPress={() => changeMonth(1)} hitSlop={15}>
+            <Ionicons name="chevron-forward" size={20} color={theme.text} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-            style={[styles.notificationBtn, { backgroundColor: theme.card }]}
+        <View style={styles.headerIcons}>
+          <TouchableOpacity
+            style={[styles.headerIconBtn, { backgroundColor: theme.card }]}
+            onPress={() => {
+              const next = !showSearch;
+              setShowSearch(next);
+              if (next) setTimeout(() => searchInputRef.current?.focus(), 60);
+              else setSearchQuery('');
+            }}
+          >
+            <Ionicons name={showSearch ? 'close' : 'search-outline'} size={19} color={theme.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.headerIconBtn, { backgroundColor: theme.card }]}
             onPress={() => setShowNotifications(true)}
-        >
-          <Ionicons name="notifications-outline" size={22} color={theme.text} />
-          {notifications.length > 0 && <View style={styles.dot} />}
-        </TouchableOpacity>
+          >
+            <Ionicons name="notifications-outline" size={19} color={theme.text} />
+            {notifications.length > 0 && <View style={styles.dot} />}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <View style={styles.searchContainer}>
-        <View style={[styles.searchBar, { backgroundColor: theme.card }]}>
-          <Ionicons name="search-outline" size={18} color={theme.secondaryText} />
+      {/* ── Summary strip ── */}
+      <View style={[styles.summaryStrip, { backgroundColor: theme.card }]}>
+        <View style={styles.summaryCol}>
+          <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>{t('income')}</Text>
+          <Text style={[styles.summaryVal, { color: theme.income }]}>{Currency.format(summary.income)}</Text>
+        </View>
+        <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
+        <View style={styles.summaryCol}>
+          <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>{t('expenses')}</Text>
+          <Text style={[styles.summaryVal, { color: theme.expense }]}>{Currency.format(summary.expense)}</Text>
+        </View>
+        <View style={[styles.summaryDivider, { backgroundColor: theme.border }]} />
+        <View style={styles.summaryCol}>
+          <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>Total</Text>
+          <Text style={[styles.summaryVal, { color: summary.balance >= 0 ? theme.income : theme.expense }]}>
+            {Currency.format(summary.balance)}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Budget bar ── */}
+      {budget && (
+        <View style={[styles.budgetBar, { backgroundColor: theme.card }]}>
+          <View style={styles.budgetBarMeta}>
+            <Text style={[styles.budgetBarLabel, { color: theme.secondaryText }]}>
+              Budget · {Math.round(budgetProgress)}%
+            </Text>
+            <Text style={[styles.budgetBarRemaining, { color: budgetProgress >= 100 ? theme.expense : theme.secondaryText }]}>
+              {Currency.format(Math.max(budget.amount - summary.expense, 0))} left
+            </Text>
+          </View>
+          <View style={[styles.budgetBarTrack, { backgroundColor: theme.border }]}>
+            <View style={[styles.budgetBarFill, {
+              width: `${budgetProgress}%` as any,
+              backgroundColor: budgetProgress >= 100 ? theme.expense : budgetProgress >= 80 ? '#F59E0B' : '#34D399',
+            }]} />
+          </View>
+        </View>
+      )}
+
+      {/* ── Budget alert banner ── */}
+      {budget && budgetProgress >= 80 && (
+        <Animated.View entering={FadeInDown} style={[styles.budgetAlert, {
+          backgroundColor: budgetProgress >= 100 ? `${theme.expense}15` : '#FEF3C715',
+        }]}>
+          <Ionicons
+            name={budgetProgress >= 100 ? 'warning' : 'alert-circle-outline'}
+            size={15}
+            color={budgetProgress >= 100 ? theme.expense : '#D97706'}
+          />
+          <ThemedText style={[styles.budgetAlertText, { color: budgetProgress >= 100 ? theme.expense : '#D97706' }]}>
+            {budgetProgress >= 100 ? t('budget_exceeded') : t('budget_warning')}
+          </ThemedText>
+        </Animated.View>
+      )}
+
+      {/* ── Search bar (collapsible) ── */}
+      {showSearch && (
+        <Animated.View entering={FadeInDown.duration(160)} style={[styles.searchBar, { backgroundColor: theme.card }]}>
+          <Ionicons name="search-outline" size={16} color={theme.secondaryText} />
           <TextInput
             ref={searchInputRef}
             placeholder={t('search_placeholder')}
@@ -333,123 +479,78 @@ export default function HomeScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-        </View>
-      </View>
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={10}>
+              <Ionicons name="close-circle" size={15} color={theme.secondaryText} />
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      )}
 
+      {/* ── Transaction list ── */}
       <SectionList
         sections={filteredSections}
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
         stickySectionHeadersEnabled={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.tint} />
-        }
-        ListHeaderComponent={
-          <>
-            <Animated.View entering={FadeInRight} style={styles.balanceOuter}>
-                <LinearGradient
-                    colors={[theme.tint, '#4F46E5']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.balanceCard}
-                >
-                    <View style={styles.cardHeader}>
-                        <View>
-                            <Text style={styles.balanceLabel}>{t('current_balance')}</Text>
-                            <Text style={styles.balanceAmount}>{Currency.format(summary.balance)}</Text>
-                        </View>
-                        <View style={styles.cardChip}>
-                            <Ionicons name="radio-outline" size={24} color="rgba(255,255,255,0.8)" />
-                        </View>
-                    </View>
-
-                    <View style={styles.summaryRow}>
-                        <View style={styles.summaryBox}>
-                            <View style={styles.incomeCircle}>
-                                <Ionicons name="arrow-down" size={14} color="#FFF" />
-                            </View>
-                            <View>
-                                <Text style={styles.boxLabel}>{t('income')}</Text>
-                                <Text style={styles.boxValue}>{Currency.format(summary.income)}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.verticalDivider} />
-                        <View style={styles.summaryBox}>
-                            <View style={styles.expenseCircle}>
-                                <Ionicons name="arrow-up" size={14} color="#FFF" />
-                            </View>
-                            <View>
-                                <Text style={styles.boxLabel}>{t('expenses')}</Text>
-                                <Text style={styles.boxValue}>{Currency.format(summary.expense)}</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    {budget && (
-                        <View style={styles.budgetSection}>
-                            <View style={styles.budgetMeta}>
-                                <Text style={styles.budgetTitle}>Monthly Limit</Text>
-                                <Text style={styles.budgetPercent}>{Math.round(budgetProgress)}%</Text>
-                            </View>
-                            <View style={styles.progressBar}>
-                                <View style={[styles.progressFill, { width: `${budgetProgress}%`, backgroundColor: budgetProgress > 90 ? '#FB7185' : '#34D399' }]} />
-                            </View>
-                        </View>
-                    )}
-                </LinearGradient>
-            </Animated.View>
-
-            <View style={styles.historyHeader}>
-              <ThemedText type="defaultSemiBold" style={styles.historyTitle}>{t('recent_activity')}</ThemedText>
-              <TouchableOpacity onPress={() => searchInputRef.current?.focus()}>
-                  <ThemedText style={{ color: theme.tint, fontWeight: '700', fontSize: 13 }}>{t('see_all')}</ThemedText>
-              </TouchableOpacity>
-            </View>
-          </>
-        }
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        initialNumToRender={12}
+        removeClippedSubviews
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.tint} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="receipt-outline" size={48} color={theme.secondaryText} style={{ opacity: 0.2, marginBottom: 12 }} />
+            <Ionicons name="receipt-outline" size={48} color={theme.secondaryText} style={{ opacity: 0.15, marginBottom: 12 }} />
             <ThemedText style={styles.emptyText}>{t('no_transactions')}</ThemedText>
           </View>
         }
       />
 
+      {/* ── FAB ── */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.tint }]}
+        onPress={() => router.push('/(tabs)/add')}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={28} color="#FFF" />
+      </TouchableOpacity>
+
+      {/* ── Notifications modal ── */}
       <Modal visible={showNotifications} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-            <Animated.View entering={FadeInDown} style={[styles.notificationCard, { backgroundColor: theme.card }]}>
-                <View style={styles.modalHeader}>
-                    <ThemedText type="subtitle">Notifications</ThemedText>
-                    <TouchableOpacity onPress={() => setShowNotifications(false)} style={styles.closeBtn}>
-                        <Ionicons name="close" size={24} color={theme.text} />
-                    </TouchableOpacity>
+          <Animated.View entering={FadeInDown} style={[styles.notificationCard, { backgroundColor: theme.card }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="subtitle">Notifications</ThemedText>
+              <TouchableOpacity onPress={() => setShowNotifications(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={theme.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {notifications.length === 0 ? (
+                <View style={styles.emptyNotifications}>
+                  <Ionicons name="notifications-off-outline" size={56} color={theme.icon} style={{ opacity: 0.1 }} />
+                  <ThemedText style={{ opacity: 0.4, marginTop: 16 }}>Everything caught up!</ThemedText>
                 </View>
-                
-                <ScrollView showsVerticalScrollIndicator={false}>
-                    {notifications.length === 0 ? (
-                        <View style={styles.emptyNotifications}>
-                            <Ionicons name="notifications-off-outline" size={56} color={theme.icon} style={{ opacity: 0.1 }} />
-                            <ThemedText style={{ opacity: 0.4, marginTop: 16 }}>Everything caught up!</ThemedText>
-                        </View>
-                    ) : (
-                        notifications.map((notif) => (
-                            <TouchableOpacity key={notif.id} style={[styles.notifItem, { borderBottomColor: theme.border }]}>
-                                <View style={[styles.notifIcon, { backgroundColor: notif.type === 'income' ? `${theme.income}20` : `${theme.expense}20` }]}>
-                                    <Ionicons name={notif.type === 'income' ? 'arrow-down' : 'arrow-up'} size={18} color={notif.type === 'income' ? theme.income : theme.expense} />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <ThemedText type="defaultSemiBold">{notif.title}</ThemedText>
-                                    <ThemedText style={styles.notifMessage}>{notif.message}</ThemedText>
-                                    <ThemedText style={styles.notifTime}>{notif.time}</ThemedText>
-                                </View>
-                            </TouchableOpacity>
-                        ))
-                    )}
-                </ScrollView>
-            </Animated.View>
+              ) : (
+                notifications.map((notif) => (
+                  <TouchableOpacity key={notif.id} style={[styles.notifItem, { borderBottomColor: theme.border }]}>
+                    <View style={[styles.notifIcon, { backgroundColor: notif.type === 'income' ? `${theme.income}20` : `${theme.expense}20` }]}>
+                      <Ionicons name={notif.type === 'income' ? 'arrow-down' : 'arrow-up'} size={18} color={notif.type === 'income' ? theme.income : theme.expense} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText type="defaultSemiBold">{notif.title}</ThemedText>
+                      <ThemedText style={styles.notifMessage}>{notif.message}</ThemedText>
+                      <ThemedText style={styles.notifTime}>{notif.time}</ThemedText>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </Animated.View>
         </View>
       </Modal>
     </ThemedView>
@@ -461,297 +562,267 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  greeting: {
-    fontSize: 13,
-    opacity: 0.5,
-    fontWeight: '500',
+    marginBottom: 14,
   },
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 2,
   },
-  welcomeText: {
+  monthText: {
     fontSize: 18,
     fontWeight: '800',
   },
-  notificationBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+  headerIcons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 2,
   },
   dot: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 9,
+    right: 9,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#FF3B30',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: '#FFFFFF',
   },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+  // Summary strip
+  summaryStrip: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    borderRadius: 18,
+    paddingVertical: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 3,
   },
+  summaryCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  summaryVal: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  summaryDivider: {
+    width: 1,
+    height: '55%',
+    alignSelf: 'center',
+  },
+  // Budget bar
+  budgetBar: {
+    marginHorizontal: 20,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  budgetBarMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 7,
+  },
+  budgetBarLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  budgetBarRemaining: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  budgetBarTrack: {
+    height: 5,
+    borderRadius: 2.5,
+    overflow: 'hidden',
+  },
+  budgetBarFill: {
+    height: '100%',
+    borderRadius: 2.5,
+  },
+  // Budget alert
+  budgetAlert: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  budgetAlertText: {
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+  // Search bar
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    gap: 12,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    height: 42,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
   },
-  balanceOuter: {
-    marginHorizontal: 20,
-    marginBottom: 25,
-    borderRadius: 28,
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 12,
+  listContent: {
+    paddingBottom: 120,
   },
-  balanceCard: {
-    padding: 24,
-    borderRadius: 28,
-    overflow: 'hidden',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  balanceLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  balanceAmount: {
-    color: '#FFF',
-    fontSize: 32,
-    fontWeight: '900',
-    marginTop: 6,
-  },
-  cardChip: {
-    opacity: 0.6,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 22,
-    marginTop: 24,
-    padding: 16,
-    alignItems: 'center',
-  },
-  summaryBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  verticalDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    marginHorizontal: 4,
-  },
-  incomeCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(52, 211, 153, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  expenseCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(244, 63, 94, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  boxLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  boxValue: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  budgetSection: {
-    marginTop: 20,
-  },
-  budgetMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  budgetTitle: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  budgetPercent: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  historyTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
+  // Section header (tappable date row)
   sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: 'transparent',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  sectionHeaderText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#94A3B8',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  listContent: {
-    paddingBottom: 100,
-  },
-  transactionItem: {
-    marginHorizontal: 20,
+  sectionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
-    elevation: 2,
+    gap: 10,
   },
-  iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
+  sectionDayNum: {
+    fontSize: 30,
+    fontWeight: '900',
+    lineHeight: 36,
+    minWidth: 40,
   },
-  details: {
-    flex: 1,
+  sectionDayBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 3,
+    alignSelf: 'flex-start',
   },
-  categoryName: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2,
+  sectionDayName: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
-  userRow: {
+  sectionMonthYr: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  sectionRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  userBadge: {
+  sectionAmount: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  // Transaction row
+  txRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(150,150,150,0.05)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  userTinyPhoto: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+  txLeft: {
+    alignItems: 'center',
+    width: 60,
+    marginRight: 12,
   },
-  userInitials: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+  txIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  txCatLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  txMiddle: {
+    flex: 1,
+    marginRight: 10,
+  },
+  txTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  txMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  txUserPhoto: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  txUserInitials: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  initialsText: {
-    fontSize: 9,
+  txInitialsText: {
+    fontSize: 8,
     fontWeight: '800',
-    color: '#FFF',
   },
-  userName: {
+  txMeta: {
     fontSize: 11,
-    fontWeight: '600',
-    opacity: 0.6,
+    fontWeight: '500',
+    flex: 1,
   },
-  noteIndicator: {
-    opacity: 0.4,
-  },
-  amountContainer: {
-    alignItems: 'flex-end',
-    marginRight: 4,
-  },
-  amountText: {
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  timeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    opacity: 0.4,
-    marginTop: 2,
-  },
-  actionBtn: {
-    padding: 6,
+  txAmount: {
+    fontSize: 15,
+    fontWeight: '800',
+    textAlign: 'right',
+    minWidth: 68,
   },
   emptyContainer: {
-    marginTop: 40,
+    marginTop: 60,
     alignItems: 'center',
   },
   emptyText: {
@@ -759,6 +830,24 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     fontWeight: '600',
   },
+  // FAB
+  fab: {
+    position: 'absolute',
+    bottom: 104,
+    right: 22,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.38,
+    shadowRadius: 14,
+    elevation: 10,
+    zIndex: 100,
+  },
+  // Notifications modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -780,7 +869,6 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   emptyNotifications: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 100,

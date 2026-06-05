@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,13 +11,20 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolateColor,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Colors, Currency } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { addTransaction } from '@/src/services/transactionApi';
 import { getCurrentGroup, Category } from '@/src/services/groupApi';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +44,22 @@ export default function AddTransactionScreen() {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+
+  const { prefillDate } = useLocalSearchParams<{ prefillDate?: string }>();
+  const amountInputRef = useRef<TextInput>(null);
+  const toggleAnim = useSharedValue(0);
+
+  // When navigated from a date header, pre-fill the date field
+  useEffect(() => {
+    if (prefillDate) {
+      const d = new Date(prefillDate as string);
+      const now = new Date();
+      d.setHours(now.getHours(), now.getMinutes(), 0, 0);
+      setDate(d);
+    }
+  }, [prefillDate]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -53,8 +76,19 @@ export default function AddTransactionScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchCategories();
+      // Auto-focus the amount field after a brief layout settle
+      const timer = setTimeout(() => amountInputRef.current?.focus(), 300);
+      return () => clearTimeout(timer);
     }, [fetchCategories])
   );
+
+  const toggleKnobStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: withSpring(toggleAnim.value * 18 + 2, { damping: 15, stiffness: 200 }) }],
+  }));
+
+  const toggleBgStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(toggleAnim.value, [0, 1], ['rgba(150,150,150,0.2)', '#6366F1']),
+  }));
 
   const dropdownData = categories
     .filter(cat => cat.type === type || cat.type === 'both' || !cat.type)
@@ -65,8 +99,16 @@ export default function AddTransactionScreen() {
     }));
 
   const handleTypeChange = (newType: 'income' | 'expense') => {
-      setType(newType);
-      setCategory(null); // Reset category when switching between income/expense
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setType(newType);
+    setCategory(null);
+  };
+
+  const handleToggleRecurring = () => {
+    const next = !isRecurring;
+    toggleAnim.value = next ? 1 : 0;
+    setIsRecurring(next);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
@@ -112,22 +154,26 @@ export default function AddTransactionScreen() {
 
     setLoading(true);
     try {
-      const data = {
+      const data: any = {
         amount: parseFloat(amount),
         type,
         category,
         note,
         date: date.toISOString(),
+        isRecurring,
+        recurrenceFrequency: isRecurring ? recurrenceFrequency : null,
       };
       await addTransaction(data);
-      Alert.alert('Success', 'Transaction saved successfully!', [
-        { text: 'Great', onPress: () => router.replace('/(tabs)') }
-      ]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setAmount('');
       setCategory(null);
       setNote('');
       setDate(new Date());
+      toggleAnim.value = 0;
+      setIsRecurring(false);
+      router.replace('/(tabs)');
     } catch (error: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const errorMsg = error.msg || error.message || error.toString() || 'Failed to add transaction';
       Alert.alert('Error', errorMsg);
     } finally {
@@ -175,12 +221,14 @@ export default function AddTransactionScreen() {
             <View style={[styles.amountWrapper, { backgroundColor: 'rgba(150, 150, 150, 0.05)', borderColor: theme.border }]}>
               <Text style={[styles.currencySymbol, { color: theme.text }]}>{Currency.symbol}</Text>
               <TextInput
+                ref={amountInputRef}
                 style={[styles.amountInput, { color: theme.text }]}
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
                 placeholder="0.00"
                 placeholderTextColor="#A0A0A0"
                 value={amount}
                 onChangeText={setAmount}
+                returnKeyType="done"
               />
             </View>
           </View>
@@ -255,6 +303,42 @@ export default function AddTransactionScreen() {
               value={note}
               onChangeText={setNote}
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <View style={styles.recurringRow}>
+              <View>
+                <ThemedText style={styles.label}>Recurring</ThemedText>
+                <ThemedText style={styles.recurringHint}>Auto-repeat this transaction</ThemedText>
+              </View>
+              <TouchableOpacity onPress={handleToggleRecurring} activeOpacity={0.9}>
+                <Animated.View style={[styles.toggle, toggleBgStyle]}>
+                  <Animated.View style={[styles.toggleKnob, toggleKnobStyle]} />
+                </Animated.View>
+              </TouchableOpacity>
+            </View>
+
+            {isRecurring && (
+              <View style={[styles.frequencyRow, { backgroundColor: 'rgba(150,150,150,0.08)', borderColor: theme.border }]}>
+                {(['daily', 'weekly', 'monthly'] as const).map(freq => (
+                  <TouchableOpacity
+                    key={freq}
+                    style={[
+                      styles.freqBtn,
+                      recurrenceFrequency === freq && { backgroundColor: theme.tint }
+                    ]}
+                    onPress={() => setRecurrenceFrequency(freq)}
+                  >
+                    <Text style={[
+                      styles.freqText,
+                      { color: recurrenceFrequency === freq ? '#FFF' : theme.text }
+                    ]}>
+                      {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
 
           <TouchableOpacity
@@ -402,5 +486,49 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 18,
     fontWeight: '800',
+  },
+  recurringRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  recurringHint: {
+    fontSize: 12,
+    opacity: 0.5,
+    marginTop: 2,
+  },
+  toggle: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+  },
+  toggleKnob: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  frequencyRow: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    padding: 4,
+    borderWidth: 1,
+    gap: 4,
+  },
+  freqBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  freqText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

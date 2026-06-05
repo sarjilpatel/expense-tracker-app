@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import socketService from '../services/socketService';
+import socketService from '../services/socketService';
+import { requestNotificationPermissions } from '../services/notificationService';
 
 export interface User {
   _id: string;
@@ -47,10 +48,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Handle Socket connection lifecycle
-  /* 
   useEffect(() => {
     if (user && token) {
-      socketService.connect();
+      socketService.connect(token);
       if (user.groupId) {
         socketService.joinGroup(user.groupId.toString());
       }
@@ -58,7 +58,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       socketService.disconnect();
     }
   }, [user, token, loading]);
-  */
 
   const login = async (newToken: string, newUser: User) => {
     try {
@@ -66,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.setItem('user', JSON.stringify(newUser));
       setToken(newToken);
       setUser(newUser);
+      requestNotificationPermissions();
     } catch (error) {
       console.error('Error during login storage:', error);
     }
