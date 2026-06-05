@@ -1,0 +1,86 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors, Currency } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+
+interface Props {
+  label: string;
+  current: number;
+  previous: number;
+  color: string;
+  icon: string;
+}
+
+export function ComparisonCard({ label, current, previous, color, icon }: Props) {
+  const theme = Colors[useColorScheme() || 'light'];
+  const change = previous > 0 ? ((current - previous) / previous) * 100 : null;
+  const isUp = change !== null && change > 0;
+
+  return (
+    <View style={[styles.card, { backgroundColor: theme.card }]}>
+      <View style={[styles.icon, { backgroundColor: `${color}15` }]}>
+        <Ionicons name={icon as any} size={18} color={color} />
+      </View>
+      <ThemedText style={styles.label}>{label}</ThemedText>
+      <Text style={[styles.value, { color }]}>{Currency.format(current)}</Text>
+      {change !== null && (
+        <View style={[styles.badge, { backgroundColor: isUp ? `${color}15` : '#10B98115' }]}>
+          <Ionicons name={isUp ? 'arrow-up' : 'arrow-down'} size={10} color={isUp ? color : '#10B981'} />
+          <Text style={{ color: isUp ? color : '#10B981', fontSize: 10, fontWeight: '700' }}>
+            {Math.abs(change).toFixed(1)}%
+          </Text>
+        </View>
+      )}
+      <ThemedText style={styles.sub}>vs last month</ThemedText>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    flex: 1,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  icon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    opacity: 0.5,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  sub: {
+    fontSize: 10,
+    opacity: 0.4,
+  },
+});

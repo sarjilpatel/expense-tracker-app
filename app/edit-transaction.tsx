@@ -1,49 +1,43 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
+  View, TextInput, TouchableOpacity, ScrollView,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text,
 } from 'react-native';
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Dropdown } from 'react-native-element-dropdown';
+import { router, useLocalSearchParams } from 'expo-router';
+
 import { Colors, Currency } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useLanguage } from '@/src/i18n/LanguageContext';
 import { updateTransaction } from '@/src/services/transactionApi';
 import { getCurrentGroup, Category } from '@/src/services/groupApi';
-import { router, useLocalSearchParams } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
-import { useLanguage } from '@/src/i18n/LanguageContext';
+
+import { TypeSelector } from '@/components/transaction/TypeSelector';
+import { AmountInput } from '@/components/transaction/AmountInput';
+import { DateTimeField } from '@/components/transaction/DateTimeField';
+import { CategoryDropdown } from '@/components/transaction/CategoryDropdown';
 
 export default function EditTransactionScreen() {
   const { t } = useLanguage();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme || 'light'];
-  
-  const params = useLocalSearchParams();
-  const txId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const initialCategory = Array.isArray(params.category) ? params.category[0] : params.category;
-  const initialAmount = Array.isArray(params.amount) ? params.amount[0] : params.amount;
-  const initialType = Array.isArray(params.type) ? params.type[0] : params.type;
-  const initialNote = Array.isArray(params.note) ? params.note[0] : params.note;
-  const initialDate = Array.isArray(params.date) ? params.date[0] : params.date;
 
-  const [amount, setAmount] = useState(initialAmount || '');
-  const [type, setType] = useState<'income' | 'expense'>((initialType as any) || 'expense');
+  const params = useLocalSearchParams();
+  const txId           = Array.isArray(params.id)       ? params.id[0]       : params.id;
+  const initialCategory= Array.isArray(params.category) ? params.category[0] : params.category;
+  const initialAmount  = Array.isArray(params.amount)   ? params.amount[0]   : params.amount;
+  const initialType    = Array.isArray(params.type)     ? params.type[0]     : params.type;
+  const initialNote    = Array.isArray(params.note)     ? params.note[0]     : params.note;
+  const initialDate    = Array.isArray(params.date)     ? params.date[0]     : params.date;
+
+  const [amount, setAmount]     = useState(initialAmount  || '');
+  const [type, setType]         = useState<'income' | 'expense'>((initialType as any) || 'expense');
   const [category, setCategory] = useState<string | null>(initialCategory || null);
-  const [note, setNote] = useState(initialNote || '');
-  const [date, setDate] = useState(initialDate ? new Date(initialDate) : new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  
-  const [loading, setLoading] = useState(false);
+  const [note, setNote]         = useState(initialNote    || '');
+  const [date, setDate]         = useState(initialDate ? new Date(initialDate) : new Date());
+  const [loading, setLoading]   = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [fetching, setFetching] = useState(true);
 
@@ -51,216 +45,108 @@ export default function EditTransactionScreen() {
     try {
       const groupData = await getCurrentGroup();
       setCategories(groupData.categories || []);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
     } finally {
       setFetching(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-        if (selectedDate) setDate(selectedDate);
-    } else {
-        setShowDatePicker(false);
-        if (selectedDate) setDate(selectedDate);
-    }
-  };
-
-  const showPicker = () => {
-    if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({
-        value: date,
-        onChange: (event, selectedDate) => {
-          if (selectedDate) {
-            // After date is picked, show time picker
-            DateTimePickerAndroid.open({
-              value: selectedDate,
-              onChange: (e, selectedTime) => {
-                if (selectedTime) setDate(selectedTime);
-              },
-              mode: 'time',
-              is24Hour: true,
-            });
-          }
-        },
-        mode: 'date',
-        is24Hour: true,
-      });
-    } else {
-      setShowDatePicker(true);
-    }
-  };
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
   const dropdownData = categories
-    .filter(cat => cat.type === type || cat.type === 'both' || !cat.type)
-    .map(cat => ({ 
-      label: t(cat.name), 
-      value: cat.name,
-      icon: cat.icon
-    }));
+    .filter(c => c.type === type || c.type === 'both' || !c.type)
+    .map(c => ({ label: t(c.name), value: c.name, icon: c.icon }));
 
-  const handleTypeChange = (newType: 'income' | 'expense') => {
-      setType(newType);
-      setCategory(null);
-  };
-
+  // Keep the old category visible even if it no longer exists in the list
   const finalDropdownData = [...dropdownData];
   if (category && !dropdownData.find(d => d.value === category)) {
-      finalDropdownData.unshift({
-          label: t(category) + ' (Old)',
-          value: category,
-          icon: 'alert-circle-outline'
-      });
+    finalDropdownData.unshift({ label: `${t(category)} (Old)`, value: category, icon: 'alert-circle-outline' });
   }
+
+  const handleTypeChange = (newType: 'income' | 'expense') => {
+    setType(newType);
+    setCategory(null);
+  };
 
   const handleSubmit = async () => {
     if (!amount || !category) {
       Alert.alert(t('missing_info') || 'Missing Information', 'Please provide an amount and select a category.');
       return;
     }
-
     setLoading(true);
     try {
-      const data = {
-        amount: parseFloat(amount),
-        type,
-        category,
-        note,
-        date: date.toISOString(),
-      };
-      await updateTransaction(txId as string, data);
-      Alert.alert('Success', 'Transaction updated successfully!', [
-        { text: 'Great', onPress: () => router.back() }
-      ]);
+      await updateTransaction(txId as string, { amount: parseFloat(amount), type, category, note, date: date.toISOString() });
+      Alert.alert('Success', 'Transaction updated successfully!', [{ text: 'Great', onPress: () => router.back() }]);
     } catch (error: any) {
-      const errorMsg = error.msg || error.message || error.toString() || 'Failed to update transaction';
-      Alert.alert('Error', errorMsg);
+      Alert.alert('Error', error.msg || error.message || 'Failed to update transaction');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ThemedView style={styles.container}>
         <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                <Ionicons name="close" size={28} color={theme.text} />
-            </TouchableOpacity>
-            <ThemedText type="subtitle">{t('edit_record')}</ThemedText>
-            <View style={{ width: 28 }} />
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="close" size={28} color={theme.text} />
+          </TouchableOpacity>
+          <ThemedText type="subtitle">{t('edit_record')}</ThemedText>
+          <View style={{ width: 28 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {fetching ? (
-              <ActivityIndicator size="small" color={theme.tint} />
+            <ActivityIndicator size="small" color={theme.tint} />
           ) : (
             <>
-              <View style={[styles.typeSelector, { backgroundColor: 'rgba(150, 150, 150, 0.1)' }]}>
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    type === 'expense' && { backgroundColor: theme.expense }
-                  ]}
-                  onPress={() => handleTypeChange('expense')}
-                >
-                  <Ionicons name="arrow-up-circle" size={20} color={type === 'expense' ? '#FFF' : theme.expense} />
-                  <Text style={[styles.typeText, type === 'expense' && styles.activeTypeText]}>{t('expenses')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    type === 'income' && { backgroundColor: theme.income }
-                  ]}
-                  onPress={() => handleTypeChange('income')}
-                >
-                  <Ionicons name="arrow-down-circle" size={20} color={type === 'income' ? '#FFF' : theme.income} />
-                  <Text style={[styles.typeText, type === 'income' && styles.activeTypeText]}>{t('income')}</Text>
-                </TouchableOpacity>
-              </View>
+              <TypeSelector
+                type={type}
+                onChange={handleTypeChange}
+                incomeLabel={t('income')}
+                expenseLabel={t('expenses')}
+                incomeColor={theme.income}
+                expenseColor={theme.expense}
+              />
 
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label}>{t('amount')}</ThemedText>
-                <View style={[styles.amountWrapper, { backgroundColor: 'rgba(150, 150, 150, 0.05)', borderColor: theme.border }]}>
-                  <Text style={[styles.currencySymbol, { color: theme.text }]}>{Currency.symbol}</Text>
-                  <TextInput
-                    style={[styles.amountInput, { color: theme.text }]}
-                    keyboardType="numeric"
-                    placeholder="0.00"
-                    placeholderTextColor="#A0A0A0"
-                    value={amount}
-                    onChangeText={setAmount}
-                  />
-                </View>
+                <AmountInput
+                  value={amount}
+                  onChangeText={setAmount}
+                  textColor={theme.text}
+                  borderColor={theme.border}
+                />
               </View>
 
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label}>{t('category')}</ThemedText>
-                <Dropdown
-                  style={[styles.dropdown, { backgroundColor: 'rgba(150, 150, 150, 0.05)', borderColor: theme.border }]}
-                  placeholderStyle={styles.placeholderStyle}
-                  selectedTextStyle={[styles.selectedTextStyle, { color: theme.text }]}
-                  itemTextStyle={{ color: theme.text }}
-                  containerStyle={{ backgroundColor: theme.card, borderRadius: 12 }}
-                  activeColor={`${theme.tint}20`}
+                <CategoryDropdown
                   data={finalDropdownData}
-                  maxHeight={300}
-                  labelField="label"
-                  valueField="value"
-                  placeholder="Select Category"
-                  search
-                  searchPlaceholder="Search..."
                   value={category}
-                  onChange={item => setCategory(item.value)}
-                  renderLeftIcon={() => (
-                    <View style={styles.dropdownIcon}>
-                        <Ionicons name="grid-outline" size={20} color={theme.tint} />
-                    </View>
-                  )}
+                  onChange={setCategory}
+                  tintColor={theme.tint}
+                  textColor={theme.text}
+                  cardColor={theme.card}
+                  borderColor={theme.border}
                 />
               </View>
 
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label}>Date & Time</ThemedText>
-                <TouchableOpacity 
-                    style={[styles.datePickerBtn, { backgroundColor: 'rgba(150, 150, 150, 0.05)', borderColor: theme.border }]}
-                    onPress={showPicker}
-                >
-                    <Ionicons name="calendar-outline" size={20} color={theme.tint} />
-                    <ThemedText style={styles.dateText}>
-                        {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </ThemedText>
-                </TouchableOpacity>
-
-                {Platform.OS === 'ios' && showDatePicker && (
-                    <DateTimePicker
-                        value={date}
-                        mode="datetime"
-                        is24Hour={true}
-                        onChange={onDateChange}
-                    />
-                )}
+                <DateTimeField
+                  value={date}
+                  onChange={setDate}
+                  tintColor={theme.tint}
+                  borderColor={theme.border}
+                />
               </View>
 
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label}>{t('note')}</ThemedText>
                 <TextInput
-                  style={[
-                    styles.noteInput,
-                    { 
-                      color: theme.text, 
-                      backgroundColor: 'rgba(150, 150, 150, 0.05)',
-                      borderColor: theme.border 
-                    }
-                  ]}
+                  style={[styles.noteInput, { color: theme.text, backgroundColor: 'rgba(150,150,150,0.05)', borderColor: theme.border }]}
                   placeholder="Enter details..."
                   placeholderTextColor="#A0A0A0"
                   multiline
@@ -271,16 +157,14 @@ export default function EditTransactionScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.submitButton, { backgroundColor: theme.tint }, loading && { opacity: 0.7 }]}
+                style={[styles.submitBtn, { backgroundColor: theme.tint }, loading && { opacity: 0.7 }]}
                 onPress={handleSubmit}
                 disabled={loading}
               >
-                {loading ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <View style={styles.submitContainer}>
+                {loading ? <ActivityIndicator color="#FFF" /> : (
+                  <View style={styles.submitRow}>
                     <Ionicons name="save-outline" size={24} color="#FFF" />
-                    <Text style={styles.submitButtonText}>{t('update')}</Text>
+                    <Text style={styles.submitText}>{t('update')}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -293,135 +177,14 @@ export default function EditTransactionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 60,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollContent: {
-    padding: 24,
-  },
-  typeSelector: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    padding: 6,
-    marginBottom: 32,
-  },
-  typeButton: {
-    flex: 1,
-    height: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    gap: 8,
-  },
-  typeText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#8E8E93',
-  },
-  activeTypeText: {
-    color: '#FFF',
-  },
-  inputGroup: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10,
-    opacity: 0.8,
-  },
-  amountWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 72,
-    borderRadius: 18,
-    paddingHorizontal: 20,
-    borderWidth: 1,
-  },
-  currencySymbol: {
-    fontSize: 28,
-    fontWeight: '600',
-    marginRight: 12,
-  },
-  amountInput: {
-    flex: 1,
-    fontSize: 32,
-    fontWeight: '700',
-  },
-  dropdown: {
-    height: 56,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-  },
-  placeholderStyle: {
-    fontSize: 16,
-    color: '#A0A0A0',
-  },
-  selectedTextStyle: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  dropdownIcon: {
-    marginRight: 12,
-  },
-  datePickerBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      height: 56,
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      borderWidth: 1,
-      gap: 12,
-  },
-  dateText: {
-      fontSize: 16,
-      fontWeight: '500',
-  },
-  noteInput: {
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 16,
-    height: 120,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-  },
-  submitButton: {
-    height: 60,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-    shadowColor: '#5856D6',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  submitContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  submitButtonText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '800',
-  },
+  container:   { flex: 1, paddingTop: 60 },
+  topBar:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 20 },
+  backBtn:     { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  scrollContent: { padding: 24 },
+  inputGroup:  { marginBottom: 24 },
+  label:       { fontSize: 14, fontWeight: '600', marginBottom: 10, opacity: 0.8 },
+  noteInput:   { borderRadius: 16, padding: 16, fontSize: 16, height: 120, textAlignVertical: 'top', borderWidth: 1 },
+  submitBtn:   { height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 12, shadowColor: '#5856D6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
+  submitRow:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  submitText:  { color: '#FFF', fontSize: 18, fontWeight: '800' },
 });

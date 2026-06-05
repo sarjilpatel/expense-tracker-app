@@ -1,0 +1,65 @@
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors, Currency } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+
+interface Props {
+  category: string;
+  amount: number;
+  percentage: number;
+  color: string;
+  rank: number;
+}
+
+export function CategoryBar({ category, amount, percentage, color, rank }: Props) {
+  const theme = Colors[useColorScheme() || 'light'];
+  const pct = Math.min(Number(percentage) || 0, 100);
+  const barW = useSharedValue(0);
+
+  useEffect(() => {
+    barW.value = withTiming(pct / 100, { duration: 900, easing: Easing.out(Easing.cubic) });
+  }, [pct]);
+
+  const barStyle = useAnimatedStyle(() => ({
+    width: `${barW.value * 100}%` as any,
+  }));
+
+  return (
+    <Animated.View entering={FadeInDown.delay(rank * 60).duration(300)} style={styles.item}>
+      <View style={styles.top}>
+        <View style={styles.left}>
+          <View style={[styles.dot, { backgroundColor: color }]} />
+          <ThemedText style={styles.name}>{category}</ThemedText>
+        </View>
+        <View style={styles.right}>
+          <Text style={[styles.pct, { color }]}>{Math.round(pct)}%</Text>
+          <ThemedText style={styles.amt}>{Currency.format(amount)}</ThemedText>
+        </View>
+      </View>
+      <View style={[styles.track, { backgroundColor: `${color}20` }]}>
+        <Animated.View style={[styles.fill, { backgroundColor: color }, barStyle]} />
+      </View>
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  item: { gap: 6 },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  left: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  name: { fontSize: 14, fontWeight: '600', flex: 1 },
+  right: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pct: { fontSize: 12, fontWeight: '800' },
+  amt: { fontSize: 13, fontWeight: '700', minWidth: 80, textAlign: 'right' },
+  track: { height: 7, borderRadius: 4, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 4 },
+});

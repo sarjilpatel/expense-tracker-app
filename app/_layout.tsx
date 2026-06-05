@@ -4,6 +4,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
@@ -86,13 +87,15 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <ErrorBoundary>
-      <LanguageProvider>
-        <AuthProvider>
-          <RootLayoutNav />
-        </AuthProvider>
-      </LanguageProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <LanguageProvider>
+          <AuthProvider>
+            <RootLayoutNav />
+          </AuthProvider>
+        </LanguageProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
 
