@@ -13,14 +13,14 @@ import {
   UIManager,
   Modal,
 } from 'react-native';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getCurrentGroup, addCategory, removeCategory, setupWeddingPreset, Category } from '@/src/services/groupApi';
-import { getBudgets, setBudget, deleteBudget } from '@/src/services/budgetApi';
+
+import { useTheme } from '@/src/context/ThemeContext';
+import { getCurrentGroup, addCategory, removeCategory, getBudgets, setBudget, deleteBudget } from '@/src/services/dataService';
+import type { Category } from '@/src/services/dataService';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useLanguage } from '@/src/i18n/LanguageContext';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -32,14 +32,16 @@ type CategoryType = 'income' | 'expense' | 'both';
 
 export default function ManageCategoriesScreen() {
   const { t } = useLanguage();
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme || 'light'];
+  const { theme } = useTheme();
   const router = useRouter();
+  const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [selectedType, setSelectedType] = useState<CategoryType>('expense');
+  const [selectedType, setSelectedType] = useState<CategoryType>(
+    (typeParam === 'income' || typeParam === 'both') ? typeParam : 'expense'
+  );
   const [isAdding, setIsAdding] = useState(false);
 
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
@@ -116,16 +118,6 @@ export default function ManageCategoriesScreen() {
     );
   };
 
-  const handleApplyWeddingPreset = async () => {
-    try {
-      const updatedCategories = await setupWeddingPreset();
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
-      setCategories(updatedCategories);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to apply wedding preset');
-    }
-  };
-
   const openBudgetModal = (categoryName: string) => {
     setBudgetCategory(categoryName);
     const existing = categoryBudgets[categoryName];
@@ -171,11 +163,11 @@ export default function ManageCategoriesScreen() {
   const getTypeBadge = (type?: string) => {
     switch (type) {
         case 'income':
-            return { label: 'Income', color: theme.income, bg: `${theme.income}15` };
+            return { label: 'Income', color: '#FFF', bg: theme.income };
         case 'both':
-            return { label: 'Universal', color: theme.tint, bg: `${theme.tint}15` };
+            return { label: 'Universal', color: '#FFF', bg: theme.tint };
         default:
-            return { label: 'Expense', color: theme.expense, bg: `${theme.expense}15` };
+            return { label: 'Expense', color: '#FFF', bg: theme.expense };
     }
   };
 
@@ -201,7 +193,7 @@ export default function ManageCategoriesScreen() {
         <View style={styles.section}>
           <ThemedText style={styles.label}>{t('add_new_category')}</ThemedText>
           
-          <View style={[styles.typeToggleContainer, { backgroundColor: 'rgba(150, 150, 150, 0.1)' }]}>
+          <View style={[styles.typeToggleContainer, { backgroundColor: theme.cardAlt ?? theme.border }]}>
             {(['expense', 'income', 'both'] as CategoryType[]).map((type) => (
                 <TouchableOpacity
                     key={type}
@@ -223,7 +215,7 @@ export default function ManageCategoriesScreen() {
 
           <View style={styles.addInputRow}>
             <TextInput
-              style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: 'rgba(150,150,150,0.05)' }]}
+              style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
               placeholder="e.g. Bonus, Grocery..."
               placeholderTextColor="#A0A0A0"
               value={newCategoryName}
@@ -242,8 +234,8 @@ export default function ManageCategoriesScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
               <ThemedText style={styles.label}>{selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Categories</ThemedText>
-              <View style={[styles.countBadge, { backgroundColor: theme.tint + '20' }]}>
-                  <Text style={{ color: theme.tint, fontSize: 12, fontWeight: '800' }}>
+              <View style={[styles.countBadge, { backgroundColor: theme.tint }]}>
+                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>
                       {categories.filter(c => selectedType === 'both' ? true : (c.type === selectedType || c.type === 'both' || !c.type)).length}
                   </Text>
               </View>
@@ -273,8 +265,8 @@ export default function ManageCategoriesScreen() {
                         <Text style={[styles.typeBadgeText, { color: badge.color }]}>{badge.label}</Text>
                       </View>
                       {categoryBudgets[item.name] && (
-                        <View style={[styles.typeBadge, { backgroundColor: `${theme.tint}15` }]}>
-                          <Text style={[styles.typeBadgeText, { color: theme.tint }]}>
+                        <View style={[styles.typeBadge, { backgroundColor: theme.tint }]}>
+                          <Text style={[styles.typeBadgeText, { color: '#FFF' }]}>
                             ₹{categoryBudgets[item.name].amount}
                           </Text>
                         </View>
@@ -284,13 +276,13 @@ export default function ManageCategoriesScreen() {
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <TouchableOpacity onPress={() => openBudgetModal(item.name)} hitSlop={10}>
-                    <Ionicons name="wallet-outline" size={20} color={theme.tint} style={{ opacity: 0.7 }} />
+                    <Ionicons name="wallet-outline" size={20} color={theme.tint} />
                   </TouchableOpacity>
                   <TouchableOpacity
                       onPress={() => handleRemoveCategory(item._id, item.name)}
                       hitSlop={10}
                   >
-                    <Ionicons name="trash-outline" size={20} color={theme.danger} style={{ opacity: 0.4 }} />
+                    <Ionicons name="trash-outline" size={20} color={theme.danger} />
                   </TouchableOpacity>
                 </View>
               </Animated.View>
@@ -310,19 +302,6 @@ export default function ManageCategoriesScreen() {
                 <ThemedText style={styles.footerBtnText}>{t('import_categories')}</ThemedText>
             </TouchableOpacity>
 
-            {!categories.some(c => c.name === 'Catering (Jamvanu)') && (
-                <TouchableOpacity 
-                    style={[styles.weddingBtn, { backgroundColor: '#FFD60A' }]}
-                    onPress={() => Alert.alert(
-                        'Unlock Wedding Mode', 
-                        'This will add specialized Gujarati Wedding categories (like Catering, Decoration, jewellery) to your current list. Existing categories will be kept. Continue?', 
-                        [{text: 'Cancel'}, {text: 'Yes, Add them', onPress: handleApplyWeddingPreset}]
-                    )}
-                >
-                    <Ionicons name="rose-outline" size={18} color="#000" />
-                    <Text style={[styles.footerBtnText, { color: '#000' }]}>{t('wedding_mode')}</Text>
-                </TouchableOpacity>
-            )}
         </View>
       </ScrollView>
 
@@ -330,7 +309,7 @@ export default function ManageCategoriesScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: theme.card }]}>
             <ThemedText type="subtitle" style={{ marginBottom: 4 }}>Set Category Budget</ThemedText>
-            <ThemedText style={{ opacity: 0.5, marginBottom: 20, fontSize: 13 }}>{budgetCategory}</ThemedText>
+            <ThemedText style={{ marginBottom: 20, fontSize: 13 }}>{budgetCategory}</ThemedText>
             <View style={[styles.budgetInputWrapper, { borderColor: theme.border }]}>
               <Text style={{ color: theme.text, fontSize: 22, marginRight: 8, fontWeight: '700' }}>₹</Text>
               <TextInput
@@ -346,17 +325,17 @@ export default function ManageCategoriesScreen() {
             <View style={styles.modalActions}>
               {categoryBudgets[budgetCategory ?? ''] && (
                 <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: `${theme.danger}15` }]}
+                  style={[styles.modalBtn, { backgroundColor: theme.danger }]}
                   onPress={() => {
                     handleRemoveCategoryBudget(budgetCategory!);
                     setBudgetModalVisible(false);
                   }}
                 >
-                  <Text style={{ color: theme.danger, fontWeight: '700' }}>Remove</Text>
+                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Remove</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: 'rgba(150,150,150,0.1)' }]}
+                style={[styles.modalBtn, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}
                 onPress={() => setBudgetModalVisible(false)}
               >
                 <Text style={{ color: theme.text, fontWeight: '700' }}>Cancel</Text>
@@ -529,14 +508,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    gap: 10,
-  },
-  weddingBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 54,
-    borderRadius: 16,
     gap: 10,
   },
   footerBtnText: {

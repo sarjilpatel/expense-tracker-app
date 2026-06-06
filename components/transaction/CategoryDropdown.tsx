@@ -25,12 +25,12 @@ export function CategoryDropdown({ data, value, onChange, loading, tintColor, te
 
   return (
     <Dropdown
-      style={[styles.dropdown, { backgroundColor: 'rgba(150,150,150,0.05)', borderColor }]}
+      style={[styles.dropdown, { backgroundColor: cardColor, borderColor }]}
       placeholderStyle={styles.placeholder}
       selectedTextStyle={[styles.selected, { color: textColor }]}
       itemTextStyle={{ color: textColor }}
       containerStyle={{ backgroundColor: cardColor, borderRadius: 12 }}
-      activeColor={`${tintColor}20`}
+      activeColor={cardColor}
       data={data}
       maxHeight={300}
       labelField="label"

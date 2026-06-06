@@ -1,13 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 
-export type HomeViewMode = 'daily' | 'calendar' | 'monthly';
+export type HomeViewMode = 'daily' | 'calendar' | 'monthly' | 'total' | 'note';
 
-const TABS: { key: HomeViewMode; icon: string; label: string }[] = [
-  { key: 'daily',    icon: 'list-outline',      label: 'Daily'    },
-  { key: 'calendar', icon: 'calendar-outline',  label: 'Calendar' },
-  { key: 'monthly',  icon: 'bar-chart-outline', label: 'Monthly'  },
+const TABS: { key: HomeViewMode; label: string }[] = [
+  { key: 'daily',    label: 'Daily'    },
+  { key: 'calendar', label: 'Calendar' },
+  { key: 'monthly',  label: 'Monthly'  },
+  { key: 'total',    label: 'Total'    },
+  { key: 'note',     label: 'Note'     },
 ];
 
 interface Props {
@@ -19,48 +20,52 @@ interface Props {
 
 export function ViewModeTabs({ active, onPress, tintColor, secondaryText }: Props) {
   return (
-    <View style={[styles.wrap, { backgroundColor: 'rgba(150,150,150,0.08)' }]}>
-      {TABS.map(tab => (
-        <TouchableOpacity
-          key={tab.key}
-          style={[styles.tab, active === tab.key && { backgroundColor: tintColor }]}
-          onPress={() => onPress(tab.key)}
-          activeOpacity={0.75}
-        >
-          <Ionicons
-            name={tab.icon as any}
-            size={13}
-            color={active === tab.key ? '#FFF' : secondaryText}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.label, { color: active === tab.key ? '#FFF' : secondaryText }]}>
-            {tab.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+    <View style={[styles.track, { backgroundColor: `${secondaryText}14` }]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {TABS.map(tab => {
+          const isActive = active === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.pill, isActive && { backgroundColor: tintColor }]}
+              onPress={() => onPress(tab.key)}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.label, { color: isActive ? '#FFF' : secondaryText }]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row',
+  track: {
     marginHorizontal: 20,
-    borderRadius: 13,
+    borderRadius: 14,
     padding: 3,
-    marginBottom: 10,
+    marginBottom: 14,
+  },
+  scrollContent: {
+    flexDirection: 'row',
     gap: 3,
   },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  pill: {
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   label: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

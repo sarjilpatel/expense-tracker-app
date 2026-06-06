@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { Currency } from '@/constants/theme';
-import { MONTHS, CAL_DAY_LABELS, CATEGORY_ICONS } from '@/constants/maps';
+import { MONTHS, DAY_NAMES, CATEGORY_EMOJIS } from '@/constants/maps';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+interface DayData { income: number; expense: number; items: any[] }
 
 interface Props {
   transactions: any[];
@@ -16,163 +15,236 @@ interface Props {
   onTransactionPress: (item: any) => void;
 }
 
+const toKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Format like the reference: "1,200.00", "-803.00"
+const fmtAmt = (val: number): string => {
+  const abs = Math.abs(val).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return val < 0 ? `-${abs}` : abs;
+};
+
 export function CalendarView({ transactions, month, year, theme, t, onTransactionPress }: Props) {
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const dailyMap = useMemo(() => {
-    const m: Record<number, { income: number; expense: number; items: any[] }> = {};
-    transactions.forEach((tx: any) => {
-      const d = new Date(tx.date || tx.createdAt);
-      if (d.getMonth() + 1 !== month || d.getFullYear() !== year) return;
-      const day = d.getDate();
-      if (!m[day]) m[day] = { income: 0, expense: 0, items: [] };
-      if (tx.type === 'income') m[day].income += tx.amount;
-      else m[day].expense += tx.amount;
-      m[day].items.push(tx);
-    });
+    const m: Record<string, DayData> = {};
+    for (const tx of transactions) {
+      const d   = new Date(tx.date || tx.createdAt);
+      const key = toKey(d);
+      if (!m[key]) m[key] = { income: 0, expense: 0, items: [] };
+      if (tx.type === 'income') m[key].income += tx.amount;
+      else                      m[key].expense += tx.amount;
+      m[key].items.push(tx);
+    }
     return m;
-  }, [transactions, month, year]);
+  }, [transactions]);
 
-  const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+  const firstDOW    = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
-  const totalCells = Math.ceil((firstDayOfWeek + daysInMonth) / 7) * 7;
-  const cellSize = Math.floor((SCREEN_W - 56) / 7);
-  const today = new Date();
-  const selectedData = selectedDay ? dailyMap[selectedDay] : null;
+  const totalCells  = Math.ceil((firstDOW + daysInMonth) / 7) * 7;
+  const todayKey    = toKey(new Date());
+  const selectedData = selectedKey ? dailyMap[selectedKey] : null;
+
+  // Build explicit week rows so flex:1 distributes width correctly
+  const weeks: number[][] = [];
+  for (let i = 0; i < totalCells; i += 7) {
+    weeks.push([0, 1, 2, 3, 4, 5, 6].map(j => i + j));
+  }
+
+  const div = theme.border;
 
   return (
     <View>
-      {/* Day-of-week labels */}
-      <View style={styles.labelRow}>
-        {CAL_DAY_LABELS.map((d, i) => (
-          <View key={i} style={{ width: cellSize, alignItems: 'center' }}>
-            <Text style={[styles.dayLabel, {
-              color: i === 0 || i === 6 ? `${theme.expense}BB` : theme.secondaryText,
-            }]}>{d}</Text>
+      {/* ── Day-of-week header ── */}
+      <View style={[styles.headerRow, { borderBottomColor: div, borderTopColor: div }]}>
+        {DAY_NAMES.map((name, i) => (
+          <View
+            key={i}
+            style={[
+              styles.headerCell,
+              i < 6 && { borderRightColor: div, borderRightWidth: StyleSheet.hairlineWidth },
+            ]}
+          >
+            <Text style={[
+              styles.headerLabel,
+              {
+                color: i === 0
+                  ? theme.expense           // Sunday: red
+                  : i === 6
+                  ? '#5B9CF6'               // Saturday: blue
+                  : theme.secondaryText,
+              },
+            ]}>
+              {name}
+            </Text>
           </View>
         ))}
       </View>
 
-      {/* Grid */}
-      <View style={styles.grid}>
-        {Array.from({ length: totalCells }).map((_, idx) => {
-          const dayNum = idx - firstDayOfWeek + 1;
-          const isValid = dayNum >= 1 && dayNum <= daysInMonth;
-          const data = isValid ? dailyMap[dayNum] : null;
-          const isSelected = isValid && selectedDay === dayNum;
-          const isToday = isValid &&
-            today.getDate() === dayNum &&
-            today.getMonth() + 1 === month &&
-            today.getFullYear() === year;
-          const isWeekend = idx % 7 === 0 || idx % 7 === 6;
+      {/* ── Week rows ── */}
+      {weeks.map((week, wi) => (
+        <View key={wi} style={[styles.weekRow, { borderBottomColor: div }]}>
+          {week.map((idx, colIdx) => {
+            const cellDate = new Date(year, month - 1, idx - firstDOW + 1);
+            const key      = toKey(cellDate);
+            const isCurMon = cellDate.getMonth() + 1 === month;
+            const data     = dailyMap[key];         // show transactions even for adjacent month
+            const isSel    = selectedKey === key;
+            const isToday  = key === todayKey;
+            const isSun    = colIdx === 0;
+            const isSat    = colIdx === 6;
 
-          return (
-            <TouchableOpacity
-              key={idx}
-              onPress={() => isValid && setSelectedDay(dayNum === selectedDay ? null : dayNum)}
-              activeOpacity={0.65}
-              style={{
-                width: cellSize, height: cellSize + 10,
-                alignItems: 'center', justifyContent: 'flex-start', paddingTop: 3,
-                backgroundColor: isSelected ? `${theme.tint}18` : 'transparent',
-                borderRadius: 10,
-              }}
-            >
-              {isValid && (
-                <>
-                  <View style={{
-                    width: 26, height: 26,
-                    justifyContent: 'center', alignItems: 'center', borderRadius: 13,
-                    backgroundColor: isToday ? theme.tint : 'transparent',
-                  }}>
-                    <Text style={{
-                      fontSize: 13,
-                      fontWeight: isToday ? '800' : data ? '600' : '400',
-                      color: isToday ? '#FFF' : isWeekend ? `${theme.expense}CC` : theme.text,
-                    }}>{dayNum}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 2, marginTop: 2 }}>
-                    {(data?.income ?? 0) > 0 && <View style={[styles.dot, { backgroundColor: theme.income }]} />}
-                    {(data?.expense ?? 0) > 0 && <View style={[styles.dot, { backgroundColor: theme.expense }]} />}
-                  </View>
-                </>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+            const balance = (data?.income ?? 0) - (data?.expense ?? 0);
+            const hasInc  = (data?.income  ?? 0) > 0;
+            const hasExp  = (data?.expense ?? 0) > 0;
+            const hasBal  = hasInc || hasExp;
 
-      {/* Legend */}
-      <View style={[styles.legend, { borderTopColor: theme.border }]}>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: theme.income }]} />
-          <Text style={[styles.legendText, { color: theme.secondaryText }]}>Income</Text>
+            // Date label — show "day.month" for first day of adjacent months
+            const showSuffix  = !isCurMon && cellDate.getDate() === 1;
+            const dateLabel   = cellDate.getDate() + (showSuffix ? `.${cellDate.getMonth() + 1}` : '');
+
+            // Backgrounds
+            const cellBg = isSel
+              ? '#FFFFFF'
+              : isToday
+              ? theme.border
+              : theme.card;
+
+            // Date number color
+            const numColor = isSel
+              ? '#111111'
+              : !isCurMon
+              ? theme.secondaryText
+              : isSun
+              ? theme.expense
+              : isSat
+              ? '#5B9CF6'
+              : theme.text;
+
+            // Amount colors
+            const incC = isSel ? '#007AFF' : theme.income;
+            const expC = isSel ? '#FF3B30' : theme.expense;
+            const balC = isSel ? '#555555' : theme.secondaryText;
+
+            return (
+              <TouchableOpacity
+                key={idx}
+                onPress={() => setSelectedKey(key === selectedKey ? null : key)}
+                activeOpacity={0.7}
+                style={[
+                  styles.cell,
+                  {
+                    backgroundColor: cellBg,
+                    borderRightColor: div,
+                    borderRightWidth: colIdx < 6 ? StyleSheet.hairlineWidth : 0,
+                  },
+                ]}
+              >
+                {/* Date at top-left */}
+                <Text style={[
+                  styles.dateNum,
+                  {
+                    color: numColor,
+                    fontWeight: isToday || isSel ? '800' : '400',
+                  },
+                ]}>
+                  {dateLabel}
+                </Text>
+
+                {/* Income / Expense / Balance at bottom-right */}
+                <View style={styles.amtBlock}>
+                  {hasInc && (
+                    <Text numberOfLines={1} style={[styles.amt, { color: incC }]}>
+                      {fmtAmt(data!.income)}
+                    </Text>
+                  )}
+                  {hasExp && (
+                    <Text numberOfLines={1} style={[styles.amt, { color: expC }]}>
+                      {fmtAmt(data!.expense)}
+                    </Text>
+                  )}
+                  {hasBal && (
+                    <Text numberOfLines={1} style={[styles.amt, { color: balC }]}>
+                      {fmtAmt(balance)}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: theme.expense }]} />
-          <Text style={[styles.legendText, { color: theme.secondaryText }]}>Expense</Text>
-        </View>
-      </View>
+      ))}
 
-      {/* Selected day panel */}
-      {selectedDay !== null && (
+      {/* ── Selected day detail panel ── */}
+      {selectedKey && (
         <Animated.View
-          entering={FadeInDown.duration(200)}
-          style={[styles.dayPanel, { backgroundColor: theme.card }]}
+          entering={FadeInDown.duration(200).springify().damping(18)}
+          style={[styles.panel, { borderTopColor: div }]}
         >
-          <View style={styles.dayPanelHeader}>
-            <Text style={[styles.dayPanelTitle, { color: theme.text }]}>
-              {MONTHS[month - 1]} {selectedDay}
+          {/* Header */}
+          <View style={styles.panelHeader}>
+            <Text style={[styles.panelDate, { color: theme.text }]}>
+              {(() => {
+                const d = new Date(selectedKey + 'T00:00:00');
+                return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+              })()}
             </Text>
-            {selectedData && (
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                {selectedData.income > 0 && (
-                  <Text style={{ color: theme.income, fontSize: 12, fontWeight: '700' }}>
-                    +{Currency.format(selectedData.income)}
-                  </Text>
-                )}
-                {selectedData.expense > 0 && (
-                  <Text style={{ color: theme.expense, fontSize: 12, fontWeight: '700' }}>
-                    -{Currency.format(selectedData.expense)}
-                  </Text>
-                )}
-              </View>
-            )}
+            <View style={styles.panelTotals}>
+              {(selectedData?.income  ?? 0) > 0 && (
+                <Text style={[styles.panelTotal, { color: theme.income }]}>
+                  +{Currency.format(selectedData!.income)}
+                </Text>
+              )}
+              {(selectedData?.expense ?? 0) > 0 && (
+                <Text style={[styles.panelTotal, { color: theme.expense }]}>
+                  -{Currency.format(selectedData!.expense)}
+                </Text>
+              )}
+            </View>
           </View>
 
-          {selectedData?.items && selectedData.items.length > 0 ? (
+          {/* Transaction rows */}
+          {selectedData && selectedData.items.length > 0 ? (
             selectedData.items.map((tx: any, i: number) => (
               <TouchableOpacity
-                key={i}
+                key={tx._id || i}
                 onPress={() => onTransactionPress(tx)}
-                style={[styles.txItem, { borderTopColor: theme.border, borderTopWidth: i > 0 ? StyleSheet.hairlineWidth : 0 }]}
+                activeOpacity={0.65}
+                style={[
+                  styles.txRow,
+                  i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: div },
+                ]}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={{
-                    width: 30, height: 30, borderRadius: 9,
-                    backgroundColor: tx.type === 'expense' ? `${theme.expense}15` : `${theme.income}15`,
-                    justifyContent: 'center', alignItems: 'center',
-                  }}>
-                    <Ionicons
-                      name={(CATEGORY_ICONS[tx.category] || 'receipt-outline') as any}
-                      size={14}
-                      color={tx.type === 'expense' ? theme.expense : theme.income}
-                    />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: theme.text }}>
-                      {tx.note || t(tx.category)}
-                    </Text>
-                    <Text style={{ fontSize: 10, color: theme.secondaryText }}>{t(tx.category)}</Text>
-                  </View>
+                <View style={[styles.txIcon, {
+                  backgroundColor: theme.tint,
+                }]}>
+                  <Text style={{ fontSize: 16 }}>
+                    {CATEGORY_EMOJIS[tx.category] || '🏷️'}
+                  </Text>
                 </View>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: tx.type === 'expense' ? theme.expense : theme.income }}>
+                <View style={styles.txInfo}>
+                  <Text style={[styles.txTitle, { color: theme.text }]} numberOfLines={1}>
+                    {tx.note || t(tx.category)}
+                  </Text>
+                  <Text style={[styles.txSub, { color: theme.secondaryText }]}>
+                    {t(tx.category)}
+                  </Text>
+                </View>
+                <Text style={[styles.txAmt, {
+                  color: tx.type === 'expense' ? theme.expense : theme.income,
+                }]}>
                   {tx.type === 'expense' ? '-' : '+'}{Currency.format(tx.amount)}
                 </Text>
               </TouchableOpacity>
             ))
           ) : (
-            <Text style={{ color: theme.secondaryText, fontSize: 12, opacity: 0.5 }}>No transactions this day</Text>
+            <Text style={[styles.noTx, { color: theme.secondaryText }]}>
+              No transactions on this day
+            </Text>
           )}
         </Animated.View>
       )}
@@ -181,61 +253,101 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
 }
 
 const styles = StyleSheet.create({
-  labelRow: {
+  // Day-of-week header
+  headerRow: {
     flexDirection: 'row',
-    marginBottom: 6,
-    paddingHorizontal: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  dayLabel: {
+  headerCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+  },
+  headerLabel: {
     fontSize: 11,
     fontWeight: '700',
   },
-  grid: {
+
+  // Week rows
+  weekRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+  cell: {
+    flex: 1,         // ← fills 1/7 of available width, no overflow
+    height: 88,
+    padding: 5,
+    justifyContent: 'space-between',
   },
-  legend: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 10,
-    paddingTop: 10,
-    paddingHorizontal: 4,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  legendText: {
+  dateNum: {
     fontSize: 11,
+  },
+  amtBlock: {
+    alignItems: 'flex-end',
+    gap: 1,
+  },
+  amt: {
+    fontSize: 8.5,
     fontWeight: '600',
   },
-  dayPanel: {
-    marginTop: 10,
-    borderRadius: 14,
-    padding: 14,
+
+  // Detail panel
+  panel: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 8,
   },
-  dayPanelHeader: {
+  panelHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
-  dayPanelTitle: {
-    fontSize: 13,
+  panelDate: {
+    fontSize: 14,
     fontWeight: '800',
   },
-  txItem: {
+  panelTotals: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  panelTotal: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  txRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingVertical: 10,
+    gap: 10,
+  },
+  txIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  txInfo: {
+    flex: 1,
+  },
+  txTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  txSub: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  txAmt: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  noTx: {
+    fontSize: 12,
     paddingVertical: 8,
+    textAlign: 'center',
   },
 });

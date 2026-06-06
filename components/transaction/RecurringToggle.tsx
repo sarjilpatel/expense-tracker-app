@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, interpolateColor } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
+import { useTheme } from '@/src/context/ThemeContext';
 
 type Frequency = 'daily' | 'weekly' | 'monthly';
 
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function RecurringToggle({ enabled, frequency, onToggle, onFrequencyChange, tintColor, textColor, borderColor }: Props) {
+  const { theme } = useTheme();
   const knob = useSharedValue(enabled ? 1 : 0);
 
   const handleToggle = () => {
@@ -30,7 +32,7 @@ export function RecurringToggle({ enabled, frequency, onToggle, onFrequencyChang
   }));
 
   const bgStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(knob.value, [0, 1], ['rgba(150,150,150,0.2)', tintColor]),
+    backgroundColor: interpolateColor(knob.value, [0, 1], [theme.card, tintColor]),
   }));
 
   return (
@@ -48,7 +50,7 @@ export function RecurringToggle({ enabled, frequency, onToggle, onFrequencyChang
       </View>
 
       {enabled && (
-        <View style={[styles.freqRow, { backgroundColor: 'rgba(150,150,150,0.08)', borderColor }]}>
+        <View style={[styles.freqRow, { backgroundColor: theme.card, borderColor }]}>
           {(['daily', 'weekly', 'monthly'] as Frequency[]).map(f => (
             <TouchableOpacity
               key={f}
@@ -76,11 +78,9 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    opacity: 0.8,
   },
   hint: {
     fontSize: 12,
-    opacity: 0.5,
     marginTop: 2,
   },
   track: {

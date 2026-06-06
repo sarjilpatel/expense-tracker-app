@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import socketService from '../services/socketService';
 import { requestNotificationPermissions } from '../services/notificationService';
+import { setMode as setDataMode } from '../services/dataService';
 
 export interface User {
   _id: string;
@@ -15,30 +16,40 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
+  isGuest: boolean;
   login: (token: string, user: User) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updatedUser: Partial<User>) => Promise<void>;
+  enterGuestMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user,    setUser]    = useState<User | null>(null);
+  const [token,   setToken]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(true);
 
   useEffect(() => {
     const loadStorageData = async () => {
       try {
         const storedToken = await AsyncStorage.getItem('token');
-        const storedUser = await AsyncStorage.getItem('user');
+        const storedUser  = await AsyncStorage.getItem('user');
 
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
+          setIsGuest(false);
+          setDataMode(false);
+        } else {
+          // No stored credentials — start in guest mode automatically
+          setIsGuest(true);
+          setDataMode(true);
         }
-      } catch (error) {
-        console.error('Error loading auth data:', error);
+      } catch {
+        setIsGuest(true);
+        setDataMode(true);
       } finally {
         setLoading(false);
       }
@@ -47,17 +58,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loadStorageData();
   }, []);
 
-  // Handle Socket connection lifecycle
+  // Socket lifecycle — only for logged-in users
   useEffect(() => {
-    if (user && token) {
+    if (user && token && !isGuest) {
       socketService.connect(token);
       if (user.groupId) {
         socketService.joinGroup(user.groupId.toString());
       }
-    } else if (!loading) {
+    } else if (!loading && !user) {
       socketService.disconnect();
     }
-  }, [user, token, loading]);
+  }, [user, token, loading, isGuest]);
 
   const login = async (newToken: string, newUser: User) => {
     try {
@@ -65,6 +76,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.setItem('user', JSON.stringify(newUser));
       setToken(newToken);
       setUser(newUser);
+      setIsGuest(false);
+      setDataMode(false);
       requestNotificationPermissions();
     } catch (error) {
       console.error('Error during login storage:', error);
@@ -77,6 +90,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await AsyncStorage.removeItem('user');
       setToken(null);
       setUser(null);
+      setIsGuest(true);
+      setDataMode(true);
+      socketService.disconnect();
     } catch (error) {
       console.error('Error during logout storage:', error);
     }
@@ -93,8 +109,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const enterGuestMode = () => {
+    setIsGuest(true);
+    setDataMode(true);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, isGuest, login, logout, updateUser, enterGuestMode }}>
       {children}
     </AuthContext.Provider>
   );

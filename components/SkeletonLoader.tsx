@@ -8,7 +8,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 interface SkeletonBarProps {
   width?: number | string;
@@ -19,10 +19,9 @@ interface SkeletonBarProps {
 }
 
 function SkeletonBar({ width = '100%', height = 16, borderRadius = 8, style, shimmerX }: SkeletonBarProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const baseColor = isDark ? '#1E293B' : '#E2E8F0';
-  const shimmerColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.95)';
+  const { theme } = useTheme();
+  const baseColor    = theme.cardAlt;
+  const shimmerColor = theme.card === '#FFFFFF' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.07)';
 
   const shimmerStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shimmerX.value }],
@@ -53,6 +52,7 @@ interface SkeletonLoaderProps {
 }
 
 export function SkeletonLoader({ rows = 4, type = 'list' }: SkeletonLoaderProps) {
+  const { theme } = useTheme();
   const shimmerX = useSharedValue(-200);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export function SkeletonLoader({ rows = 4, type = 'list' }: SkeletonLoaderProps)
 
   if (type === 'card') {
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: theme.card }]}>
         <SkeletonBar shimmerX={shimmerX} height={12} width="42%" borderRadius={6} style={{ marginBottom: 10 }} />
         <SkeletonBar shimmerX={shimmerX} height={34} width="68%" borderRadius={10} style={{ marginBottom: 24 }} />
         <View style={styles.row}>
@@ -75,7 +75,7 @@ export function SkeletonLoader({ rows = 4, type = 'list' }: SkeletonLoaderProps)
               <SkeletonBar shimmerX={shimmerX} height={13} width="75%" borderRadius={6} />
             </View>
           </View>
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
           <View style={styles.halfRow}>
             <SkeletonBar shimmerX={shimmerX} width={32} height={32} borderRadius={16} style={{ marginRight: 10 }} />
             <View style={{ flex: 1, gap: 6 }}>
@@ -136,7 +136,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     padding: 24,
     borderRadius: 28,
-    backgroundColor: 'rgba(99,102,241,0.07)',
     marginBottom: 20,
     minHeight: 158,
   },
@@ -152,7 +151,6 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 28,
-    backgroundColor: 'rgba(150,150,150,0.12)',
     marginHorizontal: 12,
   },
   chartContainer: {

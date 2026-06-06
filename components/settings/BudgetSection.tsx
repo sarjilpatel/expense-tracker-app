@@ -65,7 +65,7 @@ export function BudgetSection({ currentBudget, theme, onUpdated }: Props) {
       </View>
       <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, padding: 16 }]}>
         <View style={styles.row}>
-          <View style={[styles.inputWrap, { backgroundColor: 'rgba(150,150,150,0.1)' }]}>
+          <View style={[styles.inputWrap, { backgroundColor: theme.cardAlt ?? theme.border }]}>
             <Text style={{ color: theme.text, fontSize: 18, marginRight: 8, fontWeight: '600' }}>₹</Text>
             <TextInput
               style={[styles.input, { color: theme.text }]}

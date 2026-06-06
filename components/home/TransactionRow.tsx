@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Currency } from '@/constants/theme';
-import { CATEGORY_ICONS } from '@/constants/maps';
+import { CATEGORY_EMOJIS } from '@/constants/maps';
 
 interface Props {
   item: any;
@@ -12,63 +11,56 @@ interface Props {
   t: (key: string) => string;
   onPress: (item: any) => void;
   onLongPress: (id: string) => void;
+  accountName?: string | null;
 }
 
-export function TransactionRow({ item, index, theme, t, onPress, onLongPress }: Props) {
-  const isExpense = item.type === 'expense';
-  const iconName = CATEGORY_ICONS[item.category] || 'receipt-outline';
-  const iconColor = isExpense ? theme.expense : theme.income;
-  const iconBg = isExpense ? `${theme.expense}14` : `${theme.income}14`;
-  const time = new Date(item.date || item.createdAt).toLocaleTimeString([], {
-    hour: '2-digit', minute: '2-digit', hour12: true,
-  });
+export function TransactionRow({ item, index, theme, t, onPress, onLongPress, accountName }: Props) {
+  const isExpense   = item.type === 'expense';
+  const emoji       = CATEGORY_EMOJIS[item.category] || '🏷️';
+  const amountColor = isExpense ? theme.expense : theme.income;
+
+  const addedBy = typeof item.userId === 'object' && item.userId?.name
+    ? (item.userId.name as string)
+    : null;
+
+  const accountPart = accountName ?? 'Accounts';
+  const subLabel    = addedBy ? `${accountPart} · ${addedBy}` : accountPart;
+
+  const rowBg = theme.card;
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(Math.min(index * 25, 150)).duration(200)}
-      layout={LinearTransition.springify().damping(20)}
-    >
+    <Animated.View entering={FadeInDown.delay(Math.min(index * 25, 150)).duration(200)}>
       <TouchableOpacity
-        style={[styles.row, { borderBottomColor: theme.border }]}
+        style={[styles.row, { backgroundColor: rowBg, borderBottomColor: theme.separator }]}
         onPress={() => onPress(item)}
         onLongPress={() => onLongPress(item._id)}
         delayLongPress={500}
-        activeOpacity={0.65}
+        activeOpacity={0.6}
       >
+        {/* Accent bar */}
+        <View style={[styles.accentBar, { backgroundColor: amountColor }]} />
+
+        {/* Emoji + category */}
         <View style={styles.left}>
-          <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
-            <Ionicons name={iconName as any} size={18} color={iconColor} />
-          </View>
-          <Text style={[styles.catLabel, { color: theme.secondaryText }]} numberOfLines={1}>
+          <Text style={styles.emoji}>{emoji}</Text>
+          <Text style={[styles.catText, { color: theme.secondaryText }]} numberOfLines={1}>
             {t(item.category)}
           </Text>
         </View>
 
+        {/* Note + subtext */}
         <View style={styles.middle}>
           <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
             {item.note || t(item.category)}
           </Text>
-          <View style={styles.metaRow}>
-            {item.userId?.profilePhoto ? (
-              <Image source={{ uri: item.userId.profilePhoto }} style={styles.photo} />
-            ) : (
-              <View style={[styles.initials, { backgroundColor: `${theme.tint}28` }]}>
-                <Text style={[styles.initialsText, { color: theme.tint }]}>
-                  {(item.userId?.name || 'U').charAt(0)}
-                </Text>
-              </View>
-            )}
-            <Text style={[styles.meta, { color: theme.secondaryText }]} numberOfLines={1}>
-              {item.userId?.name || 'Me'} · {time}
-            </Text>
-            {item.isRecurring && (
-              <Ionicons name="repeat-outline" size={10} color={theme.tint} style={{ opacity: 0.7 }} />
-            )}
-          </View>
+          <Text style={[styles.subtext, { color: theme.secondaryText }]} numberOfLines={1}>
+            {subLabel}
+          </Text>
         </View>
 
-        <Text style={[styles.amount, { color: isExpense ? theme.expense : theme.income }]}>
-          {isExpense ? '-' : '+'}{Currency.format(item.amount)}
+        {/* Amount */}
+        <Text style={[styles.amount, { color: amountColor }]}>
+          {Currency.format(item.amount)}
         </Text>
       </TouchableOpacity>
     </Animated.View>
@@ -77,69 +69,24 @@ export function TransactionRow({ item, index, theme, t, onPress, onLongPress }: 
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 11,
+    flexDirection:     'row',
+    alignItems:        'center',
+    paddingHorizontal: 16,
+    paddingVertical:   11,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  accentBar: {
+    width: 3, height: 36, borderRadius: 2,
+    marginRight: 10, flexShrink: 0,
+  },
   left: {
-    alignItems: 'center',
-    width: 52,
-    marginRight: 10,
+    width: 82, flexDirection: 'row', alignItems: 'center',
+    gap: 6, paddingRight: 4, flexShrink: 0,
   },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  catLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  middle: {
-    flex: 1,
-    marginRight: 8,
-  },
-  title: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 3,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  photo: {
-    width: 13,
-    height: 13,
-    borderRadius: 6.5,
-  },
-  initials: {
-    width: 13,
-    height: 13,
-    borderRadius: 6.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  initialsText: {
-    fontSize: 7,
-    fontWeight: '800',
-  },
-  meta: {
-    fontSize: 10,
-    fontWeight: '500',
-    flex: 1,
-  },
-  amount: {
-    fontSize: 14,
-    fontWeight: '800',
-    textAlign: 'right',
-    minWidth: 64,
-  },
+  emoji:   { fontSize: 17 },
+  catText: { fontSize: 11, fontWeight: '400', flexShrink: 1 },
+  middle:  { flex: 1, gap: 4 },
+  title:   { fontSize: 15, fontWeight: '500', lineHeight: 19, letterSpacing: 0.1 },
+  subtext: { fontSize: 12, fontWeight: '400', lineHeight: 15 },
+  amount:  { fontSize: 13, fontWeight: '600', flexShrink: 0, marginLeft: 8, letterSpacing: 0.2 },
 });

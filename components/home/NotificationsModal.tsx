@@ -21,9 +21,13 @@ interface Props {
 
 export function NotificationsModal({ visible, onClose, notifications, theme }: Props) {
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
       <View style={styles.overlay}>
-        <Animated.View entering={FadeInDown} style={[styles.card, { backgroundColor: theme.card }]}>
+        <View
+          style={[StyleSheet.absoluteFill, { backgroundColor: theme.card }]}
+        />
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
+        <Animated.View entering={FadeInDown} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1, borderBottomWidth: 0 }]}>
           <View style={styles.header}>
             <ThemedText type="subtitle">Notifications</ThemedText>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -33,19 +37,19 @@ export function NotificationsModal({ visible, onClose, notifications, theme }: P
           <ScrollView showsVerticalScrollIndicator={false}>
             {notifications.length === 0 ? (
               <View style={styles.empty}>
-                <Ionicons name="notifications-off-outline" size={52} color={theme.icon} style={{ opacity: 0.1 }} />
+                <Ionicons name="notifications-off-outline" size={52} color={theme.secondaryText} />
                 <ThemedText style={styles.emptyText}>Everything caught up!</ThemedText>
               </View>
             ) : (
               notifications.map(notif => (
                 <TouchableOpacity key={notif.id} style={[styles.item, { borderBottomColor: theme.border }]}>
                   <View style={[styles.iconWrap, {
-                    backgroundColor: notif.type === 'income' ? `${theme.income}20` : `${theme.expense}20`,
+                    backgroundColor: theme.tint,
                   }]}>
                     <Ionicons
                       name={notif.type === 'income' ? 'arrow-down' : 'arrow-up'}
                       size={16}
-                      color={notif.type === 'income' ? theme.income : theme.expense}
+                      color="#FFF"
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -71,8 +75,8 @@ const styles = StyleSheet.create({
   },
   card: {
     height: '72%',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     padding: 22,
   },
   header: {
@@ -90,7 +94,6 @@ const styles = StyleSheet.create({
     paddingVertical: 90,
   },
   emptyText: {
-    opacity: 0.4,
     marginTop: 14,
     fontSize: 13,
   },
@@ -113,12 +116,10 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 12,
-    opacity: 0.6,
     marginTop: 2,
   },
   time: {
     fontSize: 10,
-    opacity: 0.4,
     marginTop: 3,
     fontWeight: '600',
   },

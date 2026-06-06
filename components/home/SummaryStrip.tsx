@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { Currency } from '@/constants/theme';
 
 interface Props {
   income: number;
@@ -15,27 +14,50 @@ interface Props {
   incomeColor: string;
   expenseColor: string;
   style?: any;
+  totalColor?: string;
+  periodLabel?: string;
+  formatAmount?: (n: number) => string;
 }
 
-export function SummaryStrip({ income, expense, balance, incomeLabel, expenseLabel, cardColor, borderColor, secondaryText, incomeColor, expenseColor, style }: Props) {
+export function SummaryStrip({
+  income,
+  expense,
+  balance,
+  incomeLabel,
+  expenseLabel,
+  cardColor,
+  borderColor,
+  secondaryText,
+  incomeColor,
+  expenseColor,
+  totalColor = '#FFF',
+  style,
+  periodLabel,
+  formatAmount,
+}: Props) {
+  const formatVal = formatAmount ?? ((val: number) =>
+    (val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  );
+
   return (
-    <Animated.View style={[styles.strip, { backgroundColor: cardColor }, style]}>
+    <Animated.View style={[styles.strip, { backgroundColor: cardColor, borderColor: borderColor }, style]}>
       <View style={styles.col}>
         <Text style={[styles.label, { color: secondaryText }]}>{incomeLabel}</Text>
-        <Text style={[styles.val, { color: incomeColor }]}>{Currency.format(income)}</Text>
+        <Text style={[styles.val, { color: incomeColor }]}>{formatVal(income)}</Text>
       </View>
-      <View style={[styles.divider, { backgroundColor: borderColor }]} />
       <View style={styles.col}>
         <Text style={[styles.label, { color: secondaryText }]}>{expenseLabel}</Text>
-        <Text style={[styles.val, { color: expenseColor }]}>{Currency.format(expense)}</Text>
+        <Text style={[styles.val, { color: expenseColor }]}>{formatVal(expense)}</Text>
       </View>
-      <View style={[styles.divider, { backgroundColor: borderColor }]} />
       <View style={styles.col}>
         <Text style={[styles.label, { color: secondaryText }]}>Total</Text>
-        <Text style={[styles.val, { color: balance >= 0 ? incomeColor : expenseColor }]}>
-          {Currency.format(balance)}
-        </Text>
+        <Text style={[styles.val, { color: totalColor }]}>{formatVal(balance)}</Text>
       </View>
+      {!!periodLabel && (
+        <View style={styles.periodRow}>
+          <Text style={[styles.periodLabel, { color: secondaryText }]}>{periodLabel}</Text>
+        </View>
+      )}
     </Animated.View>
   );
 }
@@ -44,33 +66,36 @@ const styles = StyleSheet.create({
   strip: {
     flexDirection: 'row',
     marginHorizontal: 20,
-    borderRadius: 16,
     paddingVertical: 12,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   col: {
     flex: 1,
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
   },
   label: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   val: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
   },
-  divider: {
-    width: 1,
-    height: '55%',
-    alignSelf: 'center',
+  periodRow: {
+    position: 'absolute',
+    bottom: 5,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  periodLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });

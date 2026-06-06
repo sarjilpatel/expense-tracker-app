@@ -20,13 +20,13 @@ export function ComparisonCard({ label, current, previous, color, icon }: Props)
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card }]}>
-      <View style={[styles.icon, { backgroundColor: `${color}15` }]}>
-        <Ionicons name={icon as any} size={18} color={color} />
+      <View style={[styles.icon, { backgroundColor: theme.tint }]}>
+        <Ionicons name={icon as any} size={18} color="#FFF" />
       </View>
       <ThemedText style={styles.label}>{label}</ThemedText>
       <Text style={[styles.value, { color }]}>{Currency.format(current)}</Text>
       {change !== null && (
-        <View style={[styles.badge, { backgroundColor: isUp ? `${color}15` : '#10B98115' }]}>
+        <View style={[styles.badge, { backgroundColor: theme.card }]}>
           <Ionicons name={isUp ? 'arrow-up' : 'arrow-down'} size={10} color={isUp ? color : '#10B981'} />
           <Text style={{ color: isUp ? color : '#10B981', fontSize: 10, fontWeight: '700' }}>
             {Math.abs(change).toFixed(1)}%
@@ -59,7 +59,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: '700',
-    opacity: 0.5,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
@@ -81,6 +80,5 @@ const styles = StyleSheet.create({
   },
   sub: {
     fontSize: 10,
-    opacity: 0.4,
   },
 });

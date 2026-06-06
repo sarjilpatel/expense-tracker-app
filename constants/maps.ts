@@ -35,3 +35,22 @@ export const CATEGORY_ICONS: Record<string, string> = {
   Apparel: 'shirt-outline',
   Household: 'home-outline',
 };
+
+export const CATEGORY_EMOJIS: Record<string, string> = {
+  Food: '🍜',
+  Transport: '🚌',
+  Shopping: '🛍️',
+  Rent: '🏠',
+  Entertainment: '🎬',
+  Health: '🏥',
+  Bills: '🧾',
+  Education: '📚',
+  Investment: '📈',
+  Income: '💰',
+  Salary: '💼',
+  Other: '🏷️',
+  Beauty: '💄',
+  Recharge: '🔌',
+  Apparel: '👗',
+  Household: '🪑',
+};

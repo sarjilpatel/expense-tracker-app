@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/src/context/ThemeContext';
 
 interface Props {
   type: 'income' | 'expense';
@@ -12,8 +13,9 @@ interface Props {
 }
 
 export function TypeSelector({ type, onChange, incomeLabel = 'Income', expenseLabel = 'Expense', incomeColor, expenseColor }: Props) {
+  const { theme } = useTheme();
   return (
-    <View style={[styles.wrap, { backgroundColor: 'rgba(150,150,150,0.1)' }]}>
+    <View style={[styles.wrap, { backgroundColor: theme.card }]}>
       <TouchableOpacity
         style={[styles.btn, type === 'expense' && { backgroundColor: expenseColor }]}
         onPress={() => onChange('expense')}

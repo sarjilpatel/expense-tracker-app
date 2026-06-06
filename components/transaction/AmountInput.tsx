@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { Currency } from '@/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 interface Props {
   value: string;
@@ -9,9 +10,13 @@ interface Props {
   borderColor: string;
 }
 
-export const AmountInput = forwardRef<TextInput, Props>(
-  ({ value, onChangeText, textColor, borderColor }, ref) => (
-    <View style={[styles.wrap, { borderColor, backgroundColor: 'rgba(150,150,150,0.05)' }]}>
+export const AmountInput = forwardRef((
+  { value, onChangeText, textColor, borderColor }: Props,
+  ref: React.Ref<TextInput>
+) => {
+    const { theme } = useTheme();
+    return (
+      <View style={[styles.wrap, { borderColor, backgroundColor: theme.card }]}>
       <Text style={[styles.symbol, { color: textColor }]}>{Currency.symbol}</Text>
       <TextInput
         ref={ref}
@@ -23,8 +28,9 @@ export const AmountInput = forwardRef<TextInput, Props>(
         onChangeText={onChangeText}
         returnKeyType="done"
       />
-    </View>
-  )
+      </View>
+    );
+  }
 );
 
 AmountInput.displayName = 'AmountInput';

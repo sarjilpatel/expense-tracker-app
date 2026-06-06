@@ -6,11 +6,13 @@ import {
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+
+import { useTheme } from '@/src/context/ThemeContext';
 import { useLanguage } from '@/src/i18n/LanguageContext';
-import { addTransaction } from '@/src/services/transactionApi';
-import { getCurrentGroup, Category } from '@/src/services/groupApi';
+import { addTransaction, getCurrentGroup } from '@/src/services/dataService';
+import type { Category } from '@/src/services/dataService';
+import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
+import { getAccounts, getTxAccountMap, Account, setTxAccount } from '@/src/services/accountService';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,11 +22,11 @@ import { AmountInput } from '@/components/transaction/AmountInput';
 import { DateTimeField } from '@/components/transaction/DateTimeField';
 import { CategoryDropdown } from '@/components/transaction/CategoryDropdown';
 import { RecurringToggle } from '@/components/transaction/RecurringToggle';
+import { AccountPicker } from '@/components/transaction/AccountPicker';
 
 export default function AddTransactionScreen() {
   const { t } = useLanguage();
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme || 'light'];
+  const { theme } = useTheme();
 
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<'income' | 'expense'>('expense');
@@ -36,8 +38,10 @@ export default function AddTransactionScreen() {
   const [fetching, setFetching] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
 
-  const { prefillDate } = useLocalSearchParams<{ prefillDate?: string }>();
+  const { prefillDate, prefillAccountId } = useLocalSearchParams<{ prefillDate?: string; prefillAccountId?: string }>();
   const amountInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -47,7 +51,12 @@ export default function AddTransactionScreen() {
       d.setHours(now.getHours(), now.getMinutes(), 0, 0);
       setDate(d);
     }
-  }, [prefillDate]);
+    if (prefillAccountId) setSelectedAccountId(prefillAccountId as string);
+  }, [prefillDate, prefillAccountId]);
+
+  useEffect(() => {
+    getAccounts().then(setAccounts).catch(() => {});
+  }, []);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -84,7 +93,7 @@ export default function AddTransactionScreen() {
     }
     setLoading(true);
     try {
-      await addTransaction({
+      const newTx = await addTransaction({
         amount: parseFloat(amount),
         type,
         category,
@@ -93,8 +102,12 @@ export default function AddTransactionScreen() {
         isRecurring,
         recurrenceFrequency: isRecurring ? recurrenceFrequency : null,
       });
+      if (selectedAccountId && newTx?._id) {
+        await setTxAccount(newTx._id, selectedAccountId);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setAmount(''); setCategory(null); setNote(''); setDate(new Date()); setIsRecurring(false);
+      await invalidateAllTransactionCache();
+      setAmount(''); setCategory(null); setNote(''); setDate(new Date()); setIsRecurring(false); setSelectedAccountId(null);
       router.replace('/(tabs)');
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -160,13 +173,23 @@ export default function AddTransactionScreen() {
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>{t('note')}</ThemedText>
             <TextInput
-              style={[styles.noteInput, { color: theme.text, backgroundColor: 'rgba(150,150,150,0.05)', borderColor: theme.border }]}
+              style={[styles.noteInput, { color: theme.text, backgroundColor: theme.card, borderColor: theme.border }]}
               placeholder="Enter details..."
               placeholderTextColor="#A0A0A0"
               multiline
               numberOfLines={3}
               value={note}
               onChangeText={setNote}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Account</ThemedText>
+            <AccountPicker
+              accounts={accounts}
+              selectedId={selectedAccountId}
+              onChange={setSelectedAccountId}
+              theme={theme}
             />
           </View>
 
@@ -204,9 +227,9 @@ const styles = StyleSheet.create({
   container:   { flex: 1, paddingTop: 60 },
   scrollContent: { padding: 24 },
   header:      { marginBottom: 32 },
-  subtitle:    { fontSize: 16, opacity: 0.6, marginTop: 4 },
+  subtitle:    { fontSize: 16, marginTop: 4 },
   inputGroup:  { marginBottom: 24 },
-  label:       { fontSize: 14, fontWeight: '600', marginBottom: 10, opacity: 0.8 },
+  label:       { fontSize: 14, fontWeight: '600', marginBottom: 10 },
   noteInput:   { borderRadius: 16, padding: 16, fontSize: 16, height: 120, textAlignVertical: 'top', borderWidth: 1 },
   submitBtn:   { height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 12, shadowColor: '#5856D6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
   submitRow:   { flexDirection: 'row', alignItems: 'center', gap: 10 },

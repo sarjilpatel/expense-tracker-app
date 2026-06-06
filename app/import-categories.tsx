@@ -8,8 +8,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+
+import { useTheme } from '@/src/context/ThemeContext';
 import { getMyGroups, importCategories } from '@/src/services/groupApi';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
@@ -19,8 +19,7 @@ import { useLanguage } from '@/src/i18n/LanguageContext';
 
 export default function ImportCategoriesScreen() {
   const { t } = useLanguage();
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme || 'light'];
+  const { theme } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   const filterType = params.type as string;
@@ -93,18 +92,18 @@ export default function ImportCategoriesScreen() {
 
         {groups.length === 0 ? (
           <View style={styles.empty}>
-              <ThemedText style={{ opacity: 0.5 }}>You are not part of any other groups.</ThemedText>
+              <ThemedText style={{ color: theme.secondaryText }}>You are not part of any other groups.</ThemedText>
           </View>
         ) : (
           groups.map((group) => (
             <TouchableOpacity 
               key={group._id} 
-              style={[styles.groupItem, { backgroundColor: 'rgba(150, 150, 150, 0.05)' }]}
+              style={[styles.groupItem, { backgroundColor: theme.card }]}
               onPress={() => handleImport(group._id, group.name)}
             >
               <View style={styles.groupLeft}>
-                <View style={[styles.groupIcon, { backgroundColor: `${theme.tint}15` }]}>
-                    <Ionicons name="people" size={20} color={theme.tint} />
+                <View style={[styles.groupIcon, { backgroundColor: theme.tint }]}>
+                    <Ionicons name="people" size={20} color='#FFF' />
                 </View>
                 <ThemedText style={styles.groupName}>{group.name}</ThemedText>
               </View>
@@ -145,7 +144,6 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    opacity: 0.6,
     marginBottom: 24,
     lineHeight: 20,
   },

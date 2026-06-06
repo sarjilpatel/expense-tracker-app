@@ -3,6 +3,7 @@ import { View, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
+import { useTheme } from '@/src/context/ThemeContext';
 
 interface Props {
   value: Date;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function DateTimeField({ value, onChange, tintColor, borderColor }: Props) {
+  const { theme } = useTheme();
   const [showIosPicker, setShowIosPicker] = useState(false);
 
   const open = () => {
@@ -38,7 +40,7 @@ export function DateTimeField({ value, onChange, tintColor, borderColor }: Props
   return (
     <View>
       <TouchableOpacity
-        style={[styles.btn, { borderColor, backgroundColor: 'rgba(150,150,150,0.05)' }]}
+        style={[styles.btn, { borderColor, backgroundColor: theme.card }]}
         onPress={open}
       >
         <Ionicons name="calendar-outline" size={20} color={tintColor} />

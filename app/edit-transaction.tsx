@@ -5,11 +5,13 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
-import { Colors, Currency } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Currency } from '@/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 import { useLanguage } from '@/src/i18n/LanguageContext';
-import { updateTransaction } from '@/src/services/transactionApi';
-import { getCurrentGroup, Category } from '@/src/services/groupApi';
+import { updateTransaction, getCurrentGroup } from '@/src/services/dataService';
+import type { Category } from '@/src/services/dataService';
+import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
+import { getAccounts, getTxAccountMap, Account, setTxAccount } from '@/src/services/accountService';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,11 +20,11 @@ import { TypeSelector } from '@/components/transaction/TypeSelector';
 import { AmountInput } from '@/components/transaction/AmountInput';
 import { DateTimeField } from '@/components/transaction/DateTimeField';
 import { CategoryDropdown } from '@/components/transaction/CategoryDropdown';
+import { AccountPicker } from '@/components/transaction/AccountPicker';
 
 export default function EditTransactionScreen() {
   const { t } = useLanguage();
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme || 'light'];
+  const { theme } = useTheme();
 
   const params = useLocalSearchParams();
   const txId           = Array.isArray(params.id)       ? params.id[0]       : params.id;
@@ -40,6 +42,8 @@ export default function EditTransactionScreen() {
   const [loading, setLoading]   = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -53,6 +57,13 @@ export default function EditTransactionScreen() {
   }, []);
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  useEffect(() => {
+    Promise.all([getAccounts(), getTxAccountMap()]).then(([accs, map]) => {
+      setAccounts(accs);
+      if (txId && map[txId as string]) setSelectedAccountId(map[txId as string]);
+    }).catch(() => {});
+  }, [txId]);
 
   const dropdownData = categories
     .filter(c => c.type === type || c.type === 'both' || !c.type)
@@ -77,6 +88,10 @@ export default function EditTransactionScreen() {
     setLoading(true);
     try {
       await updateTransaction(txId as string, { amount: parseFloat(amount), type, category, note, date: date.toISOString() });
+      if (txId) {
+        if (selectedAccountId) await setTxAccount(txId as string, selectedAccountId);
+      }
+      await invalidateAllTransactionCache();
       Alert.alert('Success', 'Transaction updated successfully!', [{ text: 'Great', onPress: () => router.back() }]);
     } catch (error: any) {
       Alert.alert('Error', error.msg || error.message || 'Failed to update transaction');
@@ -146,13 +161,23 @@ export default function EditTransactionScreen() {
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label}>{t('note')}</ThemedText>
                 <TextInput
-                  style={[styles.noteInput, { color: theme.text, backgroundColor: 'rgba(150,150,150,0.05)', borderColor: theme.border }]}
+                  style={[styles.noteInput, { color: theme.text, backgroundColor: theme.card, borderColor: theme.border }]}
                   placeholder="Enter details..."
                   placeholderTextColor="#A0A0A0"
                   multiline
                   numberOfLines={3}
                   value={note}
                   onChangeText={setNote}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <ThemedText style={styles.label}>Account</ThemedText>
+                <AccountPicker
+                  accounts={accounts}
+                  selectedId={selectedAccountId}
+                  onChange={setSelectedAccountId}
+                  theme={theme}
                 />
               </View>
 
@@ -182,7 +207,7 @@ const styles = StyleSheet.create({
   backBtn:     { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: 24 },
   inputGroup:  { marginBottom: 24 },
-  label:       { fontSize: 14, fontWeight: '600', marginBottom: 10, opacity: 0.8 },
+  label:       { fontSize: 14, fontWeight: '600', marginBottom: 10 },
   noteInput:   { borderRadius: 16, padding: 16, fontSize: 16, height: 120, textAlignVertical: 'top', borderWidth: 1 },
   submitBtn:   { height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 12, shadowColor: '#5856D6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
   submitRow:   { flexDirection: 'row', alignItems: 'center', gap: 10 },

@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/src/context/AuthContext';
 import { loginUser } from '@/src/services/authApi';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, enterGuestMode } = useAuth();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme || 'light'];
+  const { theme } = useTheme();
+
+  const handleGuestMode = () => {
+    enterGuestMode();
+    router.replace('/(tabs)');
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -95,6 +99,20 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </ThemedView>
 
+          <View style={styles.dividerRow}>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <Text style={[styles.dividerText, { color: theme.secondaryText }]}>or</Text>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.guestBtn, { borderColor: theme.border }]}
+            onPress={handleGuestMode}
+          >
+            <Ionicons name="person-outline" size={18} color={theme.secondaryText} />
+            <Text style={[styles.guestText, { color: theme.secondaryText }]}>Continue as Guest</Text>
+          </TouchableOpacity>
+
           <ThemedView style={styles.footer}>
             <ThemedText>Don&apos;t have an account? </ThemedText>
             <TouchableOpacity onPress={() => router.replace('/signup')}>
@@ -137,7 +155,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    opacity: 0.6,
   },
   form: {
     gap: 20,
@@ -148,11 +165,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    opacity: 0.8,
   },
   input: {
     height: 56,
-    backgroundColor: 'rgba(150, 150, 150, 0.05)',
+    backgroundColor: 'transparent',
     borderRadius: 16,
     paddingHorizontal: 16,
     fontSize: 16,
@@ -178,12 +194,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 32,
+  dividerRow:  { flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 16, gap: 12 },
+  divider:     { flex: 1, height: 1 },
+  dividerText: { fontSize: 13 },
+  guestBtn: {
+    height: 52, borderRadius: 14, borderWidth: 1,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
   },
-  link: {
-    fontWeight: 'bold',
-  },
+  guestText: { fontSize: 15, fontWeight: '600' },
+  footer:    { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
+  link:      { fontWeight: 'bold' },
 });

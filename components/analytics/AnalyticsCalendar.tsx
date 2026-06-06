@@ -69,7 +69,7 @@ export function AnalyticsCalendar({ month, year, dailyBreakdown, theme }: Props)
               style={[
                 styles.cell,
                 { width: cellSize, height: cellSize + 10 },
-                isSelected && { backgroundColor: `${theme.tint}20`, borderRadius: 12 },
+                isSelected && { backgroundColor: theme.card, borderRadius: 12 },
               ]}
             >
               {isValid && (
@@ -94,7 +94,7 @@ export function AnalyticsCalendar({ month, year, dailyBreakdown, theme }: Props)
       </View>
 
       {/* Legend */}
-      <View style={[styles.legend, { borderTopColor: 'rgba(150,150,150,0.1)' }]}>
+      <View style={[styles.legend, { borderTopColor: theme.border }]}>
         <View style={styles.legendItem}>
           <View style={[styles.dot, { backgroundColor: theme.income }]} />
           <Text style={[styles.legendText, { color: theme.secondaryText }]}>Income</Text>
@@ -129,7 +129,7 @@ export function AnalyticsCalendar({ month, year, dailyBreakdown, theme }: Props)
               </View>
             )}
             {!selectedData && (
-              <Text style={{ opacity: 0.4, fontSize: 13, color: theme.text }}>No transactions this day</Text>
+              <Text style={{ fontSize: 13, color: theme.text }}>No transactions this day</Text>
             )}
           </View>
         </Animated.View>
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   dot:        { width: 5, height: 5, borderRadius: 3 },
   legend:     { flexDirection: 'row', gap: 16, marginTop: 14, paddingTop: 12, borderTopWidth: 1 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendText: { fontSize: 11, opacity: 0.6, fontWeight: '600' },
+  legendText: { fontSize: 11, fontWeight: '600' },
   detail:     { marginTop: 12, borderRadius: 16, padding: 14 },
   detailTitle:{ fontSize: 14, fontWeight: '800', marginBottom: 8 },
   detailRow:  { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },

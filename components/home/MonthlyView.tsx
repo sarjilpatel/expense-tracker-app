@@ -1,176 +1,278 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { Currency } from '@/constants/theme';
-import { CATEGORY_ICONS, CHART_COLORS } from '@/constants/maps';
-
-interface Summary { income: number; expense: number; balance: number; }
+import { MONTHS_SHORT } from '@/constants/maps';
 
 interface Props {
   transactions: any[];
-  summary: Summary;
+  summary?: { income: number; expense: number; balance: number };
+  year: number;
   theme: any;
   t: (key: string) => string;
 }
 
-export function MonthlyView({ transactions, summary, theme, t }: Props) {
-  const [tab, setTab] = useState<'expense' | 'income'>('expense');
+const fmtDay = (d: Date) =>
+  `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-  const categoryData = useMemo(() => {
-    const m: Record<string, { amount: number; count: number }> = {};
-    const filtered = transactions.filter((tx: any) => tx.type === tab);
-    const total = filtered.reduce((s: number, tx: any) => s + tx.amount, 0);
-    filtered.forEach((tx: any) => {
-      if (!m[tx.category]) m[tx.category] = { amount: 0, count: 0 };
-      m[tx.category].amount += tx.amount;
-      m[tx.category].count++;
-    });
-    return Object.entries(m)
-      .map(([cat, d], i) => ({
-        category: cat,
-        amount: d.amount,
-        count: d.count,
-        pct: total > 0 ? (d.amount / total) * 100 : 0,
-        color: CHART_COLORS[i % CHART_COLORS.length],
-      }))
-      .sort((a, b) => b.amount - a.amount);
-  }, [transactions, tab]);
+function getWeeksForMonth(year: number, monthIdx: number): Array<{ start: Date; end: Date }> {
+  const firstDay = new Date(year, monthIdx, 1);
+  const lastDay  = new Date(year, monthIdx + 1, 0);
+
+  // Walk forward to the first Sunday on or after the 1st of the month
+  const cur = new Date(firstDay);
+  while (cur.getDay() !== 0) cur.setDate(cur.getDate() + 1);
+
+  const weeks: Array<{ start: Date; end: Date }> = [];
+  // Only include weeks whose Sunday falls within this month
+  while (cur <= lastDay) {
+    const start = new Date(cur);
+    const end   = new Date(cur);
+    end.setDate(end.getDate() + 6);
+    weeks.push({ start, end });
+    cur.setDate(cur.getDate() + 7);
+  }
+  return weeks;
+}
+
+function weekTotals(transactions: any[], start: Date, end: Date) {
+  const endDay = new Date(end); endDay.setHours(23, 59, 59, 999);
+  let income = 0, expense = 0;
+  for (const tx of transactions) {
+    const d = new Date(tx.date || tx.createdAt);
+    if (d >= start && d <= endDay) {
+      if (tx.type === 'income') income += tx.amount;
+      else expense += tx.amount;
+    }
+  }
+  return { income, expense, balance: income - expense };
+}
+
+function isCurWeek(start: Date, end: Date): boolean {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const endDay = new Date(end); endDay.setHours(23, 59, 59, 999);
+  return today >= start && today <= endDay;
+}
+
+export function MonthlyView({ transactions, year, theme }: Props) {
+  const today         = new Date();
+  const isCurrentYear = year === today.getFullYear();
+  const currMonthIdx  = today.getMonth();
+
+  const [overrides, setOverrides] = useState<Record<number, boolean>>({});
+
+  const toggle = (idx: number) =>
+    setOverrides(p => ({ ...p, [idx]: !(p[idx] ?? (isCurrentYear && idx === currMonthIdx)) }));
+
+  const isExpanded = (idx: number): boolean =>
+    overrides[idx] ?? (isCurrentYear && idx === currMonthIdx);
+
+  // Per-month income/expense
+  const monthlyData = useMemo(() => {
+    const m: Record<number, { income: number; expense: number }> = {};
+    for (let i = 0; i < 12; i++) m[i] = { income: 0, expense: 0 };
+    for (const tx of transactions) {
+      const d = new Date(tx.date || tx.createdAt);
+      if (d.getFullYear() !== year) continue;
+      const mi = d.getMonth();
+      if (tx.type === 'income') m[mi].income += tx.amount;
+      else m[mi].expense += tx.amount;
+    }
+    return m;
+  }, [transactions, year]);
+
+  // Show months from current (or Dec) down to Jan
+  const maxIdx       = isCurrentYear ? currMonthIdx : 11;
+  const monthIndices = Array.from({ length: maxIdx + 1 }, (_, i) => maxIdx - i);
+
+  const div = theme.border;
 
   return (
     <View>
-      <View style={[styles.tabWrap, { backgroundColor: 'rgba(150,150,150,0.08)' }]}>
-        {(['expense', 'income'] as const).map(k => (
-          <TouchableOpacity
-            key={k}
-            onPress={() => setTab(k)}
-            style={[styles.tab, tab === k && { backgroundColor: k === 'expense' ? theme.expense : theme.income }]}
-          >
-            <Text style={[styles.tabText, { color: tab === k ? '#FFF' : theme.secondaryText }]}>
-              {k === 'expense' ? 'Expenses' : 'Income'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {monthIndices.map(mIdx => {
+        const { income, expense } = monthlyData[mIdx];
+        const balance  = income - expense;
+        const expanded = isExpanded(mIdx);
+        const weeks    = expanded ? getWeeksForMonth(year, mIdx) : [];
 
-      <View style={styles.totalRow}>
-        <Text style={[styles.totalLabel, { color: theme.secondaryText }]}>
-          Total {tab === 'expense' ? 'Spent' : 'Earned'}
-        </Text>
-        <Text style={[styles.totalVal, { color: tab === 'expense' ? theme.expense : theme.income }]}>
-          {Currency.format(tab === 'expense' ? summary.expense : summary.income)}
-        </Text>
-      </View>
+        // Compute date range for subtitle
+        const monthTxs = transactions.filter(tx => {
+          const d = new Date(tx.date || tx.createdAt);
+          return d.getFullYear() === year && d.getMonth() === mIdx;
+        });
+        let rangeStrSubtitle = '';
+        if (monthTxs.length > 0) {
+          const dates = monthTxs.map(tx => new Date(tx.date || tx.createdAt).getTime());
+          const minD = new Date(Math.min(...dates));
+          const maxD = new Date(Math.max(...dates));
+          rangeStrSubtitle = `${minD.getMonth() + 1}.${minD.getDate()} ~ ${maxD.getMonth() + 1}.${maxD.getDate()}`;
+        } else {
+          const lastDay = new Date(year, mIdx + 1, 0).getDate();
+          rangeStrSubtitle = `${mIdx + 1}.1 ~ ${mIdx + 1}.${lastDay}`;
+        }
 
-      {categoryData.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons name="receipt-outline" size={40} color={theme.secondaryText} style={{ opacity: 0.2, marginBottom: 8 }} />
-          <Text style={{ color: theme.secondaryText, fontSize: 13, opacity: 0.5 }}>No {tab} this month</Text>
-        </View>
-      ) : (
-        categoryData.map((item, i) => (
-          <Animated.View key={item.category} entering={FadeInDown.delay(i * 40).duration(250)} style={styles.catItem}>
-            <View style={styles.catRow}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={[styles.catIcon, { backgroundColor: `${item.color}18` }]}>
-                  <Ionicons name={(CATEGORY_ICONS[item.category] || 'receipt-outline') as any} size={16} color={item.color} />
-                </View>
-                <View>
-                  <Text style={[styles.catName, { color: theme.text }]}>{t(item.category)}</Text>
-                  <Text style={[styles.catCount, { color: theme.secondaryText }]}>
-                    {item.count} transaction{item.count !== 1 ? 's' : ''}
+        return (
+          <View key={mIdx} style={[styles.monthBlock, { borderBottomColor: div }]}>
+
+            {/* ── Month header row ── */}
+            <TouchableOpacity
+              onPress={() => toggle(mIdx)}
+              activeOpacity={0.65}
+              style={styles.row}
+            >
+              {/* Left: month name + subtitle */}
+              <View style={styles.colLeft}>
+                <Text style={[styles.monthName, { color: theme.text }]}>
+                  {MONTHS_SHORT[mIdx]}
+                </Text>
+                <Text style={[styles.monthSubtitle, { color: theme.secondaryText }]}>
+                  {rangeStrSubtitle}
+                </Text>
+              </View>
+
+              {/* Center: income */}
+              <Text style={[styles.incomeAmt, { color: theme.income }]}>
+                {Currency.format(income)}
+              </Text>
+
+              {/* Right: expense + balance stacked */}
+              <View style={styles.colRight}>
+                <Text style={[styles.expenseAmt, { color: theme.expense }]}>
+                  {Currency.format(expense)}
+                </Text>
+                <Text style={[styles.balanceAmt, { color: theme.text }]}>
+                  {Currency.format(balance)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* ── Weekly breakdown rows ── */}
+            {expanded && weeks.map(w => {
+              const wt       = weekTotals(transactions, w.start, w.end);
+              const isCur    = isCurWeek(w.start, w.end);
+              const rangeStr = `${fmtDay(w.start)} ~ ${fmtDay(w.end)}`;
+
+              return (
+                <View
+                  key={rangeStr}
+                  style={[
+                    styles.weekRow,
+                    isCur && styles.curWeekBg,
+                  ]}
+                >
+                  {/* Left: date range */}
+                  <View style={styles.colLeft}>
+                    <Text style={[
+                      styles.weekRange,
+                      { color: isCur ? '#eb5757' : theme.secondaryText },
+                    ]}>
+                      {rangeStr}
+                    </Text>
+                  </View>
+
+                  {/* Center: income */}
+                  <Text style={[styles.wkIncomeAmt, {
+                    color: theme.income,
+                  }]}>
+                    {Currency.format(wt.income)}
                   </Text>
+
+                  {/* Right: expense + balance */}
+                  <View style={styles.colRight}>
+                    <Text style={[styles.wkExpenseAmt, {
+                      color: theme.expense,
+                    }]}>
+                      {Currency.format(wt.expense)}
+                    </Text>
+                    <Text style={[styles.wkBalanceAmt, {
+                      color: theme.secondaryText,
+                    }]}>
+                      {isCur ? `Total ${Currency.format(wt.balance)}` : Currency.format(wt.balance)}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[styles.catAmount, { color: item.color }]}>{Currency.format(item.amount)}</Text>
-                <Text style={[styles.catPct, { color: theme.secondaryText }]}>{Math.round(item.pct)}%</Text>
-              </View>
-            </View>
-            <View style={[styles.track, { backgroundColor: `${item.color}18` }]}>
-              <View style={[styles.fill, { backgroundColor: item.color, width: `${item.pct}%` as any }]} />
-            </View>
-          </Animated.View>
-        ))
-      )}
+              );
+            })}
+
+          </View>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tabWrap: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 16,
+  monthBlock: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 10,
+
+  // Month header
+  row: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    paddingHorizontal: 20,
+    paddingVertical:   16,
   },
-  tabText: {
-    fontSize: 13,
+  colLeft: {
+    flex: 2.5,
+  },
+  colRight: {
+    flex:        3,
+    alignItems:  'flex-end',
+  },
+  monthName: {
+    fontSize:   18,
     fontWeight: '700',
   },
-  totalRow: {
-    marginBottom: 16,
-    alignItems: 'center',
+  monthSubtitle: {
+    fontSize:   11,
+    marginTop:  2,
   },
-  totalLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  incomeAmt: {
+    flex:       3,
+    fontSize:   14,
+    fontWeight: '600',
+    textAlign:  'right',
+    paddingRight: 16,
   },
-  totalVal: {
-    fontSize: 26,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  catItem: {
-    marginBottom: 14,
-  },
-  catRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  catIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  catName: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  catCount: {
-    fontSize: 10,
-  },
-  catAmount: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  catPct: {
-    fontSize: 10,
+  expenseAmt: {
+    fontSize:   14,
     fontWeight: '600',
   },
-  track: {
-    height: 5,
-    borderRadius: 3,
-    overflow: 'hidden',
+  balanceAmt: {
+    fontSize:   11,
+    fontWeight: '600',
+    marginTop:  2,
   },
-  fill: {
-    height: '100%',
-    borderRadius: 3,
+
+  // Week rows
+  weekRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    paddingHorizontal: 20,
+    paddingVertical:   12,
+    paddingLeft:       24,
+  },
+  curWeekBg: {
+    backgroundColor: '#2d1a1c',
+  },
+  weekRange: {
+    fontSize:   13,
+    fontWeight: '500',
+  },
+  wkIncomeAmt: {
+    flex:       3,
+    fontSize:   13,
+    fontWeight: '600',
+    textAlign:  'right',
+    paddingRight: 16,
+  },
+  wkExpenseAmt: {
+    fontSize:   13,
+    fontWeight: '600',
+  },
+  wkBalanceAmt: {
+    fontSize:   10,
+    fontWeight: '500',
+    marginTop:  2,
   },
 });

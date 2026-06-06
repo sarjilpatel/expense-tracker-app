@@ -79,11 +79,20 @@ export const importCategories = async (fromGroupId: string, type?: string) => {
   }
 };
 
-export const setupWeddingPreset = async () => {
+export const leaveGroup = async () => {
   try {
-    const response = await apiClient.post('/group/categories/wedding-preset');
+    const response = await apiClient.post('/group/leave');
     return response.data;
   } catch (error: any) {
-    throw error.response?.data?.message || 'Failed to setup wedding categories';
+    throw error.response?.data?.message || 'Failed to leave group';
+  }
+};
+
+export const deleteGroup = async () => {
+  try {
+    const response = await apiClient.delete('/group');
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to delete group';
   }
 };

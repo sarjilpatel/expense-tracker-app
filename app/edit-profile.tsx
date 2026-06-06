@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+
+import { useTheme } from '@/src/context/ThemeContext';
 import { getProfile, updateProfile } from '@/src/services/authApi';
 import { router, Stack } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
@@ -26,8 +26,7 @@ import { useAuth } from '@/src/context/AuthContext';
 export default function EditProfileScreen() {
   const { t } = useLanguage();
   const { updateUser } = useAuth();
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme || 'light'];
+  const { theme } = useTheme();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -122,7 +121,7 @@ export default function EditProfileScreen() {
                {photo ? (
                  <Image source={{ uri: photo }} style={styles.photo} />
                ) : (
-                 <View style={[styles.placeholder, { backgroundColor: `${theme.tint}10` }]}>
+                 <View style={[styles.placeholder, { backgroundColor: theme.card }]}>
                     <Ionicons name="person" size={50} color={theme.tint} />
                  </View>
                )}
@@ -137,7 +136,7 @@ export default function EditProfileScreen() {
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>{t('name')}</ThemedText>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: 'rgba(150,150,150,0.05)' }]}
+                style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
                 value={name}
                 onChangeText={setName}
                 placeholder="Your Name"
@@ -148,7 +147,7 @@ export default function EditProfileScreen() {
             <View style={styles.inputGroup}>
               <ThemedText style={styles.label}>Email (Read-only)</ThemedText>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: 'rgba(150,150,150,0.02)', opacity: 0.5 }]}
+                style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
                 value={email}
                 editable={false}
               />
@@ -195,7 +194,7 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: '#FFF',
   },
-  photoHint: { marginTop: 16, fontSize: 13, opacity: 0.5 },
+  photoHint: { marginTop: 16, fontSize: 13 },
   form: { width: '100%' },
   inputGroup: { marginBottom: 24 },
   label: { fontSize: 13, fontWeight: '700', color: '#8E8E93', textTransform: 'uppercase', marginBottom: 8, paddingLeft: 4 },

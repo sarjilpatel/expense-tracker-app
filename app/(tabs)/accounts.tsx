@@ -1,0 +1,281 @@
+import React, { useState, useCallback, useMemo } from 'react';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  RefreshControl,
+} from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+
+import { useTheme } from '@/src/context/ThemeContext';
+import { usePreferences } from '@/src/context/PreferencesContext';
+import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from '@/components/themed-text';
+import { SkeletonLoader } from '@/components/SkeletonLoader';
+import {
+  Account, ACCOUNT_TYPE_META,
+  getAccounts, getTxAccountMap, computeAccountBalance,
+} from '@/src/services/accountService';
+import { getTransactions } from '@/src/services/dataService';
+import { getCachedTransactions, setCachedTransactions } from '@/src/cache/transactionCache';
+
+export default function AccountsScreen() {
+  const { theme } = useTheme();
+  const { formatAmount } = usePreferences();
+
+  const [accounts, setAccounts]           = useState<Account[]>([]);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [txAccountMap, setTxAccountMap]   = useState<Record<string, string>>({});
+  const [loading, setLoading]             = useState(false);
+  const [refreshing, setRefreshing]       = useState(false);
+
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const [accs, map] = await Promise.all([getAccounts(), getTxAccountMap()]);
+      setAccounts(accs);
+      setTxAccountMap(map);
+
+      // Cache-first for all transactions
+      let txs = await getCachedTransactions();
+      if (txs) {
+        setAllTransactions(txs);
+        setLoading(false);
+        // background sync
+        getTransactions().then(fresh => {
+          setCachedTransactions(fresh);
+          setAllTransactions(fresh);
+        }).catch(() => {});
+      } else {
+        const fresh = await getTransactions();
+        await setCachedTransactions(fresh);
+        setAllTransactions(fresh);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const accountsWithBalance = useMemo(() =>
+    accounts.map(acc => ({
+      ...acc,
+      balance: computeAccountBalance(acc, allTransactions, txAccountMap),
+      txCount: Object.values(txAccountMap).filter(id => id === acc.id).length,
+    })),
+  [accounts, allTransactions, txAccountMap]);
+
+  const totalAssets = useMemo(() =>
+    accountsWithBalance.reduce((s, a) => s + (a.balance > 0 ? a.balance : 0), 0),
+  [accountsWithBalance]);
+
+  const totalLiabilities = useMemo(() =>
+    accountsWithBalance.reduce((s, a) => s + (a.balance < 0 ? Math.abs(a.balance) : 0), 0),
+  [accountsWithBalance]);
+
+  const netWorth = totalAssets - totalLiabilities;
+
+  // Group by positive/negative balance
+  const assetAccounts    = accountsWithBalance.filter(a => a.type !== 'credit_card' || a.balance >= 0);
+  const liabilityAccounts = accountsWithBalance.filter(a => a.type === 'credit_card' && a.balance < 0);
+
+  return (
+    <ThemedView style={styles.container}>
+
+      {/* Header */}
+      <View style={styles.header}>
+        <ThemedText type="title" style={styles.title}>Accounts</ThemedText>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.headerBtn, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}
+            onPress={() => router.push('/add-transfer')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="swap-horizontal-outline" size={18} color={theme.tint} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.headerBtn, { backgroundColor: theme.tint }]}
+            onPress={() => router.push('/add-account')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {loading && !refreshing ? (
+        <View style={{ paddingTop: 12 }}>
+          <SkeletonLoader type="card" />
+          <SkeletonLoader rows={4} />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(true); }} tintColor={theme.tint} />}
+        >
+
+          {accounts.length === 0 ? (
+            /* ── Empty state ── */
+            <View style={styles.emptyWrap}>
+              <View style={[styles.emptyIcon, { backgroundColor: theme.tint }]}>
+                <Ionicons name="wallet-outline" size={40} color='#FFF' />
+              </View>
+              <ThemedText style={styles.emptyTitle}>No accounts yet</ThemedText>
+              <Text style={[styles.emptyBody, { color: theme.secondaryText }]}>
+                Add your bank accounts, wallets and credit cards to track balances and link transactions.
+              </Text>
+              <TouchableOpacity
+                style={[styles.emptyBtn, { backgroundColor: theme.tint }]}
+                onPress={() => router.push('/add-account')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle-outline" size={18} color="#FFF" />
+                <Text style={styles.emptyBtnText}>Add First Account</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              {/* ── Net Worth Card ── */}
+              <Animated.View entering={FadeInDown.duration(280)} style={[styles.netCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <Text style={[styles.netLabel, { color: theme.secondaryText }]}>NET WORTH</Text>
+                <Text style={[styles.netAmt, { color: netWorth >= 0 ? theme.income : theme.expense }]}>
+                  {formatAmount(netWorth)}
+                </Text>
+                <View style={[styles.netDivider, { backgroundColor: theme.border }]} />
+                <View style={styles.netRow}>
+                  <View style={styles.netCol}>
+                    <Text style={[styles.netColLabel, { color: theme.secondaryText }]}>Assets</Text>
+                    <Text style={[styles.netColVal, { color: theme.income }]}>{formatAmount(totalAssets)}</Text>
+                  </View>
+                  <View style={[styles.netColDivider, { backgroundColor: theme.border }]} />
+                  <View style={styles.netCol}>
+                    <Text style={[styles.netColLabel, { color: theme.secondaryText }]}>Liabilities</Text>
+                    <Text style={[styles.netColVal, { color: theme.expense }]}>{formatAmount(totalLiabilities)}</Text>
+                  </View>
+                </View>
+              </Animated.View>
+
+              {/* ── Accounts list ── */}
+              <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>
+                MY ACCOUNTS · {accounts.length}
+              </Text>
+
+              {accountsWithBalance.map((acc, i) => {
+                const meta = ACCOUNT_TYPE_META[acc.type];
+                return (
+                  <Animated.View key={acc.id} entering={FadeInDown.delay(i * 50).duration(260)}>
+                    <TouchableOpacity
+                      style={[styles.accountRow, { borderBottomColor: theme.border }]}
+                      onPress={() => router.push({ pathname: '/account-detail', params: { id: acc.id } })}
+                      activeOpacity={0.65}
+                    >
+                      {/* Left: icon */}
+                      <View style={[styles.accIcon, { backgroundColor: acc.color }]}>
+                        <Ionicons name={meta.icon as any} size={22} color='#FFF' />
+                      </View>
+
+                      {/* Middle: name + type + tx count */}
+                      <View style={styles.accMid}>
+                        <Text style={[styles.accName, { color: theme.text }]}>{acc.name}</Text>
+                        <Text style={[styles.accType, { color: theme.secondaryText }]}>
+                          {meta.label}{acc.txCount > 0 ? ` · ${acc.txCount} transactions` : ''}
+                        </Text>
+                      </View>
+
+                      {/* Right: balance + chevron */}
+                      <View style={styles.accRight}>
+                        <Text style={[styles.accBalance, { color: acc.balance >= 0 ? theme.text : theme.expense }]}>
+                          {formatAmount(acc.balance)}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} style={{ marginTop: 2 }} />
+                      </View>
+                    </TouchableOpacity>
+                  </Animated.View>
+                );
+              })}
+
+              {/* Tip */}
+              <View style={[styles.tip, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
+                <Ionicons name="information-circle-outline" size={16} color={theme.tint} />
+                <Text style={[styles.tipText, { color: theme.secondaryText }]}>
+                  Long-press a transaction on the home screen to link it to an account.
+                  Or select an account when adding a new transaction.
+                </Text>
+              </View>
+            </>
+          )}
+
+          <View style={{ height: 20 }} />
+        </ScrollView>
+      )}
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60 },
+
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, marginBottom: 20,
+  },
+  title:         { fontSize: 22, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  headerBtn:     { width: 36, height: 36, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+
+  scroll: { paddingBottom: 120 },
+
+  // Net worth
+  netCard: {
+    marginHorizontal: 20, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
+    padding: 20, marginBottom: 8,
+  },
+  netLabel:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
+  netAmt:        { fontSize: 28, fontWeight: '900', marginBottom: 16 },
+  netDivider:    { height: StyleSheet.hairlineWidth, marginBottom: 16 },
+  netRow:        { flexDirection: 'row' },
+  netCol:        { flex: 1 },
+  netColLabel:   { fontSize: 11, fontWeight: '600', marginBottom: 3 },
+  netColVal:     { fontSize: 15, fontWeight: '800' },
+  netColDivider: { width: StyleSheet.hairlineWidth, marginHorizontal: 16 },
+
+  // Section
+  sectionLabel: {
+    fontSize: 10, fontWeight: '800', letterSpacing: 0.5,
+    marginBottom: 4, marginTop: 24, paddingHorizontal: 20,
+  },
+
+  // Account rows — full width, no horizontal margin
+  accountRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  accIcon:    { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  accMid:     { flex: 1, marginLeft: 12 },
+  accName:    { fontSize: 15, fontWeight: '600' },
+  accType:    { fontSize: 12, marginTop: 2 },
+  accRight:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  accBalance: { fontSize: 15, fontWeight: '800' },
+
+  // Tip
+  tip: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    marginHorizontal: 20, marginTop: 24, borderRadius: 14, padding: 14,
+  },
+  tipText: { flex: 1, fontSize: 12, lineHeight: 18 },
+
+  // Empty state
+  emptyWrap: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40 },
+  emptyIcon: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  emptyTitle:{ fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  emptyBody: { fontSize: 14, lineHeight: 21, textAlign: 'center', marginBottom: 28 },
+  emptyBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16 },
+  emptyBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+});
