@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import socketService from '../services/socketService';
 import { requestNotificationPermissions } from '../services/notificationService';
 import { setMode as setDataMode } from '../services/dataService';
+import { invalidateCachedGroup, invalidateCachedProfile, invalidateAllTransactionCache } from '../cache/transactionCache';
 
 export interface User {
   _id: string;
@@ -93,6 +94,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsGuest(true);
       setDataMode(true);
       socketService.disconnect();
+      invalidateCachedGroup();
+      invalidateCachedProfile();
+      invalidateAllTransactionCache();
     } catch (error) {
       console.error('Error during logout storage:', error);
     }

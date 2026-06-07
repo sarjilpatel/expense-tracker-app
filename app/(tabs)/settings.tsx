@@ -15,7 +15,6 @@ import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { ThemedView } from '@/components/themed-view';
 import { getProfile } from '@/src/services/authApi';
-import { getCurrentGroup as getGroupDetails } from '@/src/services/groupApi';
 import {
   getBudgets, getTransactions,
   getCurrentGroup as getCategoryData,
@@ -114,22 +113,25 @@ export default function SettingsScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      if (!isGuest) {
-        const [profileData, groupData] = await Promise.all([
-          getProfile(), getGroupDetails(),
-        ]);
-        setUser(profileData);
-        setGroup(groupData);
-        getLastSyncTime().then(setLastSync).catch(() => {});
-      }
       const now = new Date();
-      const [budgets, catData] = await Promise.all([
+      const calls: Promise<any>[] = [
         getBudgets(now.getMonth() + 1, now.getFullYear()),
         getCategoryData(),
-      ]);
+      ];
+      if (!isGuest) calls.push(getProfile());
+      const [budgets, groupData, profileData] = await Promise.all(calls);
+
       const main = (budgets as any[])?.find((b: any) => !b.category) ?? null;
       setBudget(main);
-      const cats = (catData as any)?.categories ?? catData ?? [];
+
+      if (!isGuest) {
+        // groupData is the full group object (name, members, categories, etc.)
+        setGroup(groupData);
+        setUser(profileData ?? null);
+        getLastSyncTime().then(setLastSync).catch(() => {});
+      }
+
+      const cats = (groupData as any)?.categories ?? [];
       setIncomeCount((cats as any[]).filter((c: any) => c.type === 'income').length);
       setExpenseCount((cats as any[]).filter((c: any) => c.type === 'expense' || !c.type).length);
     } catch (e) {

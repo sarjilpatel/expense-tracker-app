@@ -62,6 +62,38 @@ export async function setCachedGroup(data: any): Promise<void> {
   } catch {}
 }
 
+export async function invalidateCachedGroup(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(GROUP_KEY);
+  } catch {}
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+const PROFILE_KEY = '@profilecache_v1';
+
+export async function getCachedProfile(): Promise<any | null> {
+  try {
+    const raw = await AsyncStorage.getItem(PROFILE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedProfile(data: any): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+export async function invalidateCachedProfile(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(PROFILE_KEY);
+  } catch {}
+}
+
 // ── Analytics ────────────────────────────────────────────────────────────────
 
 const ANALYTICS_PREFIX = '@analyticscache_v1';
