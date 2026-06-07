@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { Currency } from '@/constants/theme';
 import { CATEGORY_EMOJIS } from '@/constants/maps';
+import { CURRENCY_META } from '@/src/services/preferencesService';
 
 interface Props {
   item: any;
@@ -12,12 +14,18 @@ interface Props {
   onPress: (item: any) => void;
   onLongPress: (id: string) => void;
   accountName?: string | null;
+  hasReceipt?: boolean;
 }
 
-export function TransactionRow({ item, index, theme, t, onPress, onLongPress, accountName }: Props) {
+export const TransactionRow = memo(function TransactionRow({ item, index, theme, t, onPress, onLongPress, accountName, hasReceipt }: Props) {
   const isExpense   = item.type === 'expense';
   const emoji       = CATEGORY_EMOJIS[item.category] || '🏷️';
   const amountColor = isExpense ? theme.expense : theme.income;
+
+  const txCurrencyMeta = item.currency && item.currency !== 'INR' ? CURRENCY_META[item.currency as keyof typeof CURRENCY_META] : null;
+  const formattedAmount = txCurrencyMeta
+    ? `${txCurrencyMeta.symbol}${item.amount.toLocaleString(txCurrencyMeta.locale)}`
+    : Currency.format(item.amount);
 
   const addedBy = typeof item.userId === 'object' && item.userId?.name
     ? (item.userId.name as string)
@@ -58,14 +66,19 @@ export function TransactionRow({ item, index, theme, t, onPress, onLongPress, ac
           </Text>
         </View>
 
-        {/* Amount */}
-        <Text style={[styles.amount, { color: amountColor }]}>
-          {Currency.format(item.amount)}
-        </Text>
+        {/* Amount + receipt indicator */}
+        <View style={styles.right}>
+          <Text style={[styles.amount, { color: amountColor }]}>
+            {formattedAmount}
+          </Text>
+          {hasReceipt && (
+            <Ionicons name="receipt-outline" size={11} color={theme.secondaryText} style={styles.receiptIcon} />
+          )}
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   row: {
@@ -88,5 +101,7 @@ const styles = StyleSheet.create({
   middle:  { flex: 1, gap: 4 },
   title:   { fontSize: 15, fontWeight: '500', lineHeight: 19, letterSpacing: 0.1 },
   subtext: { fontSize: 12, fontWeight: '400', lineHeight: 15 },
-  amount:  { fontSize: 13, fontWeight: '600', flexShrink: 0, marginLeft: 8, letterSpacing: 0.2 },
+  right:       { alignItems: 'flex-end', marginLeft: 8, gap: 2 },
+  amount:      { fontSize: 13, fontWeight: '600', letterSpacing: 0.2 },
+  receiptIcon: { opacity: 0.6 },
 });

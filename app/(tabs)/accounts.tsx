@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  RefreshControl,
+  RefreshControl, Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -16,41 +17,49 @@ import {
   Account, ACCOUNT_TYPE_META,
   getAccounts, getTxAccountMap, computeAccountBalance,
 } from '@/src/services/accountService';
-import { getTransactions } from '@/src/services/dataService';
+import { getTransactions, getTrend } from '@/src/services/dataService';
 import { getCachedTransactions, setCachedTransactions } from '@/src/cache/transactionCache';
+import { BarChart } from 'react-native-gifted-charts';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function AccountsScreen() {
   const { theme } = useTheme();
   const { formatAmount } = usePreferences();
+  const { top } = useSafeAreaInsets();
 
   const [accounts, setAccounts]           = useState<Account[]>([]);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [txAccountMap, setTxAccountMap]   = useState<Record<string, string>>({});
   const [loading, setLoading]             = useState(false);
   const [refreshing, setRefreshing]       = useState(false);
+  const [trendData, setTrendData]         = useState<any[]>([]);
 
-  const loadData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+  const loadData = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh) setLoading(true);
     try {
       const [accs, map] = await Promise.all([getAccounts(), getTxAccountMap()]);
       setAccounts(accs);
       setTxAccountMap(map);
 
-      // Cache-first for all transactions
-      let txs = await getCachedTransactions();
-      if (txs) {
-        setAllTransactions(txs);
-        setLoading(false);
-        // background sync
-        getTransactions().then(fresh => {
-          setCachedTransactions(fresh);
-          setAllTransactions(fresh);
-        }).catch(() => {});
+      // On regular focus: serve from cache to avoid fetching all-time transactions.
+      // On pull-to-refresh: fetch fresh data from API.
+      const cached = await getCachedTransactions();
+      if (!forceRefresh && cached) {
+        setAllTransactions(cached);
       } else {
         const fresh = await getTransactions();
         await setCachedTransactions(fresh);
         setAllTransactions(fresh);
       }
+
+      // Load 12-month trend — monthly net, latest first
+      getTrend(12).then((months: any[]) => {
+        const points = [...months].reverse().map((m: any) => ({
+          value: (m.income || 0) - (m.expense || 0),
+          label: `${m.monthLabel}\n'${String(m.year).slice(-2)}`,
+        }));
+        setTrendData(points);
+      }).catch(() => {});
     } catch (err) {
       console.error(err);
     } finally {
@@ -85,7 +94,7 @@ export default function AccountsScreen() {
   const liabilityAccounts = accountsWithBalance.filter(a => a.type === 'credit_card' && a.balance < 0);
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
 
       {/* Header */}
       <View style={styles.header}>
@@ -161,6 +170,45 @@ export default function AccountsScreen() {
                 </View>
               </Animated.View>
 
+              {/* ── Net worth trend chart ── */}
+              {trendData.length > 1 && (
+                <Animated.View entering={FadeInDown.delay(60).duration(280)}
+                  style={[styles.trendCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  <Text style={[styles.netLabel, { color: theme.secondaryText, marginBottom: 12 }]}>MONTHLY NET (12 MONTHS)</Text>
+                  <ErrorBoundary fallback={null}>
+                    {(() => {
+                      const absVals = trendData.map((p: any) => Math.abs(p.value)).sort((a: number, b: number) => a - b);
+                      const median  = absVals[Math.floor(absVals.length / 2)] || 1000;
+                      const cap     = Math.max(median * 3, 1000);
+                      const bw      = Math.floor((Dimensions.get('window').width - 128) / trendData.length) - 2;
+                      return (
+                        <BarChart
+                          data={trendData.map((p: any) => ({
+                            value: Math.max(Math.min(p.value, cap), -cap),
+                            label: p.label,
+                            frontColor: p.value >= 0 ? theme.income : theme.expense,
+                          }))}
+                          width={Dimensions.get('window').width - 96}
+                          height={130}
+                          barWidth={bw > 4 ? bw : 14}
+                          maxValue={cap}
+                          mostNegativeValue={-cap}
+                          noOfSections={3}
+                          barBorderRadius={4}
+                          yAxisThickness={0}
+                          xAxisThickness={StyleSheet.hairlineWidth}
+                          xAxisColor={theme.border}
+                          hideRules
+                          showLine={false}
+                          yAxisTextStyle={{ color: theme.secondaryText, fontSize: 8 }}
+                          xAxisLabelTextStyle={{ color: theme.secondaryText, fontSize: 8 }}
+                        />
+                      );
+                    })()}
+                  </ErrorBoundary>
+                </Animated.View>
+              )}
+
               {/* ── Accounts list ── */}
               <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>
                 MY ACCOUNTS · {accounts.length}
@@ -219,7 +267,7 @@ export default function AccountsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60 },
+  container: { flex: 1 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -244,6 +292,11 @@ const styles = StyleSheet.create({
   netColLabel:   { fontSize: 11, fontWeight: '600', marginBottom: 3 },
   netColVal:     { fontSize: 15, fontWeight: '800' },
   netColDivider: { width: StyleSheet.hairlineWidth, marginHorizontal: 16 },
+
+  trendCard: {
+    marginHorizontal: 20, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
+    padding: 16, marginBottom: 8,
+  },
 
   // Section
   sectionLabel: {

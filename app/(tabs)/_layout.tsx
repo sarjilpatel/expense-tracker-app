@@ -3,22 +3,19 @@ import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const { theme } = useTheme();
 
-  const tabBarBg = isDark ? '#0E0E12' : '#FFFFFF';
+  const tabBarBg = theme.background;
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor:   theme.tint,
-        tabBarInactiveTintColor: isDark ? '#475569' : '#94A3B8',
+        tabBarInactiveTintColor: theme.secondaryText,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarStyle: {
@@ -26,9 +23,9 @@ export default function TabLayout() {
           borderTopWidth:  StyleSheet.hairlineWidth,
           borderTopColor:  theme.border,
           elevation:       0,
-          shadowColor:     isDark ? '#000' : theme.tint,
+          shadowColor:     theme.tint,
           shadowOffset:    { width: 0, height: -2 },
-          shadowOpacity:   isDark ? 0.12 : 0.04,
+          shadowOpacity:   0.06,
           shadowRadius:    8,
           height:          Platform.OS === 'ios' ? 80 : 58,
           paddingBottom:   Platform.OS === 'ios' ? 24 : 8,
@@ -45,7 +42,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Trans.',
+          title: 'Records',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons size={24} name={focused ? 'book' : 'book-outline'} color={color} />
           ),

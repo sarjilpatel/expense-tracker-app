@@ -75,6 +75,38 @@ export const removeCategory = (id: string) =>
     ? localCat.removeLocalCategory(id)
     : remoteGrp.removeCategory(id);
 
+// ── Carry-forward ─────────────────────────────────────────────────────────────
+
+/**
+ * Computes the budget surplus from the previous month.
+ * Returns 0 if no budget was set or if expenses exceeded budget.
+ */
+export async function getPrevMonthCarryForward(month: number, year: number): Promise<number> {
+  try {
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear  = month === 1 ? year - 1 : year;
+
+    const [prevBudgets, prevTxs] = await Promise.all([
+      getBudgets(prevMonth, prevYear),
+      getTransactions(prevMonth, prevYear),
+    ]);
+
+    const budgets = prevBudgets as any[];
+    const txs     = prevTxs as any[];
+
+    const mainBudget = budgets.find((b: any) => !b.category);
+    if (!mainBudget) return 0;
+
+    const expense = txs
+      .filter((tx: any) => tx.type === 'expense')
+      .reduce((s: number, tx: any) => s + tx.amount, 0);
+
+    return Math.max(0, mainBudget.amount - expense);
+  } catch {
+    return 0;
+  }
+}
+
 // ── Budgets ───────────────────────────────────────────────────────────────────
 
 export const getBudgets = (month?: number, year?: number) =>

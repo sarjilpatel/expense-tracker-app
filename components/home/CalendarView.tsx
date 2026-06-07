@@ -73,9 +73,9 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
               styles.headerLabel,
               {
                 color: i === 0
-                  ? theme.expense           // Sunday: red
+                  ? theme.expense
                   : i === 6
-                  ? '#5B9CF6'               // Saturday: blue
+                  ? theme.primary
                   : theme.secondaryText,
               },
             ]}>
@@ -109,26 +109,26 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
 
             // Backgrounds
             const cellBg = isSel
-              ? '#FFFFFF'
+              ? theme.surface
               : isToday
               ? theme.border
               : theme.card;
 
             // Date number color
             const numColor = isSel
-              ? '#111111'
+              ? theme.tint
               : !isCurMon
               ? theme.secondaryText
               : isSun
               ? theme.expense
               : isSat
-              ? '#5B9CF6'
+              ? theme.primary
               : theme.text;
 
             // Amount colors
-            const incC = isSel ? '#007AFF' : theme.income;
-            const expC = isSel ? '#FF3B30' : theme.expense;
-            const balC = isSel ? '#555555' : theme.secondaryText;
+            const incC = theme.income;
+            const expC = theme.expense;
+            const balC = theme.secondaryText;
 
             return (
               <TouchableOpacity

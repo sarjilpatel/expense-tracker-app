@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, ActivityIndicator, Keyboard,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +40,7 @@ function relativeDate(iso: string): string {
 export default function SearchScreen() {
   const { theme }              = useTheme();
   const { formatAmount }       = usePreferences();
+  const { top }                = useSafeAreaInsets();
   const inputRef               = useRef<TextInput>(null);
 
   const [query,          setQuery]        = useState('');
@@ -248,7 +250,7 @@ export default function SearchScreen() {
   const expCount  = results.filter(t => t.type === 'expense').length;
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: top }]}>
 
       {/* Search bar */}
       <View style={[styles.searchBar, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
@@ -337,7 +339,7 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 52 },
+  container: { flex: 1 },
 
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,

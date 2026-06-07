@@ -31,7 +31,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
-      .then(raw => { if (raw) setOverrides(JSON.parse(raw)); })
+      .then(raw => {
+        if (raw) {
+          try { setOverrides(JSON.parse(raw)); }
+          catch { AsyncStorage.removeItem(STORAGE_KEY).catch(() => {}); }
+        }
+      })
       .catch(() => {});
   }, []);
 

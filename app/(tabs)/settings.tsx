@@ -3,11 +3,14 @@ import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
   Alert, Switch, ActivityIndicator, Modal, FlatList,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TYPE_SCALE } from '@/constants/theme';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import * as XLSX from 'xlsx';
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLanguage } from '@/src/i18n/LanguageContext';
@@ -22,9 +25,16 @@ import {
 import {
   CURRENCY_META, CurrencyCode, ordinalSuffix,
 } from '@/src/services/preferencesService';
-import { requestNotificationPermissions } from '@/src/services/notificationService';
+import {
+  requestNotificationPermissions,
+  scheduleDailyReminder,
+  cancelDailyReminder,
+  getReminderTime,
+  saveReminderTime,
+} from '@/src/services/notificationService';
 import { discardLocalData, getLastSyncTime } from '@/src/services/syncService';
 import apiClient from '@/src/services/apiClient';
+import { setPin, disableLock, isLockEnabled } from '@/src/services/lockService';
 
 // ── Language options ─────────────────────────────────────────────────────────
 const LANGS = [
@@ -99,6 +109,7 @@ export default function SettingsScreen() {
   const { language, setLanguage }      = useLanguage();
   const { user: authUser, isGuest, logout } = useAuth();
   const { prefs, updatePrefs }         = usePreferences();
+  const { top }                        = useSafeAreaInsets();
 
   const [user,         setUser]         = useState<any>(null);
   const [group,        setGroup]        = useState<any>(null);
@@ -107,6 +118,10 @@ export default function SettingsScreen() {
   const [expenseCount, setExpenseCount] = useState(0);
   const [lastSync,     setLastSync]     = useState<string | null>(null);
   const [exporting,    setExporting]    = useState(false);
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+  const [lockEnabled,   setLockEnabled]  = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderTime,    setReminderTime]    = useState<{ hour: number; minute: number } | null>(null);
   const [wiping,       setWiping]       = useState(false);
   const [loading,      setLoading]      = useState(!isGuest);
   const [activeModal,  setActiveModal]  = useState<ModalType>(null);
@@ -141,9 +156,59 @@ export default function SettingsScreen() {
     }
   }, [isGuest]);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+  useFocusEffect(useCallback(() => {
+    fetchData();
+    isLockEnabled().then(setLockEnabled).catch(() => {});
+    getReminderTime().then(t => {
+      if (t) { setReminderEnabled(true); setReminderTime(t); }
+      else    { setReminderEnabled(false); setReminderTime(null); }
+    }).catch(() => {});
+  }, [fetchData]));
 
   // ── Actions ─────────────────────────────────────────────────────────────────
+
+  const handleToggleReminder = () => {
+    if (reminderEnabled) {
+      cancelDailyReminder().then(() => { setReminderEnabled(false); setReminderTime(null); });
+    } else {
+      // Default: 8 PM reminder
+      const defaultHour = 20;
+      const defaultMin  = 0;
+      const ok = requestNotificationPermissions();
+      ok.then(granted => {
+        if (!granted) { Alert.alert('Permission Required', 'Enable notifications in device settings.'); return; }
+        scheduleDailyReminder(defaultHour, defaultMin);
+        saveReminderTime(defaultHour, defaultMin);
+        setReminderEnabled(true);
+        setReminderTime({ hour: defaultHour, minute: defaultMin });
+        Alert.alert('Reminder set', 'You\'ll get a daily check-in at 8:00 PM.');
+      });
+    }
+  };
+
+  const handleToggleLock = () => {
+    if (lockEnabled) {
+      Alert.alert('Disable PIN Lock', 'Remove the app lock?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Disable', style: 'destructive', onPress: async () => { await disableLock(); setLockEnabled(false); } },
+      ]);
+    } else {
+      // Ask user to set a 4-digit PIN via two-step Alert prompt
+      Alert.prompt('Set PIN', 'Enter a 4-digit PIN', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Set', onPress: async (pin) => {
+            if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+              Alert.alert('Invalid PIN', 'PIN must be exactly 4 digits.'); return;
+            }
+            await setPin(pin);
+            setLockEnabled(true);
+            Alert.alert('PIN set', 'App will lock after 30 seconds in the background.');
+          },
+        },
+      ], 'secure-text');
+    }
+  };
 
   const handleLogout = () =>
     Alert.alert('Logout', 'Are you sure?', [
@@ -162,11 +227,13 @@ export default function SettingsScreen() {
       },
     ]);
 
-  const handleExport = async () => {
+  const doExportCsv = async (month?: number, year?: number, label?: string) => {
     setExporting(true);
     try {
       const now = new Date();
-      const txs = await getTransactions(now.getMonth() + 1, now.getFullYear()) as any[];
+      const m = month ?? now.getMonth() + 1;
+      const y = year ?? now.getFullYear();
+      const txs = await getTransactions(month, y) as any[];
       const rows = [
         ['Date', 'Type', 'Category', 'Amount', 'Note'],
         ...txs.map(tx => [
@@ -176,9 +243,10 @@ export default function SettingsScreen() {
         ]),
       ];
       const csv = rows.map(r => r.join(',')).join('\n');
-      const name = `transactions_${now.toLocaleString('default', { month: 'long' })}_${now.getFullYear()}.csv`;
-      const path = `${(FileSystem as any).documentDirectory}${name}`;
-      await (FileSystem as any).writeAsStringAsync(path, csv, { encoding: 'utf8' });
+      const nameSuffix = label ?? `${now.toLocaleString('default', { month: 'long' })}_${y}`;
+      const name = `transactions_${nameSuffix}.csv`;
+      const path = `${FileSystem.documentDirectory}${name}`;
+      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Export Transactions' });
       } else {
@@ -188,6 +256,47 @@ export default function SettingsScreen() {
       Alert.alert('Error', 'Export failed');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleExport = () => {
+    const now = new Date();
+    const monthName = now.toLocaleString('default', { month: 'long' });
+    Alert.alert('Export CSV', 'Choose period', [
+      { text: `This Month (${monthName})`, onPress: () => doExportCsv(now.getMonth() + 1, now.getFullYear()) },
+      { text: `This Year (${now.getFullYear()})`, onPress: () => doExportCsv(undefined, now.getFullYear(), `${now.getFullYear()}`) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleExportXlsx = async () => {
+    setExportingXlsx(true);
+    try {
+      const now = new Date();
+      const txs = await getTransactions(now.getMonth() + 1, now.getFullYear()) as any[];
+      const rows = txs.map(tx => ({
+        Date: new Date(tx.date || tx.createdAt).toLocaleDateString(),
+        Type: tx.type,
+        Category: tx.category,
+        Amount: tx.amount,
+        Note: tx.note || '',
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+      const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+      const name = `transactions_${now.toLocaleString('default', { month: 'long' })}_${now.getFullYear()}.xlsx`;
+      const path = `${FileSystem.documentDirectory}${name}`;
+      await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(path, { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', dialogTitle: 'Export XLSX' });
+      } else {
+        Alert.alert('Exported', `Saved to: ${path}`);
+      }
+    } catch {
+      Alert.alert('Error', 'XLSX export failed');
+    } finally {
+      setExportingXlsx(false);
     }
   };
 
@@ -216,7 +325,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ThemedView style={S.container}>
+    <ThemedView style={[S.container, { paddingTop: top }]}>
       <View style={S.header}>
         <Text style={[S.headerTitle, { color: theme.text }]}>More</Text>
       </View>
@@ -415,7 +524,49 @@ export default function SettingsScreen() {
           </View>
         </Card>
 
-        {/* ── 4. Data ── */}
+        {/* ── 4. Security ── */}
+        <Text style={[S.groupLabel, { color: theme.secondaryText }]}>SECURITY</Text>
+        <Card>
+          <View style={S.row}>
+            <View style={[S.iconBox, { backgroundColor: '#3B82F6' }]}>
+              <Ionicons name="lock-closed-outline" size={18} color='#FFF' />
+            </View>
+            <View style={S.rowMid}>
+              <Text style={[S.rowTitle, { color: theme.text }]}>PIN Lock</Text>
+              <Text style={[S.rowSub, { color: theme.secondaryText }]}>
+                {lockEnabled ? 'Locks after 30s in background' : 'Protect the app with a 4-digit PIN'}
+              </Text>
+            </View>
+            <Switch
+              value={lockEnabled}
+              onValueChange={handleToggleLock}
+              trackColor={{ false: theme.border, true: '#3B82F6' }}
+              thumbColor={lockEnabled ? '#3B82F6' : theme.secondaryText}
+            />
+          </View>
+          <Sep />
+          <View style={S.row}>
+            <View style={[S.iconBox, { backgroundColor: theme.warning ?? '#FF9500' }]}>
+              <Ionicons name="alarm-outline" size={18} color='#FFF' />
+            </View>
+            <View style={S.rowMid}>
+              <Text style={[S.rowTitle, { color: theme.text }]}>Daily Reminder</Text>
+              <Text style={[S.rowSub, { color: theme.secondaryText }]}>
+                {reminderEnabled && reminderTime
+                  ? `Daily at ${reminderTime.hour}:${String(reminderTime.minute).padStart(2, '0')}`
+                  : 'Remind you to log expenses every day'}
+              </Text>
+            </View>
+            <Switch
+              value={reminderEnabled}
+              onValueChange={handleToggleReminder}
+              trackColor={{ false: theme.border, true: theme.warning ?? '#FF9500' }}
+              thumbColor={reminderEnabled ? (theme.warning ?? '#FF9500') : theme.secondaryText}
+            />
+          </View>
+        </Card>
+
+        {/* ── 5. Data ── */}
         <Text style={[S.groupLabel, { color: theme.secondaryText }]}>DATA</Text>
         <Card>
           {!isGuest && (
@@ -438,6 +589,13 @@ export default function SettingsScreen() {
             title="Export CSV" sub="Current month transactions"
             onPress={handleExport}
             right={exporting ? <ActivityIndicator size="small" color={theme.income} /> : undefined}
+          />
+          <Sep />
+          <Row
+            icon="document-outline" iconBg="#16A34A" iconColor='#FFF'
+            title="Export XLSX" sub="Excel spreadsheet — current month"
+            onPress={handleExportXlsx}
+            right={exportingXlsx ? <ActivityIndicator size="small" color="#16A34A" /> : undefined}
           />
           {isGuest && (
             <>
@@ -562,9 +720,9 @@ export default function SettingsScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
-  container:   { flex: 1, paddingTop: 56 },
+  container:   { flex: 1 },
   header:      { paddingHorizontal: 20, paddingBottom: 16 },
-  headerTitle: { fontSize: 26, fontWeight: '800' },
+  headerTitle: TYPE_SCALE.screenTitle,
   scroll:      { paddingHorizontal: 16, paddingBottom: 40 },
 
   groupLabel: {

@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -11,11 +11,14 @@ import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { PreferencesProvider } from '@/src/context/PreferencesContext';
 import { ThemeProvider as AppThemeProvider } from '@/src/context/ThemeContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 import apiClient from '@/src/services/apiClient';
 import { LanguageProvider } from '@/src/i18n/LanguageContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SyncModal } from '@/components/SyncModal';
 import { hasPendingLocalData } from '@/src/services/syncService';
+import LockScreen from '@/app/lock';
+import { shouldLock, recordBackground, clearBackgroundTime } from '@/src/services/lockService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,12 +33,26 @@ function RootLayoutNav() {
   const router   = useRouter();
 
   const [showSync, setShowSync] = useState(false);
+  const [locked, setLocked]     = useState(false);
   const prevIsGuest = useRef<boolean | null>(null);
 
   // Inject logout into apiClient for 401 handling
   useEffect(() => {
     apiClient.injectLogout(logout);
   }, [logout]);
+
+  // AppState-based lock
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', async state => {
+      if (state === 'background' || state === 'inactive') {
+        await recordBackground();
+      } else if (state === 'active') {
+        const lock = await shouldLock();
+        if (lock) { setLocked(true); await clearBackgroundTime(); }
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Show sync modal when transitioning from guest → logged-in with pending local data
   useEffect(() => {
@@ -63,15 +80,19 @@ function RootLayoutNav() {
   }, [user, loading, segments, router]);
 
   if (loading) {
-    const bg = colorScheme === 'dark' ? '#0F172A' : '#F8FAFC';
+    const bg = colorScheme === 'dark' ? Colors.dark.background : Colors.light.background;
     return (
       <View style={[loadingStyles.container, { backgroundColor: bg }]}>
         <View style={loadingStyles.iconWrap}>
           <Ionicons name="wallet" size={38} color="#FFF" />
         </View>
-        <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 28 }} />
+        <ActivityIndicator size="large" color={Colors.light.primary} style={{ marginTop: 28 }} />
       </View>
     );
+  }
+
+  if (locked) {
+    return <LockScreen onUnlock={() => setLocked(false)} />;
   }
 
   return (
@@ -123,9 +144,9 @@ const loadingStyles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   iconWrap: {
     width: 76, height: 76, borderRadius: 24,
-    backgroundColor: '#6366F1',
+    backgroundColor: Colors.light.primary,
     justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#6366F1', shadowOffset: { width: 0, height: 10 },
+    shadowColor: Colors.light.primary, shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.45, shadowRadius: 20, elevation: 12,
   },
 });

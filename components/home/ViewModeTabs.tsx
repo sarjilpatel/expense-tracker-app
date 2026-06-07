@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 
-export type HomeViewMode = 'daily' | 'calendar' | 'monthly' | 'total' | 'note';
+export type HomeViewMode = 'daily' | 'weekly' | 'calendar' | 'monthly' | 'total' | 'note';
 
 const TABS: { key: HomeViewMode; label: string }[] = [
   { key: 'daily',    label: 'Daily'    },
+  { key: 'weekly',   label: 'Weekly'   },
   { key: 'calendar', label: 'Calendar' },
   { key: 'monthly',  label: 'Monthly'  },
   { key: 'total',    label: 'Total'    },

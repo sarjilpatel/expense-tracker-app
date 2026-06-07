@@ -96,6 +96,14 @@ export const Currency = {
     })}`,
 };
 
+export const TYPE_SCALE = {
+  screenTitle:  { fontSize: 22, fontWeight: '800' as const },
+  sectionTitle: { fontSize: 17, fontWeight: '700' as const },
+  body:         { fontSize: 15, fontWeight: '500' as const },
+  label:        { fontSize: 13, fontWeight: '600' as const },
+  caption:      { fontSize: 11, fontWeight: '500' as const },
+};
+
 export const CATEGORIES = [
   { id: '1', name: 'Food',          icon: 'fast-food' },
   { id: '2', name: 'Transport',     icon: 'car' },

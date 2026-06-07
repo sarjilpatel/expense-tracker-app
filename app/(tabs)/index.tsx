@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, SectionList, RefreshControl,
   Alert, ScrollView, StyleSheet, Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, runOnJS,
 } from 'react-native-reanimated';
@@ -20,6 +21,7 @@ import socketService from '@/src/services/socketService';
 import { sendLocalNotification, LARGE_TRANSACTION_THRESHOLD } from '@/src/services/notificationService';
 import { getTransactions, deleteTransaction, getBudgets } from '@/src/services/dataService';
 import { getAccounts, getTxAccountMap } from '@/src/services/accountService';
+import { getReceiptMap } from '@/src/services/receiptService';
 import {
   getCachedTransactions, setCachedTransactions,
   getCachedBudgets, setCachedBudgets,
@@ -30,6 +32,7 @@ import { ThemedText } from '@/components/themed-text';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
 
 import { ViewModeTabs, HomeViewMode } from '@/components/home/ViewModeTabs';
+import { FilterDrawer, FilterState, DEFAULT_FILTERS } from '@/components/home/FilterDrawer';
 import { SummaryStrip } from '@/components/home/SummaryStrip';
 import { BudgetBar } from '@/components/home/BudgetBar';
 import { TransactionRow } from '@/components/home/TransactionRow';
@@ -37,6 +40,7 @@ import { TransactionSectionHeader } from '@/components/home/TransactionSectionHe
 import { CalendarView } from '@/components/home/CalendarView';
 import { MonthlyView } from '@/components/home/MonthlyView';
 import { TotalView } from '@/components/home/TotalView';
+import { WeeklyView } from '@/components/home/WeeklyView';
 import { NotificationsModal, Notification } from '@/components/home/NotificationsModal';
 
 function buildSections(transactions: any[]) {
@@ -65,6 +69,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { prefs, formatAmount } = usePreferences();
+  const { top } = useSafeAreaInsets();
 
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
@@ -77,6 +82,9 @@ export default function HomeScreen() {
   const [viewMode, setViewMode] = useState<HomeViewMode>('daily');
   const [monthLoading, setMonthLoading] = useState(false);
   const [accountNameMap, setAccountNameMap] = useState<Record<string, string>>({});
+  const [receiptMap, setReceiptMap] = useState<Record<string, string>>({});
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
 
   const hasData = useRef(false);
@@ -188,13 +196,14 @@ export default function HomeScreen() {
       const [budgetsData] = await Promise.all([getBudgets()]);
       await setCachedBudgets(budgetsData || []);
 
+      const freshSummary = computeSummary(txData);
       setAllTransactions(txData);
-      setSummary(computeSummary(txData));
+      setSummary(freshSummary);
 
       const mainBudget = budgetsData?.find((b: any) => !b.category) || null;
       setBudget(mainBudget);
-      if (mainBudget && computeSummary(txData).expense) {
-        const pct = (computeSummary(txData).expense / mainBudget.amount) * 100;
+      if (mainBudget && freshSummary.expense) {
+        const pct = (freshSummary.expense / mainBudget.amount) * 100;
         if (pct >= 80 && pct < 100) sendLocalNotification('Budget Warning', t('budget_warning') || "You've used 80% of your monthly budget");
         else if (pct >= 100)        sendLocalNotification('Budget Exceeded', t('budget_exceeded') || 'Budget exceeded!');
       }
@@ -223,6 +232,12 @@ export default function HomeScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { loadAccountMap(); }, [loadAccountMap]));
+
+  const loadReceiptMap = useCallback(async () => {
+    try { setReceiptMap(await getReceiptMap()); } catch {}
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadReceiptMap(); }, [loadReceiptMap]));
 
   useEffect(() => {
     if (!isMounted.current) { isMounted.current = true; return; }
@@ -300,7 +315,45 @@ export default function HomeScreen() {
   );
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const filteredSections = useMemo(() => buildSections(allTransactions), [allTransactions]);
+  const availableCategories = useMemo(() =>
+    [...new Set(allTransactions.map((tx: any) => tx.category))].sort(),
+  [allTransactions]);
+
+  const filteredSections = useMemo(() => {
+    let txs = allTransactions;
+    if (activeFilters.type !== 'all') txs = txs.filter((tx: any) => tx.type === activeFilters.type);
+    if (activeFilters.categories.length > 0) txs = txs.filter((tx: any) => activeFilters.categories.includes(tx.category));
+    const min = parseFloat(activeFilters.amountMin);
+    const max = parseFloat(activeFilters.amountMax);
+    if (!isNaN(min)) txs = txs.filter((tx: any) => tx.amount >= min);
+    if (!isNaN(max)) txs = txs.filter((tx: any) => tx.amount <= max);
+    return buildSections(txs);
+  }, [allTransactions, activeFilters]);
+
+  const ITEM_HEIGHT   = 60;
+  const HEADER_HEIGHT = 48;
+
+  const itemLayoutMap = useMemo(() => {
+    const map: Record<number, { length: number; offset: number; index: number }> = {};
+    let offset = 0;
+    let absIdx = 0;
+    filteredSections.forEach((section, si) => {
+      const headerH = si === 0 ? HEADER_HEIGHT : HEADER_HEIGHT + 10;
+      map[absIdx] = { length: headerH, offset, index: absIdx };
+      offset += headerH;
+      absIdx++;
+      section.data.forEach(() => {
+        map[absIdx] = { length: ITEM_HEIGHT, offset, index: absIdx };
+        offset += ITEM_HEIGHT;
+        absIdx++;
+      });
+    });
+    return map;
+  }, [filteredSections]);
+
+  const getItemLayout = useCallback((_: any, index: number) =>
+    itemLayoutMap[index] ?? { length: ITEM_HEIGHT, offset: 0, index },
+  [itemLayoutMap]);
 
   const budgetProgress = useMemo(() => {
     if (!budget?.amount) return 0;
@@ -373,16 +426,17 @@ export default function HomeScreen() {
       theme={theme}
       t={t}
       accountName={accountNameMap[item._id] ?? null}
+      hasReceipt={!!receiptMap[item._id]}
       onPress={handleEdit}
       onLongPress={handleDelete}
     />
-  ), [theme, t, accountNameMap, handleEdit, handleDelete]);
+  ), [theme, t, accountNameMap, receiptMap, handleEdit, handleDelete]);
 
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   return (
     <GestureDetector gesture={swipeGesture}>
-      <ThemedView style={styles.container}>
+      <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
 
         {/* Header */}
         <View style={styles.header}>
@@ -400,12 +454,9 @@ export default function HomeScreen() {
           <View style={styles.headerIcons}>
             <TouchableOpacity
               style={styles.headerIconBtn}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                Alert.alert('Favorites', 'Starred transactions filter coming soon!');
-              }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowFilterDrawer(true); }}
             >
-              <Ionicons name="star-outline" size={20} color={theme.text} />
+              <Ionicons name="filter-outline" size={20} color={activeFilters.type !== 'all' || activeFilters.categories.length > 0 || activeFilters.amountMin || activeFilters.amountMax ? theme.tint : theme.text} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerIconBtn}
@@ -470,11 +521,11 @@ export default function HomeScreen() {
               {/* Daily list */}
               {viewMode === 'daily' && (
                 <SectionList
-                
                   sections={filteredSections}
                   keyExtractor={item => item._id}
                   renderItem={renderItem}
                   renderSectionHeader={renderSectionHeader}
+                  getItemLayout={getItemLayout}
                   stickySectionHeadersEnabled={false}
                   maxToRenderPerBatch={10}
                   windowSize={5}
@@ -491,6 +542,13 @@ export default function HomeScreen() {
                     </View>
                   }
                 />
+              )}
+
+              {/* Weekly summary */}
+              {viewMode === 'weekly' && (
+                <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+                  <WeeklyView transactions={allTransactions} />
+                </ScrollView>
               )}
 
               {/* Calendar — full-width, no card, no horizontal padding */}
@@ -620,13 +678,22 @@ export default function HomeScreen() {
           theme={theme}
         />
 
+        {/* Filter drawer */}
+        <FilterDrawer
+          visible={showFilterDrawer}
+          onClose={() => setShowFilterDrawer(false)}
+          onApply={setActiveFilters}
+          availableCategories={availableCategories}
+          current={activeFilters}
+        />
+
       </ThemedView>
     </GestureDetector>
   );
 }
 
 const styles = StyleSheet.create({
-  container:     { flex: 1, paddingTop: 60 },
+  container:     { flex: 1 },
   header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 },
   monthSelector: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   monthText:     { fontSize: 18, fontWeight: '800' },

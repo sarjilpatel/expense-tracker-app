@@ -3,6 +3,7 @@ import {
   StyleSheet, View, Text, ScrollView, TouchableOpacity,
   Dimensions, RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { PieChart, LineChart, BarChart } from 'react-native-gifted-charts';
 import Animated, {
@@ -20,6 +21,8 @@ import { ThemedView } from '@/components/themed-view';
 import { useLanguage } from '@/src/i18n/LanguageContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { TYPE_SCALE } from '@/constants/theme';
 import { CategoryBar } from '@/components/analytics/CategoryBar';
 import { ComparisonCard } from '@/components/analytics/ComparisonCard';
 import { MONTHS } from '@/constants/maps';
@@ -36,6 +39,7 @@ export default function AnalyticsScreen() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { top } = useSafeAreaInsets();
 
   const [viewMode, setViewMode]           = useState<ViewMode>('overview');
   const [activeTab, setActiveTab]         = useState<'expense' | 'income'>('expense');
@@ -217,7 +221,7 @@ export default function AnalyticsScreen() {
 
   return (
     <GestureDetector gesture={swipeGesture}>
-      <ThemedView style={styles.container}>
+      <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
 
         {/* ── Header — always visible ── */}
         <View style={styles.header}>
@@ -449,46 +453,42 @@ export default function AnalyticsScreen() {
                             <ThemedText style={styles.trendLegendText}>Expenses</ThemedText>
                           </View>
                         </View>
-                        {(() => {
-                          try {
-                            return (
-                              <LineChart
-                                data={trendLineIncome}
-                                data2={trendLineExpense}
-                                color1={theme.income}
-                                color2={theme.expense}
-                                thickness={2.5}
-                                curved
-                                areaChart
-                                startFillColor1={theme.income}
-                                startFillColor2={theme.expense}
-                                endFillColor1="transparent"
-                                endFillColor2="transparent"
-                                startOpacity1={0.22}
-                                endOpacity1={0}
-                                startOpacity2={0.18}
-                                endOpacity2={0}
-                                dataPointsColor1={theme.income}
-                                dataPointsColor2={theme.expense}
-                                dataPointsRadius={4}
-                                width={SCREEN_WIDTH - 80}
-                                height={200}
-                                noOfSections={4}
-                                maxValue={maxTrend}
-                                yAxisTextStyle={{ color: theme.secondaryText, fontSize: 9 }}
-                                xAxisLabelTextStyle={{ color: theme.secondaryText, fontSize: 10 }}
-                                yAxisThickness={0}
-                                xAxisThickness={1}
-                                xAxisColor={theme.border}
-                                hideRules={false}
-                                rulesColor={theme.border}
-                                rulesType="dashed"
-                                dashWidth={4}
-                                dashGap={8}
-                              />
-                            );
-                          } catch { return <ThemedText style={styles.emptyText}>Chart unavailable</ThemedText>; }
-                        })()}
+                        <ErrorBoundary fallback={<ThemedText style={styles.emptyText}>Chart unavailable</ThemedText>}>
+                          <LineChart
+                            data={trendLineIncome}
+                            data2={trendLineExpense}
+                            color1={theme.income}
+                            color2={theme.expense}
+                            thickness={2.5}
+                            curved
+                            areaChart
+                            startFillColor1={theme.income}
+                            startFillColor2={theme.expense}
+                            endFillColor1="transparent"
+                            endFillColor2="transparent"
+                            startOpacity1={0.22}
+                            endOpacity1={0}
+                            startOpacity2={0.18}
+                            endOpacity2={0}
+                            dataPointsColor1={theme.income}
+                            dataPointsColor2={theme.expense}
+                            dataPointsRadius={4}
+                            width={SCREEN_WIDTH - 80}
+                            height={200}
+                            noOfSections={4}
+                            maxValue={maxTrend}
+                            yAxisTextStyle={{ color: theme.secondaryText, fontSize: 9 }}
+                            xAxisLabelTextStyle={{ color: theme.secondaryText, fontSize: 10 }}
+                            yAxisThickness={0}
+                            xAxisThickness={1}
+                            xAxisColor={theme.border}
+                            hideRules={false}
+                            rulesColor={theme.border}
+                            rulesType="dashed"
+                            dashWidth={4}
+                            dashGap={8}
+                          />
+                        </ErrorBoundary>
                       </View>
 
                       <View style={styles.sectionHeader}>
@@ -523,26 +523,22 @@ export default function AnalyticsScreen() {
                         <Ionicons name="bar-chart-outline" size={16} color={theme.secondaryText} />
                       </View>
                       <View style={[styles.chartCard, { backgroundColor: theme.card }]}>
-                        {(() => {
-                          try {
-                            return (
-                              <BarChart
-                                data={netBarData}
-                                width={SCREEN_WIDTH - 80}
-                                height={160}
-                                barWidth={28}
-                                spacing={16}
-                                noOfSections={3}
-                                barBorderRadius={8}
-                                yAxisThickness={0}
-                                xAxisThickness={0}
-                                hideRules
-                                yAxisTextStyle={{ color: theme.secondaryText, fontSize: 9 }}
-                                xAxisLabelTextStyle={{ color: theme.secondaryText, fontSize: 10 }}
-                              />
-                            );
-                          } catch { return null; }
-                        })()}
+                        <ErrorBoundary fallback={null}>
+                          <BarChart
+                            data={netBarData}
+                            width={SCREEN_WIDTH - 80}
+                            height={160}
+                            barWidth={28}
+                            spacing={16}
+                            noOfSections={3}
+                            barBorderRadius={8}
+                            yAxisThickness={0}
+                            xAxisThickness={0}
+                            hideRules
+                            yAxisTextStyle={{ color: theme.secondaryText, fontSize: 9 }}
+                            xAxisLabelTextStyle={{ color: theme.secondaryText, fontSize: 10 }}
+                          />
+                        </ErrorBoundary>
                       </View>
                     </>
                   )}
@@ -560,10 +556,10 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, paddingTop: 60 },
+  container:    { flex: 1 },
   header:       { paddingHorizontal: 20, marginBottom: 16 },
   monthSelector:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20 },
-  title:        { fontSize: 20, fontWeight: '800' },
+  title:        TYPE_SCALE.screenTitle,
 
   modeTabs:     { flexDirection: 'row', marginHorizontal: 20, borderRadius: 14, padding: 4, marginBottom: 16, gap: 4 },
   modeTab:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 11 },

@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text,
+  ActivityIndicator, Alert, KeyboardAvoidingView, StyleSheet, Text, Image,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 
@@ -16,6 +17,7 @@ import { getAccounts, getTxAccountMap, Account, setTxAccount } from '@/src/servi
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
+import { saveReceipt } from '@/src/services/receiptService';
 
 import { TypeSelector } from '@/components/transaction/TypeSelector';
 import { AmountInput } from '@/components/transaction/AmountInput';
@@ -23,6 +25,8 @@ import { DateTimeField } from '@/components/transaction/DateTimeField';
 import { CategoryDropdown } from '@/components/transaction/CategoryDropdown';
 import { RecurringToggle } from '@/components/transaction/RecurringToggle';
 import { AccountPicker } from '@/components/transaction/AccountPicker';
+import { CurrencyPicker } from '@/components/transaction/CurrencyPicker';
+import type { CurrencyCode } from '@/src/services/preferencesService';
 
 export default function AddTransactionScreen() {
   const { t } = useLanguage();
@@ -40,6 +44,8 @@ export default function AddTransactionScreen() {
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [currency, setCurrency] = useState<CurrencyCode>('INR');
 
   const { prefillDate, prefillAccountId } = useLocalSearchParams<{ prefillDate?: string; prefillAccountId?: string }>();
   const amountInputRef = useRef<TextInput>(null);
@@ -80,6 +86,23 @@ export default function AddTransactionScreen() {
     .filter(c => c.type === type || c.type === 'both' || !c.type)
     .map(c => ({ label: t(c.name), value: c.name, icon: c.icon }));
 
+  const pickReceipt = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Allow access to your photo library to attach a receipt.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [4, 3],
+    });
+    if (!result.canceled && result.assets[0]) {
+      setReceiptUri(result.assets[0].uri);
+    }
+  }, []);
+
   const handleTypeChange = (newType: 'income' | 'expense') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setType(newType);
@@ -99,15 +122,19 @@ export default function AddTransactionScreen() {
         category,
         note,
         date: date.toISOString(),
+        currency,
         isRecurring,
         recurrenceFrequency: isRecurring ? recurrenceFrequency : null,
       });
       if (selectedAccountId && newTx?._id) {
         await setTxAccount(newTx._id, selectedAccountId);
       }
+      if (receiptUri && newTx?._id) {
+        await saveReceipt(newTx._id, receiptUri).catch(() => {});
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await invalidateAllTransactionCache();
-      setAmount(''); setCategory(null); setNote(''); setDate(new Date()); setIsRecurring(false); setSelectedAccountId(null);
+      setAmount(''); setCategory(null); setNote(''); setDate(new Date()); setIsRecurring(false); setSelectedAccountId(null); setReceiptUri(null); setCurrency('INR');
       router.replace('/(tabs)');
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -118,7 +145,7 @@ export default function AddTransactionScreen() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <ThemedView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
@@ -144,6 +171,11 @@ export default function AddTransactionScreen() {
               textColor={theme.text}
               borderColor={theme.border}
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Currency</ThemedText>
+            <CurrencyPicker value={currency} onChange={setCurrency} />
           </View>
 
           <View style={styles.inputGroup}>
@@ -178,9 +210,35 @@ export default function AddTransactionScreen() {
               placeholderTextColor="#A0A0A0"
               multiline
               numberOfLines={3}
+              returnKeyType="done"
+              blurOnSubmit
               value={note}
               onChangeText={setNote}
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Receipt</ThemedText>
+            <TouchableOpacity
+              style={[styles.receiptBtn, { backgroundColor: theme.card, borderColor: theme.border }]}
+              onPress={pickReceipt}
+              activeOpacity={0.7}
+            >
+              {receiptUri ? (
+                <View style={styles.receiptRow}>
+                  <Image source={{ uri: receiptUri }} style={styles.receiptThumb} />
+                  <Text style={[styles.receiptLabel, { color: theme.text }]}>Receipt attached</Text>
+                  <TouchableOpacity onPress={() => setReceiptUri(null)}>
+                    <Ionicons name="close-circle" size={20} color={theme.secondaryText} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.receiptRow}>
+                  <Ionicons name="camera-outline" size={20} color={theme.tint} />
+                  <Text style={[styles.receiptLabel, { color: theme.secondaryText }]}>Add receipt photo</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.inputGroup}>
@@ -229,8 +287,12 @@ const styles = StyleSheet.create({
   header:      { marginBottom: 32 },
   subtitle:    { fontSize: 16, marginTop: 4 },
   inputGroup:  { marginBottom: 24 },
-  label:       { fontSize: 14, fontWeight: '600', marginBottom: 10 },
+  label:       { fontSize: 13, fontWeight: '600', marginBottom: 10 },
   noteInput:   { borderRadius: 16, padding: 16, fontSize: 16, height: 120, textAlignVertical: 'top', borderWidth: 1 },
+  receiptBtn:  { borderRadius: 14, borderWidth: 1, padding: 14 },
+  receiptRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  receiptThumb:{ width: 44, height: 44, borderRadius: 8 },
+  receiptLabel:{ flex: 1, fontSize: 14 },
   submitBtn:   { height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 12, shadowColor: '#5856D6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
   submitRow:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
   submitText:  { color: '#FFF', fontSize: 18, fontWeight: '800' },
