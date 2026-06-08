@@ -141,6 +141,33 @@ export async function setCachedTrend(data: any[]): Promise<void> {
   } catch {}
 }
 
+// ── AI Insights (6-hour TTL) ──────────────────────────────────────────────────
+
+const INSIGHT_PREFIX = '@insightcache_v1';
+const INSIGHT_TTL_MS = 6 * 60 * 60 * 1000;
+
+function insightKey(month: number, year: number) {
+  return `${INSIGHT_PREFIX}_m${month}_y${year}`;
+}
+
+export async function getCachedInsights(month: number, year: number): Promise<any[] | null> {
+  try {
+    const raw = await AsyncStorage.getItem(insightKey(month, year));
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > INSIGHT_TTL_MS) return null;
+    return Array.isArray(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedInsights(data: any[], month: number, year: number): Promise<void> {
+  try {
+    await AsyncStorage.setItem(insightKey(month, year), JSON.stringify({ data, ts: Date.now() }));
+  } catch {}
+}
+
 // ── Budgets ───────────────────────────────────────────────────────────────────
 
 export async function getCachedBudgets(): Promise<any[] | null> {

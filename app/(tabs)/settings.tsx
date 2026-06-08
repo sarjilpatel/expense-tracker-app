@@ -33,6 +33,8 @@ import {
 import { discardLocalData, getLastSyncTime } from '@/src/services/syncService';
 import apiClient from '@/src/services/apiClient';
 import { setPin, disableLock, isLockEnabled } from '@/src/services/lockService';
+import { generateMonthlyPDF } from '@/src/services/reportService';
+import { getAnalytics } from '@/src/services/dataService';
 import { TYPE_SCALE } from '@/constants/theme';
 
 const LANGS = [
@@ -113,6 +115,7 @@ export default function SettingsScreen() {
   const [lastSync,     setLastSync]     = useState<string | null>(null);
   const [exporting,    setExporting]    = useState(false);
   const [exportingXlsx, setExportingXlsx] = useState(false);
+  const [exportingPdf,  setExportingPdf]  = useState(false);
   const [lockEnabled,   setLockEnabled]  = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime,    setReminderTime]    = useState<{ hour: number; minute: number } | null>(null);
@@ -284,6 +287,25 @@ export default function SettingsScreen() {
       Alert.alert('Error', 'XLSX export failed');
     } finally {
       setExportingXlsx(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      const now   = new Date();
+      const month = now.getMonth() + 1;
+      const year  = now.getFullYear();
+      const [txs, analytics, groupData] = await Promise.all([
+        getTransactions(month, year) as Promise<any[]>,
+        getAnalytics(month, year) as Promise<any>,
+        getCategoryData().catch(() => null),
+      ]);
+      await generateMonthlyPDF(txs, analytics, month, year, (groupData as any)?.name);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'PDF export failed');
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -480,6 +502,20 @@ export default function SettingsScreen() {
             onPress={() => router.push('/budget')}
           />
           <Sep />
+          <Row
+            icon="flag-outline" iconBg="#22C55E22" iconColor="#22C55E"
+            title="Savings Goals"
+            sub="Track progress toward your goals"
+            onPress={() => router.push('/goals')}
+          />
+          <Sep />
+          <Row
+            icon="git-branch-outline" iconBg="#6366F122" iconColor="#6366F1"
+            title="Expense Splits"
+            sub="Split bills with group members"
+            onPress={() => router.push('/splits')}
+          />
+          <Sep />
           {/* Categories — 2-column grid */}
           <View style={S.catGrid}>
             <TouchableOpacity
@@ -583,6 +619,13 @@ export default function SettingsScreen() {
             title="Export XLSX" sub="Excel spreadsheet — current month"
             onPress={handleExportXlsx}
             right={exportingXlsx ? <ActivityIndicator size="small" color="#16A34A" /> : undefined}
+          />
+          <Sep />
+          <Row
+            icon="document-text-outline" iconBg="#DC2626" iconColor='#FFF'
+            title="Export PDF Report" sub="Monthly summary with charts"
+            onPress={handleExportPdf}
+            right={exportingPdf ? <ActivityIndicator size="small" color="#DC2626" /> : undefined}
           />
           {isGuest && (
             <>

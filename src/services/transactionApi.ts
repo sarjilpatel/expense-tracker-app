@@ -66,6 +66,23 @@ export const deleteTransaction = async (id: string) => {
 };
 
 /**
+ * Get AI-powered spending insights for a month
+ */
+export const getInsights = async (month: number, year: number): Promise<{
+  insights: Array<{ title: string; body: string; type: 'positive' | 'warning' | 'neutral' }>;
+  month: number;
+  year: number;
+  noData?: boolean;
+}> => {
+  try {
+    const response = await apiClient.get('/transactions/insights', { params: { month, year } });
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
  * Get monthly income/expense trend for the last N months
  */
 export const getTrend = async (months = 6) => {

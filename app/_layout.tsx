@@ -114,6 +114,8 @@ function RootLayoutNav() {
         <Stack.Screen name="manage-categories"  options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="import-categories"  options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="edit-profile"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="goals"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="splits"            options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="modal"              options={{ presentation: 'modal', title: 'Modal'              }} />
       </Stack>
       <StatusBar style="auto" />

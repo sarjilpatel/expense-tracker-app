@@ -2,6 +2,7 @@
 // AuthContext calls setMode() on startup and on login/logout.
 
 import * as remoteTx   from './transactionApi';
+import { getInsights as remoteGetInsights } from './transactionApi';
 import * as localTx    from './local/localTransactionService';
 import * as remoteGrp  from './groupApi';
 import * as localCat   from './local/localCategoryService';
@@ -57,6 +58,11 @@ export const getTrend = (months = 6) =>
   _isGuest
     ? localTx.computeLocalTrend(months)
     : remoteTx.getTrend(months);
+
+export const getInsights = (month: number, year: number) =>
+  _isGuest
+    ? Promise.resolve({ insights: [], month, year, noData: true })
+    : remoteGetInsights(month, year);
 
 // ── Categories (via group or local) ──────────────────────────────────────────
 

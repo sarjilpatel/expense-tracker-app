@@ -436,6 +436,7 @@ export default function AnalyticsScreen() {
                       </View>
                     </Animated.View>
                   )}
+
                 </>
               )}
 
