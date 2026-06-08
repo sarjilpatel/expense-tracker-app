@@ -18,8 +18,8 @@ import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { getPeriodRange, getPeriodLabel, filterByPeriod, getCalendarMonthsForPeriod } from '@/src/utils/dateUtils';
 import socketService from '@/src/services/socketService';
-import { sendLocalNotification, LARGE_TRANSACTION_THRESHOLD } from '@/src/services/notificationService';
-import { getTransactions, deleteTransaction, getBudgets } from '@/src/services/dataService';
+import { sendLocalNotification, getLargeTransactionThreshold } from '@/src/services/notificationService';
+import { getTransactions, deleteTransaction, restoreTransaction, getBudgets } from '@/src/services/dataService';
 import { getAccounts, getTxAccountMap } from '@/src/services/accountService';
 import { getReceiptMap } from '@/src/services/receiptService';
 import {
@@ -27,6 +27,7 @@ import {
   getCachedBudgets, setCachedBudgets,
   invalidateCachedTransactions,
 } from '@/src/cache/transactionCache';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
@@ -66,7 +67,7 @@ function buildSections(transactions: any[]) {
 
 export default function HomeScreen() {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { theme } = useTheme();
   const { prefs, formatAmount } = usePreferences();
   const { top } = useSafeAreaInsets();
@@ -85,6 +86,9 @@ export default function HomeScreen() {
   const [receiptMap, setReceiptMap] = useState<Record<string, string>>({});
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [undoState, setUndoState] = useState<{ txId: string; tx: any } | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
 
 
   const hasData = useRef(false);
@@ -101,11 +105,24 @@ export default function HomeScreen() {
     };
   });
 
+  // One-time swipe hint
+  useEffect(() => {
+    AsyncStorage.getItem('@swipe_hint_shown').then(val => {
+      if (!val) {
+        setShowSwipeHint(true);
+        setTimeout(async () => {
+          setShowSwipeHint(false);
+          await AsyncStorage.setItem('@swipe_hint_shown', '1');
+        }, 3000);
+      }
+    });
+  }, []);
+
   // ── Socket ────────────────────────────────────────────────────────────────
   useEffect(() => {
     socketService.onNewTransaction((tx) => {
       if (!user || tx.userId?._id === user._id) return;
-      if (tx.amount >= LARGE_TRANSACTION_THRESHOLD) {
+      if (tx.amount >= getLargeTransactionThreshold(tx.currency)) {
         sendLocalNotification(
           `New group transaction recorded`,
           `A large ${tx.type} was added by ${tx.userId?.name || 'a group member'}`
@@ -209,8 +226,17 @@ export default function HomeScreen() {
       setBudget(mainBudget);
       if (mainBudget && freshSummary.expense) {
         const pct = (freshSummary.expense / mainBudget.amount) * 100;
-        if (pct >= 80 && pct < 100) sendLocalNotification('Budget Warning', t('budget_warning') || "You've used 80% of your monthly budget");
-        else if (pct >= 100)        sendLocalNotification('Budget Exceeded', t('budget_exceeded') || 'Budget exceeded!');
+        const tier = pct >= 100 ? 'exceeded' : pct >= 80 ? 'warning' : null;
+        if (tier) {
+          const key = `@budget_alert_${tier}_ts`;
+          const last = await AsyncStorage.getItem(key).catch(() => null);
+          const cooldownMs = 24 * 60 * 60 * 1000;
+          if (!last || Date.now() - parseInt(last, 10) > cooldownMs) {
+            await AsyncStorage.setItem(key, String(Date.now())).catch(() => {});
+            if (tier === 'warning') sendLocalNotification('Budget Warning', t('budget_warning') || "You've used 80% of your monthly budget");
+            else                    sendLocalNotification('Budget Exceeded', t('budget_exceeded') || 'Budget exceeded!');
+          }
+        }
       }
       hasData.current = true;
     } catch (err) {
@@ -367,37 +393,58 @@ export default function HomeScreen() {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleDelete = useCallback((id: string) => {
-    Alert.alert(t('delete') || 'Delete', 'Are you sure you want to delete this record?', [
-      { text: t('cancel') || 'Cancel', style: 'cancel' },
-      {
-        text: t('delete') || 'Delete', style: 'destructive',
-        onPress: async () => {
-          const previous = allTransactions;
-          const removed = previous.find(tx => tx._id === id);
-          setAllTransactions(prev => prev.filter(tx => tx._id !== id));
-          if (removed) setSummary(prev => ({
-            income:  removed.type === 'income'  ? prev.income  - removed.amount : prev.income,
-            expense: removed.type === 'expense' ? prev.expense - removed.amount : prev.expense,
-            balance: removed.type === 'income'  ? prev.balance - removed.amount : prev.balance + removed.amount,
-          }));
-          try {
-            await deleteTransaction(id);
-            const updated = previous.filter(tx => tx._id !== id);
-            await invalidateCachedTransactions(currentMonth, currentYear);
-            await setCachedTransactions(updated, currentMonth, currentYear);
-          } catch {
-            setAllTransactions(previous);
-            if (removed) setSummary(prev => ({
-              income:  removed.type === 'income'  ? prev.income  + removed.amount : prev.income,
-              expense: removed.type === 'expense' ? prev.expense + removed.amount : prev.expense,
-              balance: removed.type === 'income'  ? prev.balance + removed.amount : prev.balance - removed.amount,
-            }));
-            Alert.alert('Error', 'Failed to delete transaction');
-          }
-        },
-      },
-    ]);
-  }, [allTransactions, t, currentMonth, currentYear]);
+    const removed = allTransactions.find(tx => tx._id === id);
+    if (!removed) return;
+
+    // Optimistic remove
+    setAllTransactions(prev => prev.filter(tx => tx._id !== id));
+    setSummary(prev => ({
+      income:  removed.type === 'income'  ? prev.income  - removed.amount : prev.income,
+      expense: removed.type === 'expense' ? prev.expense - removed.amount : prev.expense,
+      balance: removed.type === 'income'  ? prev.balance - removed.amount : prev.balance + removed.amount,
+    }));
+
+    deleteTransaction(id).catch(() => {
+      // Revert on server failure
+      setAllTransactions(prev => [removed, ...prev].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      ));
+      setSummary(prev => ({
+        income:  removed.type === 'income'  ? prev.income  + removed.amount : prev.income,
+        expense: removed.type === 'expense' ? prev.expense + removed.amount : prev.expense,
+        balance: removed.type === 'income'  ? prev.balance + removed.amount : prev.balance - removed.amount,
+      }));
+      Alert.alert('Error', 'Failed to delete transaction');
+    });
+
+    // Show undo toast for 5 seconds
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoState({ txId: id, tx: removed });
+    undoTimerRef.current = setTimeout(() => {
+      setUndoState(null);
+      invalidateCachedTransactions(currentMonth, currentYear);
+    }, 5000);
+  }, [allTransactions, currentMonth, currentYear]);
+
+  const handleUndo = useCallback(async () => {
+    if (!undoState) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    const { txId, tx } = undoState;
+    setUndoState(null);
+    try {
+      await restoreTransaction(txId);
+      setAllTransactions(prev => [tx, ...prev].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      ));
+      setSummary(prev => ({
+        income:  tx.type === 'income'  ? prev.income  + tx.amount : prev.income,
+        expense: tx.type === 'expense' ? prev.expense + tx.amount : prev.expense,
+        balance: tx.type === 'income'  ? prev.balance + tx.amount : prev.balance - tx.amount,
+      }));
+    } catch {
+      Alert.alert('Error', 'Could not undo deletion');
+    }
+  }, [undoState]);
 
   const handleEdit = useCallback((item: any) => {
     if (!item?._id) return;
@@ -447,6 +494,30 @@ export default function HomeScreen() {
   return (
     <GestureDetector gesture={swipeGesture}>
       <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
+
+        {/* Guest mode banner */}
+        {isGuest && (
+          <TouchableOpacity
+            style={styles.guestBanner}
+            onPress={() => router.push('/login')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="person-outline" size={16} color="#FFF" />
+            <Text style={styles.guestBannerText}>
+              Guest mode — data is on this device only. Tap to sign in.
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Swipe hint */}
+        {showSwipeHint && (
+          <View style={[styles.swipeHint, { backgroundColor: theme.card }]}>
+            <Ionicons name="swap-horizontal-outline" size={16} color={theme.tint} />
+            <Text style={[styles.swipeHintText, { color: theme.secondaryText }]}>
+              Swipe left or right to navigate months
+            </Text>
+          </View>
+        )}
 
         {/* Header */}
         <View style={styles.header}>
@@ -547,8 +618,11 @@ export default function HomeScreen() {
                   keyboardShouldPersistTaps="handled"
                   ListEmptyComponent={
                     <View style={styles.empty}>
-                      <Ionicons name="receipt-outline" size={44} color={theme.secondaryText} style={{ marginBottom: 10 }} />
-                      <ThemedText style={styles.emptyText}>{t('no_transactions')}</ThemedText>
+                      <Ionicons name="receipt-outline" size={56} color={theme.secondaryText} />
+                      <ThemedText style={[styles.emptyText, { marginTop: 12 }]}>{t('no_transactions')}</ThemedText>
+                      <Text style={[styles.emptySubText, { color: theme.secondaryText }]}>
+                        Tap + to add your first transaction
+                      </Text>
                     </View>
                   }
                 />
@@ -697,6 +771,16 @@ export default function HomeScreen() {
           current={activeFilters}
         />
 
+        {/* Undo toast */}
+        {undoState && (
+          <View style={[styles.undoToast, { backgroundColor: theme.text }]}>
+            <Text style={[styles.undoText, { color: theme.background }]}>Transaction deleted</Text>
+            <TouchableOpacity onPress={handleUndo} style={styles.undoBtn}>
+              <Text style={[styles.undoBtnText, { color: theme.tint }]}>UNDO</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
       </ThemedView>
     </GestureDetector>
   );
@@ -711,11 +795,21 @@ const styles = StyleSheet.create({
   headerIconBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
   notifDot:      { position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: '#FFF' },
 
+  undoToast:    { position: 'absolute', bottom: 100, left: 16, right: 16, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  undoText:     { fontSize: 14, fontWeight: '500' },
+  undoBtn:      { paddingLeft: 16 },
+  undoBtnText:  { fontSize: 14, fontWeight: '800' },
+  guestBanner:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FF9500', paddingHorizontal: 16, paddingVertical: 10, marginHorizontal: 16, marginBottom: 8, borderRadius: 12 },
+  guestBannerText: { flex: 1, color: '#FFF', fontSize: 13, fontWeight: '600' },
+  swipeHint:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 6, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  swipeHintText: { fontSize: 13 },
+
   listContent:   { paddingBottom: 120 },
   scrollContent: { paddingHorizontal: 12, paddingBottom: 120, paddingTop: 4 },
   card:          { borderRadius: 20, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
   empty:         { marginTop: 56, alignItems: 'center' },
-  emptyText:     { fontSize: 13, fontWeight: '600' },
+  emptyText:     { fontSize: 15, fontWeight: '700' },
+  emptySubText:  { fontSize: 13, marginTop: 6 },
   fab:           { position: 'absolute', bottom: 104, right: 22, width: 54, height: 54, borderRadius: 27, justifyContent: 'center', alignItems: 'center', shadowOpacity: 0.36, shadowRadius: 12, elevation: 10, zIndex: 100 },
   noteCard:      { flexDirection: 'row', borderRadius: 14, borderWidth: 1, overflow: 'hidden', marginBottom: 10 },
   noteColorBar:  { width: 4 },

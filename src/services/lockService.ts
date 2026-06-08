@@ -2,11 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 
-const PIN_KEY      = '@lock_pin_hash';
-const ENABLED_KEY  = '@lock_enabled';
-const BG_TIME_KEY  = '@lock_bg_time';
-const SALT_KEY     = 'lock_pin_salt'; // SecureStore key (hardware-backed)
-const LOCK_TIMEOUT = 30_000; // 30 seconds in background triggers lock
+// All lock data is now in SecureStore (hardware-backed on supported devices)
+const PIN_HASH_KEY  = 'lock_pin_hash';   // SecureStore
+const ENABLED_KEY   = 'lock_enabled';    // SecureStore
+const SALT_KEY      = 'lock_pin_salt';   // SecureStore
+const BG_TIME_KEY   = '@lock_bg_time';   // AsyncStorage (non-sensitive timestamp)
+const LOCK_TIMEOUT  = 5 * 60 * 1000;    // 5 minutes
 
 async function getOrCreateSalt(): Promise<string> {
   let salt = await SecureStore.getItemAsync(SALT_KEY);
@@ -24,23 +25,25 @@ async function hashPin(pin: string): Promise<string> {
 
 export async function setPin(pin: string): Promise<void> {
   const hash = await hashPin(pin);
-  await AsyncStorage.multiSet([[PIN_KEY, hash], [ENABLED_KEY, 'true']]);
+  await SecureStore.setItemAsync(PIN_HASH_KEY, hash);
+  await SecureStore.setItemAsync(ENABLED_KEY, 'true');
 }
 
 export async function verifyPin(pin: string): Promise<boolean> {
-  const [[, storedHash]] = await AsyncStorage.multiGet([PIN_KEY]);
+  const storedHash = await SecureStore.getItemAsync(PIN_HASH_KEY);
   if (!storedHash) return false;
   const hash = await hashPin(pin);
   return hash === storedHash;
 }
 
 export async function isLockEnabled(): Promise<boolean> {
-  const val = await AsyncStorage.getItem(ENABLED_KEY);
+  const val = await SecureStore.getItemAsync(ENABLED_KEY);
   return val === 'true';
 }
 
 export async function disableLock(): Promise<void> {
-  await AsyncStorage.multiRemove([PIN_KEY, ENABLED_KEY]);
+  await SecureStore.deleteItemAsync(PIN_HASH_KEY);
+  await SecureStore.deleteItemAsync(ENABLED_KEY);
   await SecureStore.deleteItemAsync(SALT_KEY);
 }
 

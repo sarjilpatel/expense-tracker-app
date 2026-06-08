@@ -49,6 +49,11 @@ export const deleteTransaction = (id: string) =>
     ? localTx.deleteLocalTransaction(id)
     : remoteTx.deleteTransaction(id);
 
+export const restoreTransaction = (id: string) =>
+  _isGuest
+    ? Promise.resolve()
+    : remoteTx.restoreTransaction(id);
+
 export const getAnalytics = (month?: number, year?: number) =>
   _isGuest
     ? localTx.computeLocalAnalytics(month, year)

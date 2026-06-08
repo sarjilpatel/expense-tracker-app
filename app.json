@@ -3,13 +3,15 @@
     "name": "expense-tracker-app",
     "slug": "expense-tracker-app",
     "version": "1.0.0",
+    "privacy": "https://sarjilpatel.github.io/expense-tracker/privacy",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "expensetrackerapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sarjilpatel.expensetrackerapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -42,7 +44,20 @@
       ],
       "expo-web-browser",
       "@react-native-community/datetimepicker",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "iosDisplayInForeground": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "$(PRODUCT_NAME) needs access to your photo library to attach receipts to transactions.",
+          "cameraPermission": "$(PRODUCT_NAME) needs access to your camera to capture receipts."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

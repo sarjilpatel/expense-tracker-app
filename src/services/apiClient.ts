@@ -3,6 +3,12 @@ import * as SecureStore from 'expo-secure-store';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
+if (!API_BASE_URL) {
+  console.error('[apiClient] EXPO_PUBLIC_API_URL is not set — all API calls will fail.');
+} else if (!API_BASE_URL.startsWith('https://') && !__DEV__) {
+  console.error('[apiClient] EXPO_PUBLIC_API_URL must use HTTPS in production. Current value:', API_BASE_URL);
+}
+
 interface ApiClientInstance extends ReturnType<typeof axios.create> {
   logout?: () => Promise<void> | void;
   injectLogout: (logoutFn: () => Promise<void> | void) => void;

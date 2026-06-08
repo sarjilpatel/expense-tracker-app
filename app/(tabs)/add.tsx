@@ -3,9 +3,10 @@ import {
   View, TextInput, TouchableOpacity, ScrollView,
   ActivityIndicator, Alert, KeyboardAvoidingView, StyleSheet, Text, Image, Switch,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 
 
 import { useTheme } from '@/src/context/ThemeContext';
@@ -47,9 +48,29 @@ export default function AddTransactionScreen() {
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [currency, setCurrency] = useState<CurrencyCode>('INR');
   const [isPrivate, setIsPrivate] = useState(false);
+  const [successToast, setSuccessToast] = useState(false);
+  const [showPrivateTip, setShowPrivateTip] = useState(false);
 
   const { prefillDate, prefillAccountId } = useLocalSearchParams<{ prefillDate?: string; prefillAccountId?: string }>();
   const amountInputRef = useRef<TextInput>(null);
+  const navigation = useNavigation();
+
+  // Warn if user tries to leave with unsaved data
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove' as any, (e: any) => {
+      if (!amount && !note && !category) return;
+      e.preventDefault();
+      Alert.alert(
+        'Discard transaction?',
+        'You have unsaved changes. Leave without saving?',
+        [
+          { text: 'Keep editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+        ]
+      );
+    });
+    return unsub;
+  }, [navigation, amount, note, category]);
 
   useEffect(() => {
     if (prefillDate) {
@@ -63,6 +84,10 @@ export default function AddTransactionScreen() {
 
   useEffect(() => {
     getAccounts().then(setAccounts).catch(() => {});
+    // Show one-time "Private" tooltip on first visit
+    AsyncStorage.getItem('@private_tip_shown').then(val => {
+      if (!val) setShowPrivateTip(true);
+    });
   }, []);
 
   const fetchCategories = useCallback(async () => {
@@ -111,14 +136,19 @@ export default function AddTransactionScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!amount || !category) {
-      Alert.alert(t('missing_info') || 'Missing Information', 'Please provide an amount and select a category.');
+    const parsedAmount = parseFloat(amount);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert(t('missing_info') || 'Missing Information', 'Please enter a valid amount greater than 0.');
+      return;
+    }
+    if (!category) {
+      Alert.alert(t('missing_info') || 'Missing Information', 'Please select a category.');
       return;
     }
     setLoading(true);
     try {
       const newTx = await addTransaction({
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         type,
         category,
         note,
@@ -137,7 +167,8 @@ export default function AddTransactionScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await invalidateAllTransactionCache();
       setAmount(''); setCategory(null); setNote(''); setDate(new Date()); setIsRecurring(false); setSelectedAccountId(null); setReceiptUri(null); setCurrency('INR'); setIsPrivate(false);
-      router.replace('/(tabs)');
+      setSuccessToast(true);
+      setTimeout(() => { setSuccessToast(false); router.replace('/(tabs)'); }, 1500);
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', error.msg || error.message || 'Failed to add transaction');
@@ -191,6 +222,7 @@ export default function AddTransactionScreen() {
               textColor={theme.text}
               cardColor={theme.card}
               borderColor={theme.border}
+              onRetry={fetchCategories}
             />
           </View>
 
@@ -265,6 +297,23 @@ export default function AddTransactionScreen() {
             />
           </View>
 
+          {showPrivateTip && (
+            <TouchableOpacity
+              style={[styles.privateTip, { backgroundColor: theme.tint + '18', borderColor: theme.tint }]}
+              onPress={async () => {
+                setShowPrivateTip(false);
+                await AsyncStorage.setItem('@private_tip_shown', '1');
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="information-circle-outline" size={18} color={theme.tint} />
+              <Text style={[styles.privateTipText, { color: theme.tint }]}>
+                Transactions are shared with your group by default. Toggle <Text style={{ fontWeight: '800' }}>Private</Text> below to hide one from others.
+              </Text>
+              <Ionicons name="close" size={16} color={theme.tint} />
+            </TouchableOpacity>
+          )}
+
           <View style={[styles.privateRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.privateTextGroup}>
               <ThemedText style={styles.privateLabel}>Private transaction</ThemedText>
@@ -292,6 +341,12 @@ export default function AddTransactionScreen() {
           </TouchableOpacity>
         </ScrollView>
       </ThemedView>
+      {successToast && (
+        <View style={styles.successToast}>
+          <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+          <Text style={styles.successToastText}>Transaction added!</Text>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -315,4 +370,8 @@ const styles = StyleSheet.create({
   privateTextGroup: { flex: 1 },
   privateLabel: { fontSize: 15, fontWeight: '600' },
   privateHint:  { fontSize: 12, marginTop: 2 },
+  privateTip:   { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 12 },
+  privateTipText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  successToast: { position: 'absolute', bottom: 40, alignSelf: 'center', backgroundColor: '#34C759', borderRadius: 24, paddingHorizontal: 20, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
+  successToastText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
 });

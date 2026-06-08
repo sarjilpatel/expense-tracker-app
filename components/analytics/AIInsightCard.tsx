@@ -6,11 +6,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useAuth } from '@/src/context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { getInsights } from '@/src/services/dataService';
 import { getCachedInsights, setCachedInsights } from '@/src/cache/transactionCache';
+import { updateAiConsent } from '@/src/services/authApi';
 
-const AI_CONSENT_KEY = '@ai_consent_given';
+const AI_CONSENT_KEY = '@ai_consent_given'; // fallback for guests
 
 type Insight = {
   title: string;
@@ -32,6 +34,7 @@ const TYPE_CONFIG = {
 
 export function AIInsightCard({ month, year, hasData }: Props) {
   const { theme } = useTheme();
+  const { user, isGuest, updateUser } = useAuth();
 
   const [loading,       setLoading]       = useState(false);
   const [insights,      setInsights]      = useState<Insight[]>([]);
@@ -41,8 +44,14 @@ export function AIInsightCard({ month, year, hasData }: Props) {
   const [consentGiven,  setConsentGiven]  = useState<boolean | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem(AI_CONSENT_KEY).then(val => setConsentGiven(val === 'true'));
-  }, []);
+    if (!isGuest && user) {
+      // Logged-in: use server-side consent as source of truth
+      setConsentGiven(!!user.aiConsentGiven);
+    } else {
+      // Guest: fall back to AsyncStorage
+      AsyncStorage.getItem(AI_CONSENT_KEY).then(val => setConsentGiven(val === 'true'));
+    }
+  }, [user, isGuest]);
 
   const reset = useCallback(() => {
     setInsights([]);
@@ -120,9 +129,14 @@ export function AIInsightCard({ month, year, hasData }: Props) {
             <TouchableOpacity
               style={[styles.consentAccept, { backgroundColor: theme.tint }]}
               onPress={async () => {
-                await AsyncStorage.setItem(AI_CONSENT_KEY, 'true');
                 setConsentGiven(true);
                 setShowConsent(false);
+                if (!isGuest) {
+                  updateAiConsent(true).catch(() => {});
+                  updateUser({ aiConsentGiven: true });
+                } else {
+                  await AsyncStorage.setItem(AI_CONSENT_KEY, 'true');
+                }
                 fetchInsights();
               }}
             >

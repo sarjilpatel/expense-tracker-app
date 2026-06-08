@@ -51,10 +51,60 @@ export const updateProfile = async (formData: FormData) => {
   }
 };
 
-export const deleteAccount = async (password: string): Promise<void> => {
+export const deleteAccount = async (password: string): Promise<{ deletionScheduledAt: string }> => {
   try {
-    await apiClient.delete('/auth/account', { data: { password } });
+    const response = await apiClient.delete('/auth/account', { data: { password } });
+    return response.data;
   } catch (error: any) {
     throw error.response?.data?.message || 'Failed to delete account';
+  }
+};
+
+export const cancelAccountDeletion = async (): Promise<void> => {
+  try {
+    await apiClient.post('/auth/account/cancel-deletion');
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to cancel deletion';
+  }
+};
+
+export const forgotPassword = async (email: string): Promise<void> => {
+  try {
+    await apiClient.post('/auth/forgot-password', { email });
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to send reset email';
+  }
+};
+
+export const resetPassword = async (token: string, password: string): Promise<void> => {
+  try {
+    await apiClient.post(`/auth/reset-password/${token}`, { password });
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to reset password';
+  }
+};
+
+export const resendVerificationEmail = async (): Promise<void> => {
+  try {
+    await apiClient.post('/auth/resend-verification');
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to resend verification email';
+  }
+};
+
+export const updateAiConsent = async (aiConsentGiven: boolean): Promise<void> => {
+  try {
+    await apiClient.patch('/auth/ai-consent', { aiConsentGiven });
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to update AI consent';
+  }
+};
+
+export const getProfilePhotoUrl = async (): Promise<string | null> => {
+  try {
+    const response = await apiClient.get('/auth/me/photo-url');
+    return response.data.url;
+  } catch {
+    return null;
   }
 };

@@ -7,7 +7,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // preventing the DevicePushTokenAutoRegistration side-effect from firing.
 const isExpoGo = Constants.appOwnership === 'expo';
 
-export const LARGE_TRANSACTION_THRESHOLD = 5000;
+// Per-currency thresholds for large-transaction alerts (~$60 USD equivalent)
+const CURRENCY_THRESHOLDS: Record<string, number> = {
+  INR: 5000, USD: 60,  EUR: 55,  GBP: 48,
+  JPY: 9000, CNY: 430, AUD: 90,  CAD: 80,
+  SGD: 80,  AED: 220,  SAR: 225, MYR: 270,
+};
+export const LARGE_TRANSACTION_THRESHOLD = 5000; // legacy export kept for callers
+export function getLargeTransactionThreshold(currency: string): number {
+  return CURRENCY_THRESHOLDS[currency?.toUpperCase()] ?? 5000;
+}
 
 // Lazily load expo-notifications only in real builds
 function getNotifications() {

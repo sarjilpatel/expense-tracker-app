@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -18,10 +18,27 @@ interface Props {
   textColor: string;
   cardColor: string;
   borderColor: string;
+  onRetry?: () => void;
 }
 
-export function CategoryDropdown({ data, value, onChange, loading, tintColor, textColor, cardColor, borderColor }: Props) {
+export function CategoryDropdown({ data, value, onChange, loading, tintColor, textColor, cardColor, borderColor, onRetry }: Props) {
   if (loading) return <ActivityIndicator size="small" color={tintColor} />;
+
+  if (!loading && data.length === 0) {
+    return (
+      <TouchableOpacity
+        style={[styles.emptyState, { backgroundColor: cardColor, borderColor }]}
+        onPress={onRetry}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="alert-circle-outline" size={20} color={tintColor} />
+        <Text style={[styles.emptyText, { color: textColor }]}>
+          Could not load categories — tap to retry
+        </Text>
+        <Ionicons name="refresh-outline" size={18} color={tintColor} />
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <Dropdown
@@ -66,5 +83,18 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginRight: 12,
+  },
+  emptyState: {
+    height: 56,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  emptyText: {
+    flex: 1,
+    fontSize: 14,
   },
 });

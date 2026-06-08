@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   Modal, View, Text, TouchableOpacity,
-  StyleSheet, ActivityIndicator, ScrollView, Switch, Alert, FlatList, TextInput
+  StyleSheet, ActivityIndicator, ScrollView, Switch, Alert, FlatList, TextInput, Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -15,7 +15,7 @@ import { useLanguage } from '@/src/i18n/LanguageContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { ThemedView } from '@/components/themed-view';
-import { getProfile, deleteAccount as deleteAccountApi } from '@/src/services/authApi';
+import { getProfile, deleteAccount as deleteAccountApi, cancelAccountDeletion } from '@/src/services/authApi';
 import {
   getBudgets, getTransactions,
   getCurrentGroup as getCategoryData,
@@ -223,32 +223,48 @@ export default function SettingsScreen() {
     setDeletingAccount(true);
     setDeleteError('');
     try {
-      await deleteAccountApi(deletePassword);
+      const result = await deleteAccountApi(deletePassword);
       setShowDeleteModal(false);
-      await logout();
-      router.replace('/(tabs)');
+      const scheduledDate = new Date(result.deletionScheduledAt).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      });
+      Alert.alert(
+        'Deletion Scheduled',
+        `Your account will be permanently deleted on ${scheduledDate}.\n\nYou can cancel this by tapping "Cancel Deletion" in Settings before that date.`,
+        [{ text: 'OK', onPress: async () => { await logout(); router.replace('/(tabs)'); } }]
+      );
     } catch (err: any) {
-      setDeleteError(typeof err === 'string' ? err : 'Failed to delete account.');
+      setDeleteError(typeof err === 'string' ? err : 'Failed to schedule account deletion.');
     } finally {
       setDeletingAccount(false);
     }
   };
 
-  const doExportCsv = async (month?: number, year?: number, label?: string) => {
+  const doExportCsv = async (month?: number, year?: number, label?: string, allTime?: boolean) => {
     setExporting(true);
     try {
       const now = new Date();
-      const txs = await getTransactions(month, year ?? now.getFullYear()) as any[];
+      // Pass no date params for all-time; getTransactions with no month/year = all records
+      const txs = allTime
+        ? await getTransactions(undefined, undefined) as any[]
+        : await getTransactions(month, year ?? now.getFullYear()) as any[];
+
       const rows = [
-        ['Date', 'Type', 'Category', 'Amount', 'Note'],
+        ['Date', 'Type', 'Category', 'Amount', 'Currency', 'Note', 'Recurring', 'Private', 'Member'],
         ...txs.map(tx => [
           new Date(tx.date || tx.createdAt).toLocaleDateString(),
-          tx.type, tx.category, tx.amount.toString(),
+          tx.type,
+          tx.category,
+          tx.amount.toString(),
+          tx.currency || 'INR',
           tx.note ? `"${tx.note.replace(/"/g, '""')}"` : '',
+          tx.isRecurring ? 'Yes' : 'No',
+          tx.isPrivate   ? 'Yes' : 'No',
+          tx.userId?.name || '',
         ]),
       ];
       const csv = rows.map(r => r.join(',')).join('\n');
-      const nameSuffix = label ?? `${now.toLocaleString('default', { month: 'long' })}_${year ?? now.getFullYear()}`;
+      const nameSuffix = allTime ? 'all_time' : (label ?? `${now.toLocaleString('default', { month: 'long' })}_${year ?? now.getFullYear()}`);
       const name = `transactions_${nameSuffix}.csv`;
       const path = `${FileSystem.documentDirectory}${name}`;
       await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
@@ -270,6 +286,7 @@ export default function SettingsScreen() {
     Alert.alert('Export CSV', 'Choose period', [
       { text: `This Month (${monthName})`, onPress: () => doExportCsv(now.getMonth() + 1, now.getFullYear()) },
       { text: `This Year (${now.getFullYear()})`, onPress: () => doExportCsv(undefined, now.getFullYear(), `${now.getFullYear()}`) },
+      { text: 'All Time', onPress: () => doExportCsv(undefined, undefined, undefined, true) },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -284,7 +301,11 @@ export default function SettingsScreen() {
         Type: tx.type,
         Category: tx.category,
         Amount: tx.amount,
+        Currency: tx.currency || 'INR',
         Note: tx.note || '',
+        Recurring: tx.isRecurring ? 'Yes' : 'No',
+        Private: tx.isPrivate ? 'Yes' : 'No',
+        Member: tx.userId?.name || '',
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
@@ -360,7 +381,7 @@ export default function SettingsScreen() {
             </View>
             <Text style={[S.deleteTitle, { color: theme.text }]}>Delete Account</Text>
             <Text style={[S.deleteSub, { color: theme.secondaryText }]}>
-              This permanently deletes your account and all your transactions, goals, and splits. This cannot be undone.
+              Your account will be scheduled for deletion in 30 days. You can cancel within that window. After 30 days, all your transactions, goals, and splits are permanently removed.
             </Text>
             <TextInput
               style={[S.deleteInput, { backgroundColor: theme.cardAlt ?? theme.border, color: theme.text, borderColor: deleteError ? (theme.danger ?? '#EF4444') : theme.border }]}
@@ -731,6 +752,34 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </>
         )}
+
+        {/* ── Legal ── */}
+        <Text style={[S.groupLabel, { color: theme.secondaryText }]}>LEGAL</Text>
+        <Card>
+          <Row
+            icon="shield-checkmark-outline" iconBg="#6366F1" iconColor="#FFF"
+            title="Privacy Policy"
+            sub="How we collect and use your data"
+            onPress={() => Linking.openURL('https://sarjilpatel.github.io/expense-tracker/privacy')}
+          />
+          <Sep />
+          <Row
+            icon="document-text-outline" iconBg="#8B5CF6" iconColor="#FFF"
+            title="Terms of Service"
+            sub="Rules and conditions of use"
+            onPress={() => Linking.openURL('https://sarjilpatel.github.io/expense-tracker/terms')}
+          />
+          <Sep />
+          <View style={S.row}>
+            <View style={[S.iconBox, { backgroundColor: theme.cardAlt ?? theme.border }]}>
+              <Ionicons name="information-circle-outline" size={18} color={theme.secondaryText} />
+            </View>
+            <View style={S.rowMid}>
+              <Text style={[S.rowTitle, { color: theme.text }]}>Version</Text>
+              <Text style={[S.rowSub, { color: theme.secondaryText }]}>1.0.0</Text>
+            </View>
+          </View>
+        </Card>
 
         <View style={{ height: 32 }} />
       </ScrollView>

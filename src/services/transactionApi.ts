@@ -16,13 +16,18 @@ export const addTransaction = async (data: any) => {
 /**
  * Get transactions with optional date filter
  */
-export const getTransactions = async (month?: number, year?: number, search?: string) => {
+export const getTransactions = async (
+  month?: number, year?: number, search?: string, page = 1, limit = 50
+) => {
   try {
-    const params: any = {};
+    const params: any = { page, limit };
     if (month && year) { params.month = month; params.year = year; }
     if (search && search.trim()) params.search = search.trim();
     const response = await apiClient.get('/transactions', { params });
-    return response.data;
+    // Backend returns { transactions, pagination } — normalise for callers
+    const data = response.data;
+    if (data && data.transactions) return data.transactions;
+    return data; // fallback for old server
   } catch (error: any) {
     throw error.response?.data || error.message;
   }
@@ -54,11 +59,23 @@ export const updateTransaction = async (id: string, data: any) => {
 };
 
 /**
- * Delete a transaction
+ * Soft-delete a transaction (restorable within 30 days)
  */
 export const deleteTransaction = async (id: string) => {
   try {
     const response = await apiClient.delete(`/transactions/${id}`);
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/**
+ * Restore a soft-deleted transaction
+ */
+export const restoreTransaction = async (id: string) => {
+  try {
+    const response = await apiClient.post(`/transactions/${id}/restore`);
     return response.data;
   } catch (error: any) {
     throw error.response?.data || error.message;

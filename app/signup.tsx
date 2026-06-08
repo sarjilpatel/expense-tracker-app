@@ -8,15 +8,41 @@ import { useAuth } from '@/src/context/AuthContext';
 import { signupUser } from '@/src/services/authApi';
 import { useTheme } from '@/src/context/ThemeContext';
 
+function passwordStrength(pw: string): { score: number; label: string; color: string } {
+  let score = 0;
+  if (pw.length >= 8)  score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { score, label: 'Weak',   color: '#EF4444' };
+  if (score <= 3) return { score, label: 'Fair',   color: '#F59E0B' };
+  return              { score, label: 'Strong', color: '#22C55E' };
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function SignupScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+
   const { login, enterGuestMode } = useAuth();
   const router = useRouter();
   const { theme } = useTheme();
+
+  const strength = passwordStrength(password);
+
+  const validate = () => {
+    const e: typeof errors = {};
+    if (!name.trim())               e.name     = 'Name is required';
+    if (!EMAIL_RE.test(email))      e.email    = 'Enter a valid email address';
+    if (password.length < 8)        e.password = 'Password must be at least 8 characters';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const handleGuestMode = () => {
     enterGuestMode();
@@ -24,14 +50,12 @@ export default function SignupScreen() {
   };
 
   const handleSignup = async () => {
-    if (!name || !email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+    if (!validate()) return;
 
     setLoading(true);
     try {
-      const data = await signupUser({ name, email, password });
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const data = await signupUser({ name, email, password, timezone });
       if (data && data.token && data.user) {
         await login(data.token, data.user, data.refreshToken);
         router.replace('/(tabs)');
@@ -59,37 +83,53 @@ export default function SignupScreen() {
             <ThemedView style={styles.inputWrapper}>
               <ThemedText style={styles.label}>Full Name</ThemedText>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+                style={[styles.input, { color: theme.text, borderColor: errors.name ? '#EF4444' : theme.border }]}
                 placeholder="Your Name"
                 placeholderTextColor="#A0A0A0"
                 value={name}
-                onChangeText={setName}
+                onChangeText={v => { setName(v); setErrors(e => ({ ...e, name: undefined })); }}
               />
+              {!!errors.name && <Text style={styles.fieldError}>{errors.name}</Text>}
             </ThemedView>
 
             <ThemedView style={styles.inputWrapper}>
               <ThemedText style={styles.label}>Email Address</ThemedText>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+                style={[styles.input, { color: theme.text, borderColor: errors.email ? '#EF4444' : theme.border }]}
                 placeholder="email@example.com"
                 placeholderTextColor="#A0A0A0"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={v => { setEmail(v); setErrors(e => ({ ...e, email: undefined })); }}
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
+              {!!errors.email && <Text style={styles.fieldError}>{errors.email}</Text>}
             </ThemedView>
 
             <ThemedView style={styles.inputWrapper}>
               <ThemedText style={styles.label}>Password</ThemedText>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                placeholder="••••••••"
+                style={[styles.input, { color: theme.text, borderColor: errors.password ? '#EF4444' : theme.border }]}
+                placeholder="Min. 8 characters"
                 placeholderTextColor="#A0A0A0"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={v => { setPassword(v); setErrors(e => ({ ...e, password: undefined })); }}
                 secureTextEntry
               />
+              {password.length > 0 && (
+                <View style={styles.strengthRow}>
+                  <View style={styles.strengthBar}>
+                    {[1,2,3,4,5].map(i => (
+                      <View
+                        key={i}
+                        style={[styles.strengthSegment, { backgroundColor: i <= strength.score ? strength.color : theme.border }]}
+                      />
+                    ))}
+                  </View>
+                  <Text style={[styles.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
+                </View>
+              )}
+              {!!errors.password && <Text style={styles.fieldError}>{errors.password}</Text>}
             </ThemedView>
 
             <TouchableOpacity 
@@ -151,4 +191,9 @@ const styles = StyleSheet.create({
   guestText: { fontSize: 15, fontWeight: '600' },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
   link: { fontWeight: 'bold' },
+  fieldError:      { fontSize: 12, color: '#EF4444', marginTop: 4, marginLeft: 2 },
+  strengthRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  strengthBar:     { flex: 1, flexDirection: 'row', gap: 4 },
+  strengthSegment: { flex: 1, height: 4, borderRadius: 2 },
+  strengthLabel:   { fontSize: 12, fontWeight: '700', width: 46, textAlign: 'right' },
 });

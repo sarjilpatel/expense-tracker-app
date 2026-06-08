@@ -83,18 +83,23 @@ export default function EditTransactionScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!amount || !category) {
-      Alert.alert(t('missing_info') || 'Missing Information', 'Please provide an amount and select a category.');
+    const parsedAmount = parseFloat(amount);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert(t('missing_info') || 'Missing Information', 'Please enter a valid amount greater than 0.');
+      return;
+    }
+    if (!category) {
+      Alert.alert(t('missing_info') || 'Missing Information', 'Please select a category.');
       return;
     }
     setLoading(true);
     try {
-      await updateTransaction(txId as string, { amount: parseFloat(amount), type, category, note, date: date.toISOString(), isPrivate });
+      await updateTransaction(txId as string, { amount: parsedAmount, type, category, note, date: date.toISOString(), isPrivate });
       if (txId) {
         if (selectedAccountId) await setTxAccount(txId as string, selectedAccountId);
       }
       await invalidateAllTransactionCache();
-      Alert.alert('Success', 'Transaction updated successfully!', [{ text: 'Great', onPress: () => router.back() }]);
+      router.back();
     } catch (error: any) {
       Alert.alert('Error', error.msg || error.message || 'Failed to update transaction');
     } finally {
@@ -147,6 +152,7 @@ export default function EditTransactionScreen() {
                   textColor={theme.text}
                   cardColor={theme.card}
                   borderColor={theme.border}
+                  onRetry={fetchCategories}
                 />
               </View>
 

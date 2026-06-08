@@ -17,6 +17,7 @@ import apiClient from '@/src/services/apiClient';
 import { LanguageProvider } from '@/src/i18n/LanguageContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SyncModal } from '@/components/SyncModal';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { hasPendingLocalData } from '@/src/services/syncService';
 import LockScreen from '@/app/lock';
 import { shouldLock, recordBackground, clearBackgroundTime } from '@/src/services/lockService';
@@ -109,9 +110,12 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={navTheme}>
+      <OfflineBanner />
       <Stack screenOptions={{ animation: 'ios', contentStyle: { backgroundColor: bgColor } }}>
         <Stack.Screen name="login"              options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="signup"             options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="reset-password/[token]" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="group-setup"        options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="manage-group"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="(tabs)"             options={{ headerShown: false, animation: 'fade'              }} />
