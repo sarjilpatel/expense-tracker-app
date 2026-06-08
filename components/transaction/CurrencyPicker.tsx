@@ -11,27 +11,35 @@ const CURRENCIES = Object.entries(CURRENCY_META) as [CurrencyCode, { symbol: str
 interface Props {
   value: CurrencyCode;
   onChange: (code: CurrencyCode) => void;
+  visible?: boolean;
+  onClose?: () => void;
 }
 
-export function CurrencyPicker({ value, onChange }: Props) {
+export function CurrencyPicker({ value, onChange, visible: externalVisible, onClose }: Props) {
   const { theme } = useTheme();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const meta = CURRENCY_META[value];
+
+  const isControlled = externalVisible !== undefined;
+  const isOpen = isControlled ? externalVisible! : internalOpen;
+  const close = onClose ?? (() => setInternalOpen(false));
 
   return (
     <>
-      <TouchableOpacity
-        style={[styles.trigger, { backgroundColor: theme.card, borderColor: theme.border }]}
-        onPress={() => setOpen(true)}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.symbol, { color: theme.tint }]}>{meta.symbol}</Text>
-        <Text style={[styles.code, { color: theme.text }]}>{value}</Text>
-        <Ionicons name="chevron-down" size={14} color={theme.secondaryText} />
-      </TouchableOpacity>
+      {!isControlled && (
+        <TouchableOpacity
+          style={[styles.trigger, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => setInternalOpen(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.symbol, { color: theme.tint }]}>{meta.symbol}</Text>
+          <Text style={[styles.code, { color: theme.text }]}>{value}</Text>
+          <Ionicons name="chevron-down" size={14} color={theme.secondaryText} />
+        </TouchableOpacity>
+      )}
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setOpen(false)} />
+      <Modal visible={isOpen} transparent animationType="fade" onRequestClose={close}>
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={close} />
         <View style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.border }]}>
           <Text style={[styles.title, { color: theme.text }]}>Select Currency</Text>
           <FlatList
@@ -40,7 +48,7 @@ export function CurrencyPicker({ value, onChange }: Props) {
             renderItem={({ item: [code, info] }) => (
               <TouchableOpacity
                 style={[styles.item, { borderBottomColor: theme.border }]}
-                onPress={() => { onChange(code); setOpen(false); }}
+                onPress={() => { onChange(code); close(); }}
                 activeOpacity={0.65}
               >
                 <Text style={[styles.itemSymbol, { color: theme.tint }]}>{info.symbol}</Text>

@@ -1,180 +1,138 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, FlatList,
-  StyleSheet, Platform,
+  StyleSheet, Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Account, ACCOUNT_TYPE_META } from '@/src/services/accountService';
-import { Currency } from '@/constants/theme';
 
 interface Props {
   accounts: Account[];
   selectedId: string | null;
   onChange: (accountId: string | null) => void;
   theme: any;
-  allTransactions?: any[];
-  txAccountMap?: Record<string, string>;
 }
 
-export function AccountPicker({ accounts, selectedId, onChange, theme, allTransactions = [], txAccountMap = {} }: Props) {
+// Displayed as a 3-column grid matching the Money Manager style
+export function AccountPicker({ accounts, selectedId, onChange, theme }: Props) {
   const [open, setOpen] = useState(false);
 
   const selected = accounts.find(a => a.id === selectedId);
 
-  const getBalance = (account: Account) => {
-    let bal = account.openingBalance;
-    for (const tx of allTransactions) {
-      if (txAccountMap[tx._id] !== account.id) continue;
-      if (tx.type === 'income') bal += tx.amount;
-      else bal -= tx.amount;
-    }
-    return bal;
-  };
+  // Grid items: "No Account" + actual accounts
+  const gridItems: (Account | null)[] = [null, ...accounts];
 
   return (
     <>
-      <TouchableOpacity
-        style={[styles.field, { backgroundColor: theme.card, borderColor: theme.border }]}
-        onPress={() => setOpen(true)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.fieldLeft}>
-          {selected ? (
-            <>
-              <View style={[styles.dot, { backgroundColor: selected.color }]} />
-              <Text style={[styles.fieldText, { color: theme.text }]}>{selected.name}</Text>
-              <Text style={[styles.fieldSub, { color: theme.secondaryText }]}>
-                {ACCOUNT_TYPE_META[selected.type]?.label}
-              </Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="wallet-outline" size={20} color={theme.secondaryText} style={{ marginRight: 10 }} />
-              <Text style={[styles.placeholder, { color: theme.secondaryText }]}>Select Account (optional)</Text>
-            </>
-          )}
-        </View>
-        <Ionicons name="chevron-down" size={18} color={theme.secondaryText} />
+      <TouchableOpacity onPress={() => setOpen(true)} activeOpacity={0.7} style={styles.rowValue}>
+        <Text style={[styles.valueText, !selected && { color: theme.secondaryText }]}>
+          {selected ? selected.name : 'Accounts'}
+        </Text>
       </TouchableOpacity>
- 
-      <Modal visible={open} transparent animationType="slide" statusBarTranslucent>
-        <View style={styles.overlay}>
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOpen(false)} />
-          <View style={[styles.sheet, { backgroundColor: theme.card }]}>
+
+      <Modal visible={open} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
+          <Pressable style={[styles.sheet, { backgroundColor: theme.background }]} onPress={e => e.stopPropagation()}>
+            {/* Header */}
             <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.sheetTitle, { color: theme.text }]}>Select Account</Text>
-              <TouchableOpacity onPress={() => setOpen(false)}>
-                <Ionicons name="close" size={22} color={theme.secondaryText} />
-              </TouchableOpacity>
+              <Text style={[styles.sheetTitle, { color: theme.text }]}>Accounts</Text>
+              <View style={styles.headerActions}>
+                <TouchableOpacity style={styles.headerBtn}>
+                  <Ionicons name="grid-outline" size={18} color={theme.secondaryText} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.headerBtn}
+                  onPress={() => { setOpen(false); router.push('/add-account'); }}
+                >
+                  <Ionicons name="pencil-outline" size={18} color={theme.secondaryText} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerBtn} onPress={() => setOpen(false)}>
+                  <Ionicons name="close" size={20} color={theme.secondaryText} />
+                </TouchableOpacity>
+              </View>
             </View>
- 
+
+            {/* Grid */}
             <FlatList
-              data={[null, ...accounts]}
+              data={gridItems}
               keyExtractor={item => item?.id ?? '__none__'}
+              numColumns={3}
               showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.grid}
               ListFooterComponent={
                 <TouchableOpacity
-                  style={[styles.addAccountRow, { borderTopColor: theme.border }]}
+                  style={[styles.addRow, { borderTopColor: theme.border }]}
                   onPress={() => { setOpen(false); router.push('/add-account'); }}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.addIcon, { backgroundColor: theme.tint }]}>
-                    <Ionicons name="add" size={18} color="#FFF" />
-                  </View>
-                  <Text style={[styles.addAccountText, { color: theme.tint }]}>Add New Account</Text>
+                  <Ionicons name="add-circle-outline" size={18} color={theme.tint} />
+                  <Text style={[styles.addText, { color: theme.tint }]}>Add Account</Text>
                 </TouchableOpacity>
               }
               renderItem={({ item }) => {
-                if (!item) {
-                  return (
-                    <TouchableOpacity
-                      style={[styles.accountRow, { borderBottomColor: theme.border }]}
-                      onPress={() => { onChange(null); setOpen(false); }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.iconWrap, { backgroundColor: theme.card }]}>
-                        <Ionicons name="close-circle-outline" size={20} color={theme.secondaryText} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.rowName, { color: theme.text }]}>No Account</Text>
-                        <Text style={[styles.rowType, { color: theme.secondaryText }]}>{"Don't link to any account"}</Text>
-                      </View>
-                      {selectedId === null && (
-                        <Ionicons name="checkmark-circle" size={20} color={theme.tint} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }
- 
-                const meta    = ACCOUNT_TYPE_META[item.type];
-                const balance = getBalance(item);
-                const isSelected = selectedId === item.id;
- 
+                const isSelected = item ? selectedId === item.id : selectedId === null;
+                const meta = item ? ACCOUNT_TYPE_META[item.type] : null;
+                const label = item ? item.name : 'None';
+                const iconName = meta?.icon ?? 'close-circle-outline';
+
                 return (
                   <TouchableOpacity
-                    style={[styles.accountRow, { borderBottomColor: theme.border }]}
-                    onPress={() => { onChange(item.id); setOpen(false); }}
+                    style={[
+                      styles.gridCell,
+                      { borderColor: theme.border },
+                      isSelected && { borderColor: theme.tint, backgroundColor: theme.tint + '18' },
+                    ]}
+                    onPress={() => { onChange(item?.id ?? null); setOpen(false); }}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.iconWrap, { backgroundColor: theme.tint }]}>
-                      <Ionicons name={meta.icon as any} size={20} color="#FFF" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.rowName, { color: theme.text }]}>{item.name}</Text>
-                      <Text style={[styles.rowType, { color: theme.secondaryText }]}>{meta.label}</Text>
-                    </View>
-                    <Text style={[styles.rowBalance, { color: balance >= 0 ? theme.text : '#EF4444' }]}>
-                      {Currency.format(balance)}
+                    <Ionicons
+                      name={iconName as any}
+                      size={24}
+                      color={isSelected ? theme.tint : theme.secondaryText}
+                    />
+                    <Text
+                      numberOfLines={2}
+                      style={[styles.gridLabel, { color: isSelected ? theme.tint : theme.text }]}
+                    >
+                      {label}
                     </Text>
-                    {isSelected && (
-                      <Ionicons name="checkmark-circle" size={20} color={theme.tint} style={{ marginLeft: 8 }} />
-                    )}
                   </TouchableOpacity>
                 );
               }}
             />
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  field: {
-    height: 56, borderRadius: 12, paddingHorizontal: 16, borderWidth: 1,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  },
-  fieldLeft:   { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 },
-  dot:         { width: 10, height: 10, borderRadius: 5 },
-  fieldText:   { fontSize: 16, fontWeight: '500' },
-  fieldSub:    { fontSize: 12 },
-  placeholder: { fontSize: 16 },
+  rowValue:  { flex: 1 },
+  valueText: { fontSize: 14 },
 
-  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { borderTopLeftRadius: 12, borderTopRightRadius: 12, maxHeight: '75%', overflow: 'hidden' },
+  overlay:   { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
+  sheet:     { borderTopLeftRadius: 14, borderTopRightRadius: 14, maxHeight: '72%' },
   sheetHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16,
+    paddingHorizontal: 18, paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  sheetTitle: { fontSize: 16, fontWeight: '700' },
-
-  accountRow: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth, gap: 12,
+  sheetTitle:    { fontSize: 15, fontWeight: '600' },
+  headerActions: { flexDirection: 'row', gap: 2 },
+  headerBtn:     { padding: 6 },
+  grid:          { padding: 6 },
+  gridCell: {
+    flex: 1, margin: 3, height: 72,
+    borderRadius: 8, borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center', justifyContent: 'center', padding: 6,
   },
-  iconWrap:    { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  rowName:     { fontSize: 15, fontWeight: '600' },
-  rowType:     { fontSize: 12, marginTop: 2 },
-  rowBalance:  { fontSize: 14, fontWeight: '700' },
-
-  addAccountRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 20, paddingVertical: 16,
+  gridLabel: { fontSize: 11, fontWeight: '500', marginTop: 5, textAlign: 'center' },
+  addRow:    {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 18, paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  addIcon:        { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  addAccountText: { fontSize: 15, fontWeight: '600' },
+  addText:   { fontSize: 13, fontWeight: '600' },
 });
