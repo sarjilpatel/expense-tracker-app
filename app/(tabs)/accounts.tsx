@@ -47,13 +47,15 @@ export default function AccountsScreen() {
       if (!forceRefresh && cached) {
         setAllTransactions(cached);
       } else {
-        const fresh = await getTransactions();
+        const raw = await getTransactions();
+        const fresh: any[] = Array.isArray(raw) ? raw : [];
         await setCachedTransactions(fresh);
         setAllTransactions(fresh);
       }
 
       // Load 12-month trend — monthly net, latest first
-      getTrend(12).then((months: any[]) => {
+      getTrend(12).then((raw: any) => {
+        const months: any[] = Array.isArray(raw) ? raw : [];
         const points = [...months].reverse().map((m: any) => ({
           value: (m.income || 0) - (m.expense || 0),
           label: `${m.monthLabel}\n'${String(m.year).slice(-2)}`,

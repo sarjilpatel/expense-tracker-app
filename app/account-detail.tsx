@@ -44,10 +44,12 @@ export default function AccountDetailScreen() {
 
       // Try cache first
       const cached = await getCachedTransactions();
-      const allTx: any[] = cached ?? await getTransactions();
+      const rawTx = cached ?? await getTransactions();
+      const allTx: any[] = Array.isArray(rawTx) ? rawTx : [];
       if (!cached) await setCachedTransactions(allTx);
       else {
-        getTransactions().then(fresh => {
+        getTransactions().then(raw => {
+          const fresh: any[] = Array.isArray(raw) ? raw : [];
           setCachedTransactions(fresh);
           setTransactions(fresh.filter((tx: any) => map[tx._id] === id)
             .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()));

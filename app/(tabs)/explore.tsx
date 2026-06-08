@@ -99,7 +99,8 @@ export default function AnalyticsScreen() {
 
     // Step 2 — background API sync
     try {
-      const result = await getTrend(6);
+      const raw = await getTrend(6);
+      const result: any[] = Array.isArray(raw) ? raw : [];
       await setCachedTrend(result);
       setTrendData(result);
     } catch (err) {

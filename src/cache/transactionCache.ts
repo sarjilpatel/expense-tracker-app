@@ -16,7 +16,9 @@ export async function getCachedTransactions(month?: number, year?: number): Prom
   try {
     const raw = await AsyncStorage.getItem(txKey(month, year));
     if (!raw) return null;
-    return JSON.parse(raw) as any[];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed;
   } catch {
     return null;
   }
@@ -24,7 +26,8 @@ export async function getCachedTransactions(month?: number, year?: number): Prom
 
 export async function setCachedTransactions(data: any[], month?: number, year?: number): Promise<void> {
   try {
-    await AsyncStorage.setItem(txKey(month, year), JSON.stringify(data));
+    const safe = Array.isArray(data) ? data : [];
+    await AsyncStorage.setItem(txKey(month, year), JSON.stringify(safe));
   } catch {}
 }
 
@@ -123,7 +126,9 @@ export async function getCachedTrend(): Promise<any[] | null> {
   try {
     const raw = await AsyncStorage.getItem(TREND_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as any[];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed;
   } catch {
     return null;
   }
@@ -131,7 +136,8 @@ export async function getCachedTrend(): Promise<any[] | null> {
 
 export async function setCachedTrend(data: any[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(TREND_KEY, JSON.stringify(data));
+    const safe = Array.isArray(data) ? data : [];
+    await AsyncStorage.setItem(TREND_KEY, JSON.stringify(safe));
   } catch {}
 }
 
@@ -141,7 +147,9 @@ export async function getCachedBudgets(): Promise<any[] | null> {
   try {
     const raw = await AsyncStorage.getItem(BUDGET_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as any[];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed;
   } catch {
     return null;
   }
@@ -149,6 +157,7 @@ export async function getCachedBudgets(): Promise<any[] | null> {
 
 export async function setCachedBudgets(data: any[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(BUDGET_KEY, JSON.stringify(data));
+    const safe = Array.isArray(data) ? data : [];
+    await AsyncStorage.setItem(BUDGET_KEY, JSON.stringify(safe));
   } catch {}
 }

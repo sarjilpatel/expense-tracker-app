@@ -189,18 +189,20 @@ export default function HomeScreen() {
         // Cache first month only (standard cache key)
         await setCachedTransactions(combined, currentMonth, currentYear);
       } else {
-        txData = await getTransactions(monthParam, currentYear);
+        const raw = await getTransactions(monthParam, currentYear);
+        txData = Array.isArray(raw) ? raw : [];
         await setCachedTransactions(txData, monthParam, currentYear);
       }
 
       const [budgetsData] = await Promise.all([getBudgets()]);
-      await setCachedBudgets(budgetsData || []);
+      const budgetList: any[] = Array.isArray(budgetsData) ? budgetsData : [];
+      await setCachedBudgets(budgetList);
 
       const freshSummary = computeSummary(txData);
       setAllTransactions(txData);
       setSummary(freshSummary);
 
-      const mainBudget = budgetsData?.find((b: any) => !b.category) || null;
+      const mainBudget = budgetList.find((b: any) => !b.category) || null;
       setBudget(mainBudget);
       if (mainBudget && freshSummary.expense) {
         const pct = (freshSummary.expense / mainBudget.amount) * 100;
