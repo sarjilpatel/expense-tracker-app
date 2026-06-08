@@ -3,9 +3,10 @@ import { useEffect, useState, useRef } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { ActivityIndicator, View, StyleSheet, AppState } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, AppState, Appearance } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import * as SystemUI from 'expo-system-ui';
 
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { PreferencesProvider } from '@/src/context/PreferencesContext';
@@ -21,6 +22,12 @@ import LockScreen from '@/app/lock';
 import { shouldLock, recordBackground, clearBackgroundTime } from '@/src/services/lockService';
 
 SplashScreen.preventAutoHideAsync();
+
+// Set Android Activity window background immediately on module load.
+// This is what shows through during native slide animations — not fixable from JS-layer styles alone.
+SystemUI.setBackgroundColorAsync(
+  Appearance.getColorScheme() === 'dark' ? Colors.dark.background : Colors.light.background
+);
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -95,9 +102,14 @@ function RootLayoutNav() {
     return <LockScreen onUnlock={() => setLocked(false)} />;
   }
 
+  const bgColor = colorScheme === 'dark' ? Colors.dark.background : Colors.light.background;
+  const navTheme = colorScheme === 'dark'
+    ? { ...DarkTheme,    colors: { ...DarkTheme.colors,    background: bgColor, card: bgColor } }
+    : { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: bgColor, card: bgColor } };
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ animation: 'ios' }}>
+    <ThemeProvider value={navTheme}>
+      <Stack screenOptions={{ animation: 'ios', contentStyle: { backgroundColor: bgColor } }}>
         <Stack.Screen name="login"              options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="signup"             options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="group-setup"        options={{ headerShown: false, animation: 'slide_from_right'  }} />
@@ -125,8 +137,15 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
+  const bgColor = colorScheme === 'dark' ? Colors.dark.background : Colors.light.background;
+
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(bgColor);
+  }, [bgColor]);
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: bgColor }}>
       <ErrorBoundary>
         <AppThemeProvider>
           <PreferencesProvider>

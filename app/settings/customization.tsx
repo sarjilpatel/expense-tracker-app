@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -60,6 +60,8 @@ export default function CustomizationScreen() {
   };
 
   return (
+    <>
+    <Stack.Screen options={{ contentStyle: { backgroundColor: theme.background } }} />
     <ThemedView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -231,6 +233,7 @@ export default function CustomizationScreen() {
         ) : null}
       </ScrollView>
     </ThemedView>
+    </>
   );
 }
 
