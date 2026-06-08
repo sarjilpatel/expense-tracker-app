@@ -1,11 +1,11 @@
 import { Platform } from 'react-native';
 
-const primaryLight  = '#6366F1';
-const primaryDark   = '#818CF8';
-const successLight  = '#10B981';
-const successDark   = '#34D399';
-const dangerLight   = '#F43F5E';
-const dangerDark    = '#FB7185';
+const primaryLight  = '#059669';
+const primaryDark   = '#34D399';
+const successLight  = '#16A34A';
+const successDark   = '#22C55E';
+const dangerLight   = '#DC2626';
+const dangerDark    = '#EF4444';
 const warningLight  = '#F59E0B';
 const warningDark   = '#FBBF24';
 
@@ -37,19 +37,19 @@ export type ThemeColors = {
 
 export const Colors: { light: ThemeColors; dark: ThemeColors } = {
   light: {
-    text:            '#0F172A',
-    secondaryText:   '#64748B',
-    background:      '#F8FAFC',
+    text:            '#1C1917',
+    secondaryText:   '#78716C',
+    background:      '#FAFAF9',
     card:            '#FFFFFF',
-    cardAlt:         '#F1F5F9',
-    border:          '#E2E8F0',
-    separator:       '#F1F5F9',
-    surface:         '#EEF2FF',
-    inputBg:         '#F8FAFC',
+    cardAlt:         '#F5F5F0',
+    border:          '#E7E5E4',
+    separator:       '#F5F5F0',
+    surface:         '#F0FDF4',
+    inputBg:         '#FAFAF9',
     tint:            primaryLight,
     tintText:        '#FFFFFF',
-    icon:            '#94A3B8',
-    tabIconDefault:  '#CBD5E1',
+    icon:            '#78716C',
+    tabIconDefault:  '#A8A29E',
     tabIconSelected: primaryLight,
     income:          successLight,
     incomeText:      '#FFFFFF',
@@ -59,22 +59,22 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     success:         successLight,
     danger:          dangerLight,
     warning:         warningLight,
-    chart: ['#6366F1','#10B981','#F59E0B','#8B5CF6','#EC4899','#06B6D4','#F43F5E'],
+    chart: ['#059669','#16A34A','#F59E0B','#8B5CF6','#EC4899','#06B6D4','#DC2626'],
   },
   dark: {
-    text:            '#F1F5F9',
-    secondaryText:   '#94A3B8',
-    background:      '#09090B',
-    card:            '#18181B',
-    cardAlt:         '#27272A',
-    border:          '#27272A',
-    separator:       '#18181B',
-    surface:         '#1E1B4B',
-    inputBg:         '#09090B',
+    text:            '#F0F6FC',
+    secondaryText:   '#8B949E',
+    background:      '#0D1117',
+    card:            '#161B22',
+    cardAlt:         '#1F2937',
+    border:          '#30363D',
+    separator:       '#161B22',
+    surface:         '#111827',
+    inputBg:         '#0D1117',
     tint:            primaryDark,
     tintText:        '#FFFFFF',
-    icon:            '#64748B',
-    tabIconDefault:  '#475569',
+    icon:            '#8B949E',
+    tabIconDefault:  '#484F58',
     tabIconSelected: primaryDark,
     income:          successDark,
     incomeText:      '#FFFFFF',
@@ -84,7 +84,7 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     success:         successDark,
     danger:          dangerDark,
     warning:         warningDark,
-    chart: ['#818CF8','#34D399','#FBBF24','#A78BFA','#F472B6','#22D3EE','#FB7185'],
+    chart: ['#34D399','#22C55E','#FBBF24','#A78BFA','#F472B6','#22D3EE','#EF4444'],
   },
 };
 
@@ -220,7 +220,8 @@ export const Currency = {
 };
 
 export const TYPE_SCALE = {
-  screenTitle:  { fontSize: 22, fontWeight: '800' as const },
+  heroAmount:   { fontSize: 48, fontWeight: '800' as const, fontVariant: ['tabular-nums'] as const, letterSpacing: -0.5 },
+  screenTitle:  { fontSize: 24, fontWeight: '800' as const },
   sectionTitle: { fontSize: 17, fontWeight: '700' as const },
   body:         { fontSize: 15, fontWeight: '500' as const },
   label:        { fontSize: 13, fontWeight: '600' as const },
@@ -236,11 +237,46 @@ export const CATEGORIES = [
   { id: '6', name: 'Other',         icon: 'ellipsis-horizontal' },
 ];
 
+export const CATEGORY_COLORS = {
+  'Food':          { bg: '#FFF3E0', icon: '#FF6B35' },
+  'Transport':     { bg: '#E3F2FD', icon: '#2196F3' },
+  'Shopping':      { bg: '#FCE4EC', icon: '#E91E63' },
+  'Health':        { bg: '#FFEBEE', icon: '#F44336' },
+  'Entertainment': { bg: '#F3E5F5', icon: '#9C27B0' },
+  'Bills':         { bg: '#ECEFF1', icon: '#607D8B' },
+  'Rent':          { bg: '#E8EAF6', icon: '#3F51B5' },
+  'Education':     { bg: '#E0F2F1', icon: '#009688' },
+  'Salary':        { bg: '#E8F5E9', icon: '#4CAF50' },
+  'Business':      { bg: '#E3F2FD', icon: '#1976D2' },
+  'Investment':    { bg: '#F9FBE7', icon: '#827717' },
+  'Other':         { bg: '#F5F5F5', icon: '#9E9E9E' },
+};
+
+export const BORDER_RADIUS = {
+  card: 20,
+  input: 14,
+  chip: 10,
+  button: 16,
+  pill: 999,
+  avatar: '50%',
+};
+
 export function hexToRGBA(hex: string, alpha: number): string {
   const cleanHex = hex.replace('#', '');
   const r = parseInt(cleanHex.substring(0, 2), 16);
   const g = parseInt(cleanHex.substring(2, 4), 16);
   const b = parseInt(cleanHex.substring(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export function getCategoryColors(category: string, isDark: boolean) {
+  const base = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || CATEGORY_COLORS['Other'];
+  if (isDark) {
+    return {
+      bg: hexToRGBA(base.icon, 0.15),
+      icon: base.icon,
+    };
+  }
+  return base;
 }
 

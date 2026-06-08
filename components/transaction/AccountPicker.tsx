@@ -143,7 +143,7 @@ export function AccountPicker({ accounts, selectedId, onChange, theme, allTransa
 
 const styles = StyleSheet.create({
   field: {
-    height: 56, borderRadius: 16, paddingHorizontal: 16, borderWidth: 1,
+    height: 56, borderRadius: 12, paddingHorizontal: 16, borderWidth: 1,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   fieldLeft:   { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 },
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   placeholder: { fontSize: 16 },
 
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '75%', overflow: 'hidden' },
+  sheet: { borderTopLeftRadius: 12, borderTopRightRadius: 12, maxHeight: '75%', overflow: 'hidden' },
   sheetHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 16,

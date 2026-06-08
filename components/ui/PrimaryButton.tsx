@@ -36,7 +36,7 @@ export function PrimaryButton({ label, onPress, loading = false, disabled = fals
 const styles = StyleSheet.create({
   btn: {
     height: 56,
-    borderRadius: 18,
+    borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',

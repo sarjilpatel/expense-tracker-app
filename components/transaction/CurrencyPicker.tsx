@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   trigger: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 14, paddingVertical: 12,
-    borderRadius: 14, borderWidth: 1, alignSelf: 'flex-start',
+    borderRadius: 12, borderWidth: 1, alignSelf: 'flex-start',
   },
   symbol:  { fontSize: 18, fontWeight: '700' },
   code:    { fontSize: 14, fontWeight: '600' },
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
     maxHeight: '60%',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopLeftRadius: 12, borderTopRightRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     paddingTop: 16, paddingBottom: 32,
   },

@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { verifyPin } from '@/src/services/lockService';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Props {
   onUnlock: () => void;
@@ -79,24 +80,30 @@ export default function LockScreen({ onUnlock }: Props) {
   }, [lockedUntil]);
 
   const isLocked  = lockedUntil != null;
-  const dotColor  = error ? '#FF3B30' : theme.tint;
   const mins      = Math.floor(countdown / 60);
   const secs      = countdown % 60;
   const attemptsLeft = MAX_ATTEMPTS - attempts;
 
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.background }]}>
-      <Ionicons name="lock-closed" size={40} color={theme.tint} style={{ marginBottom: 24 }} />
-      <Text style={[styles.title, { color: theme.text }]}>
+    <LinearGradient
+      colors={theme.background === '#0D1117' ? ['#059669', '#022C22'] : ['#059669', '#047857']}
+      style={styles.wrap}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <View style={styles.logoCircle}>
+        <Ionicons name="wallet" size={32} color="#FFF" />
+      </View>
+      <Text style={[styles.title, { color: '#FFF' }]}>
         {isLocked ? 'Too many attempts' : 'Enter PIN'}
       </Text>
 
       {isLocked ? (
         <View style={styles.lockoutBox}>
-          <Text style={[styles.lockoutTimer, { color: theme.tint }]}>
+          <Text style={[styles.lockoutTimer, { color: '#FFF' }]}>
             {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
           </Text>
-          <Text style={[styles.lockoutSub, { color: theme.secondaryText }]}>
+          <Text style={[styles.lockoutSub, { color: 'rgba(255, 255, 255, 0.7)' }]}>
             Try again in {mins > 0 ? `${mins}m ${secs}s` : `${secs}s`}
           </Text>
         </View>
@@ -116,8 +123,8 @@ export default function LockScreen({ onUnlock }: Props) {
                 style={[
                   styles.dot,
                   i < pin.length
-                    ? { backgroundColor: dotColor, borderColor: dotColor }
-                    : { borderColor: dotColor },
+                    ? { backgroundColor: '#FFF', borderColor: '#FFF' }
+                    : { borderColor: '#FFF', backgroundColor: 'transparent' },
                 ]}
               />
             ))}
@@ -130,30 +137,35 @@ export default function LockScreen({ onUnlock }: Props) {
               return (
                 <TouchableOpacity
                   key={i}
-                  style={[styles.padKey, { backgroundColor: theme.card }]}
+                  style={[styles.padKey, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
                   onPress={() => key === '⌫' ? del() : press(key)}
                   activeOpacity={0.6}
                 >
-                  <Text style={[styles.padText, { color: theme.text }]}>{key}</Text>
+                  {key === '⌫' ? (
+                    <Ionicons name="backspace-outline" size={24} color="#FFF" />
+                  ) : (
+                    <Text style={[styles.padText, { color: '#FFF' }]}>{key}</Text>
+                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
         </>
       )}
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap:         { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 24 },
-  title:        { fontSize: 20, fontWeight: '700' },
+  wrap:         { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20 },
+  logoCircle:   { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  title:        { fontSize: 22, fontWeight: '800', letterSpacing: 0.5 },
   dotsRow:      { flexDirection: 'row', gap: 16, marginVertical: 8 },
   dot:          { width: 16, height: 16, borderRadius: 8, borderWidth: 2 },
-  pad:          { width: 280, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 16 },
-  padKey:       { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
-  padText:      { fontSize: 24, fontWeight: '500' },
-  attemptsWarn: { fontSize: 13, color: '#FF3B30', fontWeight: '600' },
+  pad:          { width: 280, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16, marginTop: 16 },
+  padKey:       { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center' },
+  padText:      { fontSize: 24, fontWeight: '700' },
+  attemptsWarn: { fontSize: 13, color: '#FFF', fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 2, textShadowOffset: { width: 0, height: 1 } },
   lockoutBox:   { alignItems: 'center', gap: 8 },
   lockoutTimer: { fontSize: 48, fontWeight: '800', fontVariant: ['tabular-nums'] },
   lockoutSub:   { fontSize: 14 },

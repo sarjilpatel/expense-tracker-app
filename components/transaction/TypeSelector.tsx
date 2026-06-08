@@ -37,17 +37,18 @@ export function TypeSelector({ type, onChange, incomeLabel = 'Income', expenseLa
 const styles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
-    borderRadius: 16,
-    padding: 6,
+    borderRadius: 12,
+    padding: 4,
     marginBottom: 32,
+    height: 52,
   },
   btn: {
     flex: 1,
-    height: 48,
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 10,
     gap: 8,
   },
   label: {

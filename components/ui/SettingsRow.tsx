@@ -57,5 +57,5 @@ const S = StyleSheet.create({
   rowTitle:{ fontSize: 15, fontWeight: '600' },
   rowSub:  { fontSize: 12, marginTop: 1 },
   sep:     { height: StyleSheet.hairlineWidth, marginLeft: 62 },
-  card:    { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  card:    { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
 });

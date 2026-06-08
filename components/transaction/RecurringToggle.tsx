@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   freqRow: {
     flexDirection: 'row',
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 4,
     borderWidth: 1,
     gap: 4,

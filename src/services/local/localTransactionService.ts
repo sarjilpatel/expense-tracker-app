@@ -84,25 +84,55 @@ export async function deleteLocalTransaction(id: string): Promise<{ message: str
 }
 
 export async function computeLocalAnalytics(month?: number, year?: number) {
-  const txs = await getLocalTransactions(month, year);
+  const now = new Date();
+  const m = month ?? (now.getMonth() + 1);
+  const y = year ?? now.getFullYear();
+
+  const txs = await getLocalTransactions(m, y);
   let totalIncome = 0;
   let totalExpense = 0;
-  const catMap: Record<string, { total: number; count: number; type: string }> = {};
+  const expMap: Record<string, number> = {};
+  const incMap: Record<string, number> = {};
 
   txs.forEach(tx => {
     const amt = Number(tx.amount) || 0;
-    if (tx.type === 'income') totalIncome += amt;
-    else totalExpense += amt;
-    if (!catMap[tx.category]) catMap[tx.category] = { total: 0, count: 0, type: tx.type };
-    catMap[tx.category].total += amt;
-    catMap[tx.category].count += 1;
+    if (tx.type === 'income') {
+      totalIncome += amt;
+      incMap[tx.category] = (incMap[tx.category] || 0) + amt;
+    } else {
+      totalExpense += amt;
+      expMap[tx.category] = (expMap[tx.category] || 0) + amt;
+    }
   });
 
-  const byCategory = Object.entries(catMap)
-    .map(([name, v]) => ({ name, total: v.total, count: v.count, type: v.type }))
-    .sort((a, b) => b.total - a.total);
+  const toBreakdown = (map: Record<string, number>, total: number) =>
+    Object.entries(map)
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percentage: total > 0 ? ((amount / total) * 100).toFixed(1) : '0',
+      }))
+      .sort((a, b) => b.amount - a.amount);
 
-  return { totalIncome, totalExpense, balance: totalIncome - totalExpense, byCategory, count: txs.length };
+  const prevM = m === 1 ? 12 : m - 1;
+  const prevY = m === 1 ? y - 1 : y;
+  const prevTxs = await getLocalTransactions(prevM, prevY);
+  let prevIncome = 0, prevExpense = 0;
+  prevTxs.forEach(tx => {
+    const amt = Number(tx.amount) || 0;
+    if (tx.type === 'income') prevIncome += amt;
+    else prevExpense += amt;
+  });
+
+  return {
+    totalIncome,
+    totalExpense,
+    balance: totalIncome - totalExpense,
+    categoryBreakdown: toBreakdown(expMap, totalExpense),
+    incomeBreakdown: toBreakdown(incMap, totalIncome),
+    previousMonth: { totalIncome: prevIncome, totalExpense: prevExpense },
+    memberBreakdown: [],
+  };
 }
 
 export async function computeLocalTrend(months = 6) {

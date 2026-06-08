@@ -172,7 +172,7 @@ export default function AccountDetailScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={[styles.txList, { borderColor: theme.border }]}>
+          <View style={styles.txList}>
             {transactions.map((item, index) => (
               <TransactionRow
                 key={item._id}
@@ -183,6 +183,9 @@ export default function AccountDetailScreen() {
                 accountName={account.name}
                 onPress={() => {}}
                 onLongPress={() => {}}
+                isFirst={index === 0}
+                isLast={index === transactions.length - 1}
+                marginHorizontal={12}
               />
             ))}
           </View>
@@ -206,7 +209,7 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 80 },
 
   accountCard: {
-    marginHorizontal: 12, borderRadius: 20, borderWidth: 1.5,
+    marginHorizontal: 12, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
     padding: 20, marginBottom: 8,
   },
   accountCardTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
@@ -226,7 +229,7 @@ const styles = StyleSheet.create({
     marginBottom: 12, marginTop: 24, paddingHorizontal: 12,
   },
 
-  txList: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
+  txList: {},
 
   empty:       { alignItems: 'center', paddingTop: 48 },
   emptyText:   { fontSize: 14, marginBottom: 20 },

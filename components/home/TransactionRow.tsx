@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Currency } from '@/constants/theme';
-import { CATEGORY_EMOJIS } from '@/constants/maps';
 import { CURRENCY_META } from '@/src/services/preferencesService';
 
 interface Props {
@@ -15,12 +14,28 @@ interface Props {
   onLongPress: (id: string) => void;
   accountName?: string | null;
   hasReceipt?: boolean;
+  isFirst?: boolean;
   isLast?: boolean;
+  marginHorizontal?: number;
 }
 
-export const TransactionRow = memo(function TransactionRow({ item, index, theme, t, onPress, onLongPress, accountName, hasReceipt, isLast }: Props) {
+const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  'Food': 'restaurant',
+  'Transport': 'car',
+  'Shopping': 'cart',
+  'Health': 'heart',
+  'Entertainment': 'game-controller',
+  'Bills': 'receipt',
+  'Rent': 'home',
+  'Education': 'book',
+  'Salary': 'cash',
+  'Business': 'briefcase',
+  'Investment': 'trending-up',
+  'Other': 'ellipsis-horizontal',
+};
+
+export const TransactionRow = memo(function TransactionRow({ item, index, theme, t, onPress, onLongPress, accountName, hasReceipt, isFirst, isLast, marginHorizontal = 12 }: Props) {
   const isExpense   = item.type === 'expense';
-  const emoji       = CATEGORY_EMOJIS[item.category] || '🏷️';
   const amountColor = isExpense ? theme.expense : theme.income;
 
   const txCurrencyMeta = item.currency && item.currency !== 'INR' ? CURRENCY_META[item.currency as keyof typeof CURRENCY_META] : null;
@@ -28,12 +43,9 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
     ? `${txCurrencyMeta.symbol}${item.amount.toLocaleString(txCurrencyMeta.locale)}`
     : Currency.format(item.amount);
 
-  const addedBy = typeof item.userId === 'object' && item.userId?.name
-    ? (item.userId.name as string)
-    : null;
+  const iconName = (CATEGORY_ICONS[item.category] || 'ellipsis-horizontal') as any;
 
-  const accountPart = accountName ?? 'Accounts';
-  const subLabel    = addedBy ? `${accountPart} · ${addedBy}` : accountPart;
+  const timeLabel = new Date(item.date || item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
   const rowBg = theme.card;
 
@@ -45,13 +57,17 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
           {
             backgroundColor: rowBg,
             borderColor: theme.border,
-            borderLeftWidth: 1,
-            borderRightWidth: 1,
-            borderBottomWidth: 1,
+            borderLeftWidth: StyleSheet.hairlineWidth,
+            borderRightWidth: StyleSheet.hairlineWidth,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderTopWidth: isFirst ? StyleSheet.hairlineWidth : 0,
             borderBottomColor: isLast ? theme.border : theme.separator,
-            marginHorizontal: 12,
-            borderBottomLeftRadius: isLast ? 16 : 0,
-            borderBottomRightRadius: isLast ? 16 : 0,
+            marginHorizontal: marginHorizontal,
+            borderTopLeftRadius: isFirst ? 12 : 0,
+            borderTopRightRadius: isFirst ? 12 : 0,
+            borderBottomLeftRadius: isLast ? 12 : 0,
+            borderBottomRightRadius: isLast ? 12 : 0,
+            marginTop: 0,
           }
         ]}
         onPress={() => onPress(item)}
@@ -59,35 +75,34 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
         delayLongPress={500}
         activeOpacity={0.6}
       >
-        {/* Accent bar */}
-        <View style={[styles.accentBar, { backgroundColor: amountColor }]} />
-
-        {/* Emoji + category */}
-        <View style={styles.left}>
-          <Text style={styles.emoji}>{emoji}</Text>
-          <Text style={[styles.catText, { color: theme.secondaryText }]} numberOfLines={1}>
-            {t(item.category)}
-          </Text>
+        {/* LEFT: Category Icon Chip */}
+        <View style={styles.iconChip}>
+          <Ionicons name={iconName} size={16} color={amountColor} />
         </View>
 
-        {/* Note + subtext */}
+        {/* MIDDLE: Notes/Name + Category */}
         <View style={styles.middle}>
           <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
             {item.note || t(item.category)}
           </Text>
-          <Text style={[styles.subtext, { color: theme.secondaryText }]} numberOfLines={1}>
-            {subLabel}
+          <Text style={[styles.catText, { color: theme.secondaryText }]} numberOfLines={1}>
+            {t(item.category)} {accountName ? `· ${accountName}` : ''}
           </Text>
         </View>
 
-        {/* Amount + receipt indicator */}
+        {/* RIGHT: Amount + Time */}
         <View style={styles.right}>
           <Text style={[styles.amount, { color: amountColor }]}>
             {formattedAmount}
           </Text>
-          {hasReceipt && (
-            <Ionicons name="receipt-outline" size={11} color={theme.secondaryText} style={styles.receiptIcon} />
-          )}
+          <View style={styles.timeRow}>
+            {hasReceipt && (
+              <Ionicons name="receipt-outline" size={12} color={theme.secondaryText} style={{ marginRight: 4 }} />
+            )}
+            <Text style={[styles.timeLabel, { color: theme.secondaryText }]}>
+              {timeLabel}
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -98,23 +113,46 @@ const styles = StyleSheet.create({
   row: {
     flexDirection:     'row',
     alignItems:        'center',
-    paddingHorizontal: 16,
-    paddingVertical:   11,
+    paddingHorizontal: 12,
+    minHeight:         56,
   },
-  accentBar: {
-    width: 3, height: 36, borderRadius: 2,
-    marginRight: 10, flexShrink: 0,
+  iconChip: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  left: {
-    width: 82, flexDirection: 'row', alignItems: 'center',
-    gap: 6, paddingRight: 4, flexShrink: 0,
+  middle: {
+    flex: 1,
+    justifyContent: 'center',
   },
-  emoji:   { fontSize: 17 },
-  catText: { fontSize: 11, fontWeight: '400', flexShrink: 1 },
-  middle:  { flex: 1, gap: 4 },
-  title:   { fontSize: 15, fontWeight: '500', lineHeight: 19, letterSpacing: 0.1 },
-  subtext: { fontSize: 12, fontWeight: '400', lineHeight: 15 },
-  right:       { alignItems: 'flex-end', marginLeft: 8, gap: 2 },
-  amount:      { fontSize: 13, fontWeight: '600', letterSpacing: 0.2 },
-  receiptIcon: { opacity: 0.6 },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  catText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  right: {
+    alignItems: 'flex-end',
+    marginLeft: 8,
+    justifyContent: 'center',
+  },
+  amount: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  timeLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
 });

@@ -52,7 +52,7 @@ export function ViewModeTabs({ active, onPress, tintColor, secondaryText }: Prop
 const styles = StyleSheet.create({
   track: {
     marginHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     padding: 3,
     marginBottom: 12,
   },
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   pill: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 11,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },

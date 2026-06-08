@@ -10,6 +10,7 @@ import Animated, {
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Currency } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
   category: string;
@@ -19,8 +20,24 @@ interface Props {
   rank: number;
 }
 
+const CATEGORY_ICONS: Record<string, string> = {
+  'Food': 'restaurant',
+  'Transport': 'car',
+  'Shopping': 'cart',
+  'Health': 'heart',
+  'Entertainment': 'game-controller',
+  'Bills': 'receipt',
+  'Rent': 'home',
+  'Education': 'book',
+  'Salary': 'cash',
+  'Business': 'briefcase',
+  'Investment': 'trending-up',
+  'Other': 'ellipsis-horizontal',
+};
+
 export function CategoryBar({ category, amount, percentage, color, rank }: Props) {
-  const theme = Colors[useColorScheme() || 'light'];
+  const scheme = useColorScheme() || 'light';
+  const theme = Colors[scheme];
   const pct = Math.min(Number(percentage) || 0, 100);
   const barW = useSharedValue(0);
 
@@ -32,11 +49,16 @@ export function CategoryBar({ category, amount, percentage, color, rank }: Props
     width: `${barW.value * 100}%` as any,
   }));
 
+  const isDark = scheme === 'dark';
+  const iconName = CATEGORY_ICONS[category] || 'ellipsis-horizontal';
+
   return (
     <Animated.View entering={FadeInDown.delay(rank * 60).duration(300)} style={styles.item}>
       <View style={styles.top}>
         <View style={styles.left}>
-          <View style={[styles.dot, { backgroundColor: color }]} />
+          <View style={styles.iconChip}>
+            <Ionicons name={iconName as any} size={12} color={color} />
+          </View>
           <ThemedText style={styles.name}>{category}</ThemedText>
         </View>
         <View style={styles.right}>
@@ -55,7 +77,7 @@ const styles = StyleSheet.create({
   item: { gap: 6 },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   left: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  dot: { width: 10, height: 10, borderRadius: 5 },
+  iconChip: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   name: { fontSize: 14, fontWeight: '600', flex: 1 },
   right: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pct: { fontSize: 12, fontWeight: '800' },

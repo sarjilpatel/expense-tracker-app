@@ -35,12 +35,12 @@ export function EmptyState({ icon, title, body, cta }: Props) {
 
 const S = StyleSheet.create({
   wrap:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 12 },
-  iconWrap: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  iconWrap: { width: 80, height: 80, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   title:    { fontSize: 18, fontWeight: '700', textAlign: 'center' },
   body:     { fontSize: 14, textAlign: 'center', lineHeight: 21 },
   btn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16, marginTop: 8,
+    paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, marginTop: 8,
   },
   btnText:  { fontWeight: '700', fontSize: 15 },
 });

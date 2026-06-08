@@ -69,7 +69,7 @@ export function CategoryDropdown({ data, value, onChange, loading, tintColor, te
 const styles = StyleSheet.create({
   dropdown: {
     height: 56,
-    borderRadius: 16,
+    borderRadius: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
   },
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     height: 56,
-    borderRadius: 16,
+    borderRadius: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
     flexDirection: 'row',

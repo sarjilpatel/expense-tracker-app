@@ -35,10 +35,11 @@ export function TransactionSectionHeader({ section, theme }: Props) {
         {
           backgroundColor: theme.cardAlt,
           borderColor: theme.border,
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          borderWidth: 1,
-          borderBottomWidth: 0,
+          borderTopLeftRadius: 12,
+          borderTopRightRadius: 12,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: theme.separator,
           marginHorizontal: 12,
         }
       ]}
@@ -74,13 +75,13 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     alignItems:        'center',
     justifyContent:    'space-between',
-    paddingHorizontal: 16,
-    paddingVertical:   8,
+    paddingHorizontal: 12,
+    paddingVertical:   5,
   },
   left: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  dayNum: { fontSize: 28, fontWeight: '700', lineHeight: 32, width: 36 },
+  dayNum: { fontSize: 20, fontWeight: '700', lineHeight: 24, width: 28 },
   badge: {
-    paddingHorizontal: 7, paddingVertical: 3,
+    paddingHorizontal: 5, paddingVertical: 1.5,
     borderRadius: 6,
   },
   badgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },

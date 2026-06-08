@@ -19,7 +19,7 @@ export function ComparisonCard({ label, current, previous, color, icon }: Props)
   const isUp = change !== null && change > 0;
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.card }]}>
+    <View style={[styles.card, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
       <View style={[styles.icon, { backgroundColor: theme.tint }]}>
         <Ionicons name={icon as any} size={18} color={theme.tintText} />
       </View>
