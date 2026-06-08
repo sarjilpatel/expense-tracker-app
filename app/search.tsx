@@ -184,7 +184,7 @@ export default function SearchScreen() {
             {sign}{formatAmount(item.amount)}
           </Text>
           <View style={[styles.typePill, { backgroundColor: amtColor }]}>
-            <Text style={[styles.typePillText, { color: '#FFF' }]}>
+            <Text style={[styles.typePillText, { color: isExpense ? theme.expenseText : theme.incomeText }]}>
               {isExpense ? 'Exp' : 'Inc'}
             </Text>
           </View>
@@ -299,7 +299,7 @@ export default function SearchScreen() {
               onPress={() => setFilter(key)}
               activeOpacity={0.75}
             >
-              <Text style={[styles.filterChipText, { color: filter === key ? '#FFF' : theme.secondaryText }]}>
+              <Text style={[styles.filterChipText, { color: filter === key ? theme.tintText : theme.secondaryText }]}>
                 {label}
               </Text>
             </TouchableOpacity>

@@ -114,7 +114,7 @@ export default function AccountsScreen() {
             onPress={() => router.push('/add-account')}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={20} color="#FFF" />
+            <Ionicons name="add" size={20} color={theme.tintText} />
           </TouchableOpacity>
         </View>
       </View>
@@ -135,7 +135,7 @@ export default function AccountsScreen() {
             /* ── Empty state ── */
             <View style={styles.emptyWrap}>
               <View style={[styles.emptyIcon, { backgroundColor: theme.tint }]}>
-                <Ionicons name="wallet-outline" size={40} color='#FFF' />
+                <Ionicons name="wallet-outline" size={40} color={theme.tintText} />
               </View>
               <ThemedText style={styles.emptyTitle}>No accounts yet</ThemedText>
               <Text style={[styles.emptyBody, { color: theme.secondaryText }]}>
@@ -146,8 +146,8 @@ export default function AccountsScreen() {
                 onPress={() => router.push('/add-account')}
                 activeOpacity={0.8}
               >
-                <Ionicons name="add-circle-outline" size={18} color="#FFF" />
-                <Text style={styles.emptyBtnText}>Add First Account</Text>
+                <Ionicons name="add-circle-outline" size={18} color={theme.tintText} />
+                <Text style={[styles.emptyBtnText, { color: theme.tintText }]}>Add First Account</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -216,39 +216,48 @@ export default function AccountsScreen() {
                 MY ACCOUNTS · {accounts.length}
               </Text>
 
-              {accountsWithBalance.map((acc, i) => {
-                const meta = ACCOUNT_TYPE_META[acc.type];
-                return (
-                  <Animated.View key={acc.id} entering={FadeInDown.delay(i * 50).duration(260)}>
-                    <TouchableOpacity
-                      style={[styles.accountRow, { borderBottomColor: theme.border }]}
-                      onPress={() => router.push({ pathname: '/account-detail', params: { id: acc.id } })}
-                      activeOpacity={0.65}
-                    >
-                      {/* Left: icon */}
-                      <View style={[styles.accIcon, { backgroundColor: acc.color }]}>
-                        <Ionicons name={meta.icon as any} size={22} color='#FFF' />
-                      </View>
+              <View style={[styles.accountsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                {accountsWithBalance.map((acc, i) => {
+                  const meta = ACCOUNT_TYPE_META[acc.type];
+                  const isLast = i === accountsWithBalance.length - 1;
+                  return (
+                    <Animated.View key={acc.id} entering={FadeInDown.delay(i * 50).duration(260)}>
+                      <TouchableOpacity
+                        style={[
+                          styles.accountRow,
+                          {
+                            borderBottomColor: theme.border,
+                            borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                          }
+                        ]}
+                        onPress={() => router.push({ pathname: '/account-detail', params: { id: acc.id } })}
+                        activeOpacity={0.65}
+                      >
+                        {/* Left: icon */}
+                        <View style={[styles.accIcon, { backgroundColor: acc.color }]}>
+                          <Ionicons name={meta.icon as any} size={22} color='#FFF' />
+                        </View>
 
-                      {/* Middle: name + type + tx count */}
-                      <View style={styles.accMid}>
-                        <Text style={[styles.accName, { color: theme.text }]}>{acc.name}</Text>
-                        <Text style={[styles.accType, { color: theme.secondaryText }]}>
-                          {meta.label}{acc.txCount > 0 ? ` · ${acc.txCount} transactions` : ''}
-                        </Text>
-                      </View>
+                        {/* Middle: name + type + tx count */}
+                        <View style={styles.accMid}>
+                          <Text style={[styles.accName, { color: theme.text }]}>{acc.name}</Text>
+                          <Text style={[styles.accType, { color: theme.secondaryText }]}>
+                            {meta.label}{acc.txCount > 0 ? ` · ${acc.txCount} transactions` : ''}
+                          </Text>
+                        </View>
 
-                      {/* Right: balance + chevron */}
-                      <View style={styles.accRight}>
-                        <Text style={[styles.accBalance, { color: acc.balance >= 0 ? theme.text : theme.expense }]}>
-                          {formatAmount(acc.balance)}
-                        </Text>
-                        <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} style={{ marginTop: 2 }} />
-                      </View>
-                    </TouchableOpacity>
-                  </Animated.View>
-                );
-              })}
+                        {/* Right: balance + chevron */}
+                        <View style={styles.accRight}>
+                          <Text style={[styles.accBalance, { color: acc.balance >= 0 ? theme.text : theme.expense }]}>
+                            {formatAmount(acc.balance)}
+                          </Text>
+                          <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} style={{ marginTop: 2 }} />
+                        </View>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  );
+                })}
+              </View>
 
               {/* Tip */}
               <View style={[styles.tip, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
@@ -273,7 +282,7 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, marginBottom: 20,
+    paddingHorizontal: 12, marginBottom: 12,
   },
   title:         { fontSize: 22, fontWeight: '800' },
   headerActions: { flexDirection: 'row', gap: 8 },
@@ -283,8 +292,8 @@ const styles = StyleSheet.create({
 
   // Net worth
   netCard: {
-    marginHorizontal: 20, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
-    padding: 20, marginBottom: 8,
+    marginHorizontal: 12, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
+    padding: 20, marginBottom: 12,
   },
   netLabel:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
   netAmt:        { fontSize: 28, fontWeight: '900', marginBottom: 16 },
@@ -296,21 +305,26 @@ const styles = StyleSheet.create({
   netColDivider: { width: StyleSheet.hairlineWidth, marginHorizontal: 16 },
 
   trendCard: {
-    marginHorizontal: 20, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
-    padding: 16, marginBottom: 8,
+    marginHorizontal: 12, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
+    padding: 16, marginBottom: 12,
   },
 
   // Section
   sectionLabel: {
     fontSize: 10, fontWeight: '800', letterSpacing: 0.5,
-    marginBottom: 4, marginTop: 24, paddingHorizontal: 20,
+    marginBottom: 6, marginTop: 12, paddingHorizontal: 12,
   },
 
   // Account rows — full width, no horizontal margin
+  accountsCard: {
+    marginHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
   accountRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16, paddingVertical: 14,
   },
   accIcon:    { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   accMid:     { flex: 1, marginLeft: 12 },
@@ -322,7 +336,7 @@ const styles = StyleSheet.create({
   // Tip
   tip: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    marginHorizontal: 20, marginTop: 24, borderRadius: 14, padding: 14,
+    marginHorizontal: 12, marginTop: 12, borderRadius: 14, padding: 14,
   },
   tipText: { flex: 1, fontSize: 12, lineHeight: 18 },
 

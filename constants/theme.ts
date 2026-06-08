@@ -20,11 +20,14 @@ export type ThemeColors = {
   surface: string;
   inputBg: string;
   tint: string;
+  tintText: string;
   icon: string;
   tabIconDefault: string;
   tabIconSelected: string;
   income: string;
+  incomeText: string;
   expense: string;
+  expenseText: string;
   primary: string;
   success: string;
   danger: string;
@@ -44,11 +47,14 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     surface:         '#EEF2FF',
     inputBg:         '#F8FAFC',
     tint:            primaryLight,
+    tintText:        '#FFFFFF',
     icon:            '#94A3B8',
     tabIconDefault:  '#CBD5E1',
     tabIconSelected: primaryLight,
     income:          successLight,
+    incomeText:      '#FFFFFF',
     expense:         dangerLight,
+    expenseText:     '#FFFFFF',
     primary:         primaryLight,
     success:         successLight,
     danger:          dangerLight,
@@ -66,11 +72,14 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     surface:         '#1E1B4B',
     inputBg:         '#09090B',
     tint:            primaryDark,
+    tintText:        '#FFFFFF',
     icon:            '#64748B',
     tabIconDefault:  '#475569',
     tabIconSelected: primaryDark,
     income:          successDark,
+    incomeText:      '#FFFFFF',
     expense:         dangerDark,
+    expenseText:     '#FFFFFF',
     primary:         primaryDark,
     success:         successDark,
     danger:          dangerDark,
@@ -78,6 +87,120 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     chart: ['#818CF8','#34D399','#FBBF24','#A78BFA','#F472B6','#22D3EE','#FB7185'],
   },
 };
+
+export interface PresetColors {
+  accent: string;
+  accentText: string;
+  income: string;
+  incomeText: string;
+  expense: string;
+  expenseText: string;
+}
+
+export interface ThemePreset {
+  name: string;
+  light: PresetColors;
+  dark: PresetColors;
+}
+
+export const THEME_PRESETS: ThemePreset[] = [
+  {
+    name: 'Indigo Slate',
+    light: {
+      accent: '#4F46E5',
+      accentText: '#FFFFFF',
+      income: '#2E7D5C',
+      incomeText: '#FFFFFF',
+      expense: '#C25975',
+      expenseText: '#FFFFFF',
+    },
+    dark: {
+      accent: '#818CF8',
+      accentText: '#FFFFFF',
+      income: '#48BB78',
+      incomeText: '#FFFFFF',
+      expense: '#E07A8B',
+      expenseText: '#FFFFFF',
+    },
+  },
+  {
+    name: 'Nordic Sage',
+    light: {
+      accent: '#3B7A7A',
+      accentText: '#FFFFFF',
+      income: '#4A8B6F',
+      incomeText: '#FFFFFF',
+      expense: '#C86A5A',
+      expenseText: '#FFFFFF',
+    },
+    dark: {
+      accent: '#8FAEC4',
+      accentText: '#18181B',
+      income: '#76AB94',
+      incomeText: '#18181B',
+      expense: '#DCA498',
+      expenseText: '#18181B',
+    },
+  },
+  {
+    name: 'Ocean Breeze',
+    light: {
+      accent: '#0D9488',
+      accentText: '#FFFFFF',
+      income: '#059669',
+      incomeText: '#FFFFFF',
+      expense: '#E15F41',
+      expenseText: '#FFFFFF',
+    },
+    dark: {
+      accent: '#2DD4BF',
+      accentText: '#18181B',
+      income: '#34D399',
+      incomeText: '#18181B',
+      expense: '#F87171',
+      expenseText: '#18181B',
+    },
+  },
+  {
+    name: 'Sunset Gold',
+    light: {
+      accent: '#C25E00',
+      accentText: '#FFFFFF',
+      income: '#5A7D36',
+      incomeText: '#FFFFFF',
+      expense: '#A94442',
+      expenseText: '#FFFFFF',
+    },
+    dark: {
+      accent: '#F59E0B',
+      accentText: '#18181B',
+      income: '#8CAE68',
+      incomeText: '#18181B',
+      expense: '#DB6A6A',
+      expenseText: '#18181B',
+    },
+  },
+  {
+    name: 'Minimal Charcoal',
+    light: {
+      accent: '#18181B',
+      accentText: '#FFFFFF',
+      income: '#4E5C4A',
+      incomeText: '#FFFFFF',
+      expense: '#695555',
+      expenseText: '#FFFFFF',
+    },
+    dark: {
+      accent: '#F4F4F5',
+      accentText: '#18181B',
+      income: '#A7B5A2',
+      incomeText: '#18181B',
+      expense: '#BAA3A3',
+      expenseText: '#18181B',
+    },
+  },
+];
+
 
 let _currencySymbol = '₹';
 let _currencyLocale = 'en-IN';
@@ -112,3 +235,12 @@ export const CATEGORIES = [
   { id: '5', name: 'Entertainment', icon: 'game-controller' },
   { id: '6', name: 'Other',         icon: 'ellipsis-horizontal' },
 ];
+
+export function hexToRGBA(hex: string, alpha: number): string {
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+

@@ -115,7 +115,7 @@ export function FilterDrawer({ visible, onClose, onApply, availableCategories, c
               >
                 <Text style={[
                   styles.segmentText,
-                  { color: local.type === t ? '#FFF' : theme.secondaryText },
+                  { color: local.type === t ? theme.tintText : theme.secondaryText },
                 ]}>
                   {t.charAt(0).toUpperCase() + t.slice(1)}
                 </Text>
@@ -181,8 +181,8 @@ export function FilterDrawer({ visible, onClose, onApply, availableCategories, c
           onPress={handleApply}
           activeOpacity={0.85}
         >
-          <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
-          <Text style={styles.applyText}>Apply Filters</Text>
+          <Ionicons name="checkmark-circle-outline" size={20} color={theme.tintText} />
+          <Text style={[styles.applyText, { color: theme.tintText }]}>Apply Filters</Text>
         </TouchableOpacity>
       </Animated.View>
     </Modal>

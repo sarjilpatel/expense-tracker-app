@@ -25,8 +25,8 @@ export function EmptyState({ icon, title, body, cta }: Props) {
           onPress={cta.onPress}
           activeOpacity={0.82}
         >
-          <Ionicons name="add-circle-outline" size={18} color="#FFF" />
-          <Text style={S.btnText}>{cta.label}</Text>
+          <Ionicons name="add-circle-outline" size={18} color={theme.tintText} />
+          <Text style={[S.btnText, { color: theme.tintText }]}>{cta.label}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -42,5 +42,5 @@ const S = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16, marginTop: 8,
   },
-  btnText:  { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  btnText:  { fontWeight: '700', fontSize: 15 },
 });

@@ -123,7 +123,7 @@ export default function AccountDetailScreen() {
         <Animated.View entering={FadeInDown.duration(280)} style={[styles.accountCard, { backgroundColor: account.color, borderColor: account.color }]}>
           <View style={styles.accountCardTop}>
             <View style={[styles.iconCircle, { backgroundColor: theme.tint }]}>
-              <Ionicons name={meta.icon as any} size={28} color="#FFF" />
+              <Ionicons name={meta.icon as any} size={28} color={theme.tintText} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.accountName, { color: '#FFF' }]}>{account.name}</Text>
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
   header: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, marginBottom: 16,
+    paddingHorizontal: 12, marginBottom: 12,
   },
   backBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   editBtn: { width: 36, height: 36, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 80 },
 
   accountCard: {
-    marginHorizontal: 20, borderRadius: 20, borderWidth: 1.5,
+    marginHorizontal: 12, borderRadius: 20, borderWidth: 1.5,
     padding: 20, marginBottom: 8,
   },
   accountCardTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
 
   sectionLabel: {
     fontSize: 10, fontWeight: '800', letterSpacing: 0.5,
-    marginBottom: 12, marginTop: 24, paddingHorizontal: 20,
+    marginBottom: 12, marginTop: 24, paddingHorizontal: 12,
   },
 
   txList: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },

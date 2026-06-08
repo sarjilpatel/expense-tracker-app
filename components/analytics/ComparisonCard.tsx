@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Currency } from '@/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { Currency } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 
 interface Props {
@@ -14,14 +14,14 @@ interface Props {
 }
 
 export function ComparisonCard({ label, current, previous, color, icon }: Props) {
-  const theme = Colors[useColorScheme() || 'light'];
+  const { theme } = useTheme();
   const change = previous > 0 ? ((current - previous) / previous) * 100 : null;
   const isUp = change !== null && change > 0;
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card }]}>
       <View style={[styles.icon, { backgroundColor: theme.tint }]}>
-        <Ionicons name={icon as any} size={18} color="#FFF" />
+        <Ionicons name={icon as any} size={18} color={theme.tintText} />
       </View>
       <ThemedText style={styles.label}>{label}</ThemedText>
       <Text style={[styles.value, { color }]}>{Currency.format(current)}</Text>

@@ -39,7 +39,14 @@ export function BudgetBar({ budget, spent, progress, cardColor, borderColor, sec
       {progress >= 80 && (
         <Animated.View
           entering={FadeInDown}
-          style={[styles.alert, { backgroundColor: progress >= 100 ? expenseColor : '#F59E0B', borderColor: progress >= 100 ? expenseColor : '#F59E0B', borderWidth: 1 }]}
+          style={[
+            styles.alert,
+            {
+              backgroundColor: progress >= 100 ? `${expenseColor}15` : '#F59E0B15',
+              borderColor: progress >= 100 ? expenseColor : '#F59E0B',
+              borderWidth: 1,
+            }
+          ]}
         >
           <Ionicons
             name={progress >= 100 ? 'warning' : 'alert-circle-outline'}
@@ -57,11 +64,11 @@ export function BudgetBar({ budget, spent, progress, cardColor, borderColor, sec
 
 const styles = StyleSheet.create({
   bar: {
-    marginHorizontal: 20,
+    marginHorizontal: 12,
     borderRadius: 12,
     paddingHorizontal: 13,
     paddingVertical: 10,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   meta: {
     flexDirection: 'row',
@@ -82,8 +89,8 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   alert: {
-    marginHorizontal: 20,
-    marginBottom: 6,
+    marginHorizontal: 12,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,

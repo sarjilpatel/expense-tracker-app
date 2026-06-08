@@ -185,11 +185,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, marginBottom: 20,
+    paddingHorizontal: 12, marginBottom: 20,
   },
   backBtn:   { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   deleteBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  scroll:    { paddingHorizontal: 20, paddingBottom: 60 },
+  scroll:    { paddingHorizontal: 12, paddingBottom: 60 },
 
   label: { fontSize: 13, fontWeight: '700', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
 

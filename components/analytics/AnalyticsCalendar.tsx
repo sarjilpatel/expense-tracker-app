@@ -78,7 +78,7 @@ export function AnalyticsCalendar({ month, year, dailyBreakdown, theme }: Props)
                     styles.dayNumWrap,
                     isToday && { backgroundColor: theme.tint, borderRadius: 14 },
                   ]}>
-                    <Text style={[styles.dayNum, { color: isToday ? '#FFF' : theme.text }]}>
+                    <Text style={[styles.dayNum, { color: isToday ? theme.tintText : theme.text }]}>
                       {dayNum}
                     </Text>
                   </View>

@@ -1,67 +1,39 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/src/context/ThemeContext';
-import { Currency } from '@/constants/theme';
+import { Currency, THEME_PRESETS, ThemePreset } from '@/constants/theme';
 import * as Haptics from 'expo-haptics';
 
 const ACCENT_COLORS = [
-  { label: 'Indigo',  value: '#6366F1' },
-  { label: 'Blue',    value: '#3B82F6' },
-  { label: 'Purple',  value: '#8B5CF6' },
-  { label: 'Teal',    value: '#14B8A6' },
-  { label: 'Cyan',    value: '#06B6D4' },
-  { label: 'Pink',    value: '#EC4899' },
-  { label: 'Orange',  value: '#F97316' },
-  { label: 'Red',     value: '#EF4444' },
+  { label: 'Indigo',     value: '#4F46E5', text: '#FFFFFF' },
+  { label: 'Slate Blue', value: '#3B7A7A', text: '#FFFFFF' },
+  { label: 'Teal',       value: '#0D9488', text: '#FFFFFF' },
+  { label: 'Copper',     value: '#C25E00', text: '#FFFFFF' },
+  { label: 'Charcoal',   value: '#18181B', text: '#FFFFFF' },
+  { label: 'Rose Gold',  value: '#C25975', text: '#FFFFFF' },
 ];
 
 const INCOME_COLORS = [
-  { label: 'Emerald', value: '#10B981' },
-  { label: 'Blue',    value: '#3B82F6' },
-  { label: 'Teal',    value: '#14B8A6' },
-  { label: 'Lime',    value: '#84CC16' },
+  { label: 'Sage',    value: '#4A8B6F' },
+  { label: 'Emerald', value: '#2E7D5C' },
+  { label: 'Mint',    value: '#059669' },
+  { label: 'Olive',   value: '#5A7D36' },
 ];
 
 const EXPENSE_COLORS = [
-  { label: 'Rose',    value: '#F43F5E' },
-  { label: 'Orange',  value: '#F97316' },
-  { label: 'Red',     value: '#EF4444' },
-  { label: 'Amber',   value: '#F59E0B' },
-];
-
-const THEME_PRESETS = [
-  {
-    name: 'Modern Slate',
-    accent: '#6366F1',
-    income: '#10B981',
-    expense: '#F43F5E',
-  },
-  {
-    name: 'Ocean Teal',
-    accent: '#06B6D4',
-    income: '#14B8A6',
-    expense: '#F97316',
-  },
-  {
-    name: 'Mint Lime',
-    accent: '#14B8A6',
-    income: '#84CC16',
-    expense: '#F43F5E',
-  },
-  {
-    name: 'Neon Orchid',
-    accent: '#EC4899',
-    income: '#3B82F6',
-    expense: '#EF4444',
-  },
+  { label: 'Terracotta', value: '#C86A5A' },
+  { label: 'Dusty Rose', value: '#C25975' },
+  { label: 'Coral',      value: '#E15F41' },
+  { label: 'Burgundy',   value: '#A94442' },
 ];
 
 export default function CustomizationScreen() {
   const { theme, overrides, setOverride, resetTheme } = useTheme();
+  const colorScheme = useColorScheme();
 
   const currentAccent  = overrides.tint    ?? theme.tint;
   const currentIncome  = overrides.income  ?? theme.income;
@@ -70,13 +42,21 @@ export default function CustomizationScreen() {
   const handleSelect = (key: 'tint' | 'income' | 'expense', val: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setOverride(key, val);
+    if (key === 'tint') {
+      const match = ACCENT_COLORS.find(c => c.value === val);
+      if (match) {
+        setOverride('tintText', match.text);
+      }
+    }
   };
 
-  const applyPreset = (preset: typeof THEME_PRESETS[0]) => {
+  const applyPreset = (preset: ThemePreset) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setOverride('tint', preset.accent);
-    setOverride('income', preset.income);
-    setOverride('expense', preset.expense);
+    setOverride('presetName', preset.name);
+    setOverride('tint', '');
+    setOverride('tintText', '');
+    setOverride('income', '');
+    setOverride('expense', '');
   };
 
   return (
@@ -92,12 +72,11 @@ export default function CustomizationScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Real-time Preview */}
-        <ThemedText style={styles.sectionTitle}>LIVE PREVIEW</ThemedText>
         <View style={[styles.previewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           {/* Card title */}
           <View style={styles.previewHeader}>
             <View style={[styles.previewBadge, { backgroundColor: currentAccent }]}>
-              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>BALANCE CARD</Text>
+              <Text style={{ color: theme.tintText, fontSize: 10, fontWeight: '700' }}>BALANCE CARD</Text>
             </View>
             <Ionicons name="sparkles" size={16} color={currentAccent} />
           </View>
@@ -111,8 +90,8 @@ export default function CustomizationScreen() {
           {/* Buttons */}
           <View style={styles.previewButtonRow}>
             <View style={[styles.previewButton, { backgroundColor: currentAccent }]}>
-              <Ionicons name="add" size={14} color="#FFF" />
-              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '600' }}>Add Entry</Text>
+              <Ionicons name="add" size={14} color={theme.tintText} />
+              <Text style={{ color: theme.tintText, fontSize: 12, fontWeight: '600' }}>Add Entry</Text>
             </View>
             <View style={[styles.previewButton, { backgroundColor: theme.cardAlt }]}>
               <Ionicons name="stats-chart" size={14} color={theme.text} />
@@ -142,11 +121,41 @@ export default function CustomizationScreen() {
           </View>
         </View>
 
+        {/* Theme Mode */}
+        <ThemedText style={styles.sectionTitle}>THEME MODE</ThemedText>
+        <View style={styles.modeContainer}>
+          {[
+            { label: 'Light', value: 'light', icon: 'sunny-outline' },
+            { label: 'Dark', value: 'dark', icon: 'moon-outline' },
+            { label: 'System', value: 'system', icon: 'settings-outline' },
+          ].map((mode) => {
+            const isSelected = (overrides.themeMode ?? 'system') === mode.value;
+            return (
+              <TouchableOpacity
+                key={mode.value}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setOverride('themeMode', mode.value);
+                }}
+                style={[
+                  styles.modeCard,
+                  { backgroundColor: theme.card, borderColor: isSelected ? currentAccent : theme.border }
+                ]}
+                activeOpacity={0.8}
+              >
+                <Ionicons name={mode.icon as any} size={18} color={isSelected ? currentAccent : theme.secondaryText} />
+                <Text style={[styles.modeLabel, { color: theme.text }]}>{mode.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {/* Presets */}
         <ThemedText style={styles.sectionTitle}>THEME PRESETS</ThemedText>
         <View style={styles.presetsContainer}>
           {THEME_PRESETS.map((preset) => {
-            const isSelected = currentAccent === preset.accent && currentIncome === preset.income && currentExpense === preset.expense;
+            const presetColors = preset[colorScheme ?? 'light'];
+            const isSelected = overrides.presetName === preset.name && !overrides.tint && !overrides.income && !overrides.expense;
             return (
               <TouchableOpacity
                 key={preset.name}
@@ -159,9 +168,9 @@ export default function CustomizationScreen() {
               >
                 <Text style={[styles.presetName, { color: theme.text }]}>{preset.name}</Text>
                 <View style={styles.presetDots}>
-                  <View style={[styles.presetDot, { backgroundColor: preset.accent }]} />
-                  <View style={[styles.presetDot, { backgroundColor: preset.income }]} />
-                  <View style={[styles.presetDot, { backgroundColor: preset.expense }]} />
+                  <View style={[styles.presetDot, { backgroundColor: presetColors.accent }]} />
+                  <View style={[styles.presetDot, { backgroundColor: presetColors.income }]} />
+                  <View style={[styles.presetDot, { backgroundColor: presetColors.expense }]} />
                 </View>
               </TouchableOpacity>
             );
@@ -214,7 +223,7 @@ export default function CustomizationScreen() {
         </View>
 
         {/* Reset */}
-        {(overrides.tint || overrides.income || overrides.expense) ? (
+        {(overrides.tint || overrides.income || overrides.expense || overrides.presetName || overrides.themeMode) ? (
           <TouchableOpacity style={styles.resetBtn} onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); resetTheme(); }}>
             <Ionicons name="refresh" size={16} color={theme.secondaryText} />
             <Text style={[styles.resetText, { color: theme.secondaryText }]}>Reset to System Defaults</Text>
@@ -378,6 +387,26 @@ const styles = StyleSheet.create({
   },
   resetText: {
     fontSize: 14,
+    fontWeight: '700',
+  },
+  modeContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 8,
+  },
+  modeCard: {
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  modeLabel: {
+    fontSize: 13,
     fontWeight: '700',
   },
 });

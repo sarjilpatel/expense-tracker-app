@@ -15,9 +15,10 @@ interface Props {
   onLongPress: (id: string) => void;
   accountName?: string | null;
   hasReceipt?: boolean;
+  isLast?: boolean;
 }
 
-export const TransactionRow = memo(function TransactionRow({ item, index, theme, t, onPress, onLongPress, accountName, hasReceipt }: Props) {
+export const TransactionRow = memo(function TransactionRow({ item, index, theme, t, onPress, onLongPress, accountName, hasReceipt, isLast }: Props) {
   const isExpense   = item.type === 'expense';
   const emoji       = CATEGORY_EMOJIS[item.category] || '🏷️';
   const amountColor = isExpense ? theme.expense : theme.income;
@@ -39,7 +40,20 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index * 25, 150)).duration(200)}>
       <TouchableOpacity
-        style={[styles.row, { backgroundColor: rowBg, borderBottomColor: theme.separator }]}
+        style={[
+          styles.row,
+          {
+            backgroundColor: rowBg,
+            borderColor: theme.border,
+            borderLeftWidth: 1,
+            borderRightWidth: 1,
+            borderBottomWidth: 1,
+            borderBottomColor: isLast ? theme.border : theme.separator,
+            marginHorizontal: 12,
+            borderBottomLeftRadius: isLast ? 16 : 0,
+            borderBottomRightRadius: isLast ? 16 : 0,
+          }
+        ]}
         onPress={() => onPress(item)}
         onLongPress={() => onLongPress(item._id)}
         delayLongPress={500}
@@ -86,7 +100,6 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     paddingHorizontal: 16,
     paddingVertical:   11,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   accentBar: {
     width: 3, height: 36, borderRadius: 2,

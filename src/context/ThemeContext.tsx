@@ -1,20 +1,23 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, ThemeColors } from '@/constants/theme';
+import { Colors, ThemeColors, THEME_PRESETS } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const STORAGE_KEY = '@theme_overrides_v1';
 
 export interface ThemeOverrides {
+  presetName?: string;
   tint?:    string;
+  tintText?: string;
   income?:  string;
   expense?: string;
+  themeMode?: 'light' | 'dark' | 'system';
 }
 
 interface ThemeContextType {
   theme:       ThemeColors;
   overrides:   ThemeOverrides;
-  setOverride: (key: keyof ThemeOverrides, value: string) => void;
+  setOverride: (key: keyof ThemeOverrides, value: any) => void;
   resetTheme:  () => void;
 }
 
@@ -40,9 +43,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, []);
 
-  const setOverride = useCallback((key: keyof ThemeOverrides, value: string) => {
+  const setOverride = useCallback((key: keyof ThemeOverrides, value: any) => {
     setOverrides(prev => {
-      const next = { ...prev, [key]: value };
+      const next = { ...prev };
+      if (!value) {
+        delete next[key];
+      } else {
+        next[key] = value;
+      }
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
       return next;
     });
@@ -53,15 +61,34 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
   }, []);
 
-  const base  = Colors[colorScheme ?? 'light'];
+  const systemScheme = useColorScheme();
+  const activeScheme = overrides.themeMode && overrides.themeMode !== 'system'
+    ? overrides.themeMode
+    : (systemScheme ?? 'light');
+
+  const base  = Colors[activeScheme];
+  const activePreset = overrides.presetName ? THEME_PRESETS.find(p => p.name === overrides.presetName) : undefined;
+  const activePresetColors = activePreset ? activePreset[activeScheme] : undefined;
+
+  const currentTint = overrides.tint ?? activePresetColors?.accent ?? base.tint;
+  const currentTintText = overrides.tintText ?? activePresetColors?.accentText ?? base.tintText;
+  const currentIncome = overrides.income ?? activePresetColors?.income ?? base.income;
+  const currentIncomeText = activePresetColors?.incomeText ?? base.incomeText;
+  const currentExpense = overrides.expense ?? activePresetColors?.expense ?? base.expense;
+  const currentExpenseText = activePresetColors?.expenseText ?? base.expenseText;
+
   const theme: ThemeColors = {
     ...base,
-    ...overrides,
-    // keep derived tokens consistent when tint changes
-    tabIconSelected: overrides.tint ?? base.tabIconSelected,
-    primary:         overrides.tint ?? base.primary,
-    success:         overrides.income ?? base.success,
-    danger:          overrides.expense ?? base.danger,
+    tint:            currentTint,
+    tintText:        currentTintText,
+    income:          currentIncome,
+    incomeText:      currentIncomeText,
+    expense:         currentExpense,
+    expenseText:     currentExpenseText,
+    tabIconSelected: currentTint,
+    primary:         currentTint,
+    success:         currentIncome,
+    danger:          currentExpense,
   };
 
   return (

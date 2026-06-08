@@ -26,11 +26,22 @@ export function TransactionSectionHeader({ section, theme }: Props) {
 
   const dayColor  = isSun ? '#E05757' : isSat ? '#5B9CF6' : theme.text;
   const badgeBg   = isSun ? '#E05757' : isSat ? '#5B9CF6' : theme.tint;
-  const badgeText = '#FFF';
+  const badgeText = isSun || isSat ? '#FFF' : theme.tintText;
 
   return (
     <TouchableOpacity
-      style={[styles.header, { backgroundColor: theme.surface, borderTopColor: theme.separator }]}
+      style={[
+        styles.header,
+        {
+          backgroundColor: theme.cardAlt,
+          borderColor: theme.border,
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          borderWidth: 1,
+          borderBottomWidth: 0,
+          marginHorizontal: 12,
+        }
+      ]}
       onPress={() =>
         router.push({ pathname: '/(tabs)/add', params: { prefillDate: d.toISOString() } })
       }
@@ -65,7 +76,6 @@ const styles = StyleSheet.create({
     justifyContent:    'space-between',
     paddingHorizontal: 16,
     paddingVertical:   8,
-    borderTopWidth:    StyleSheet.hairlineWidth,
   },
   left: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   dayNum: { fontSize: 28, fontWeight: '700', lineHeight: 32, width: 36 },

@@ -22,11 +22,11 @@ export function PrimaryButton({ label, onPress, loading = false, disabled = fals
       activeOpacity={0.82}
     >
       {loading ? (
-        <ActivityIndicator color="#FFF" />
+        <ActivityIndicator color={theme.tintText} />
       ) : (
         <>
-          {icon && <Ionicons name={icon} size={20} color="#FFF" style={styles.icon} />}
-          <Text style={styles.label}>{label}</Text>
+          {icon && <Ionicons name={icon} size={20} color={theme.tintText} style={styles.icon} />}
+          <Text style={[styles.label, { color: theme.tintText }]}>{label}</Text>
         </>
       )}
     </TouchableOpacity>
@@ -48,5 +48,5 @@ const styles = StyleSheet.create({
   },
   dimmed: { opacity: 0.65 },
   icon:   { marginRight: 8 },
-  label:  { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  label:  { fontSize: 16, fontWeight: '800' },
 });

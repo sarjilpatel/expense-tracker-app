@@ -72,7 +72,7 @@ export function SyncModal({ visible, onDone }: Props) {
           {step === 'confirm' && (
             <>
               <View style={[styles.iconWrap, { backgroundColor: theme.tint }]}>
-                <Ionicons name="cloud-upload-outline" size={32} color="#FFF" />
+                <Ionicons name="cloud-upload-outline" size={32} color={theme.tintText} />
               </View>
               <Text style={[styles.title, { color: theme.text }]}>Sync Local Data</Text>
               <Text style={[styles.sub, { color: theme.secondaryText }]}>
@@ -94,8 +94,8 @@ export function SyncModal({ visible, onDone }: Props) {
               )}
 
               <TouchableOpacity style={[styles.btn, { backgroundColor: theme.tint }]} onPress={handleSync}>
-                <Ionicons name="cloud-upload-outline" size={18} color="#FFF" />
-                <Text style={styles.btnText}>Sync Now</Text>
+                <Ionicons name="cloud-upload-outline" size={18} color={theme.tintText} />
+                <Text style={[styles.btnText, { color: theme.tintText }]}>Sync Now</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.btnSecondary, { borderColor: theme.border }]} onPress={handleDiscard}>
                 <Text style={[styles.btnSecondaryText, { color: theme.secondaryText }]}>Start Fresh — discard local data</Text>
@@ -127,7 +127,7 @@ export function SyncModal({ visible, onDone }: Props) {
           {step === 'done' && (
             <>
               <View style={[styles.iconWrap, { backgroundColor: theme.tint }]}>
-                <Ionicons name="checkmark-circle-outline" size={32} color="#FFF" />
+                <Ionicons name="checkmark-circle-outline" size={32} color={theme.tintText} />
               </View>
               <Text style={[styles.title, { color: theme.text }]}>All Synced!</Text>
               <Text style={[styles.sub, { color: theme.secondaryText }]}>
@@ -142,12 +142,12 @@ export function SyncModal({ visible, onDone }: Props) {
           {step === 'error' && (
             <>
               <View style={[styles.iconWrap, { backgroundColor: theme.tint }]}>
-                <Ionicons name="alert-circle-outline" size={32} color="#FFF" />
+                <Ionicons name="alert-circle-outline" size={32} color={theme.tintText} />
               </View>
               <Text style={[styles.title, { color: theme.text }]}>Sync Failed</Text>
               <Text style={[styles.sub, { color: theme.secondaryText }]}>{errorMsg}</Text>
               <TouchableOpacity style={[styles.btn, { backgroundColor: theme.tint }]} onPress={handleSync}>
-                <Text style={styles.btnText}>Retry</Text>
+                <Text style={[styles.btnText, { color: theme.tintText }]}>Retry</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.btnSecondary, { borderColor: theme.border }]} onPress={onDone}>
                 <Text style={[styles.btnSecondaryText, { color: theme.secondaryText }]}>Skip for now</Text>

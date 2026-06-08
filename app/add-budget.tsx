@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Modal, FlatList,
   StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/src/context/ThemeContext';
+import { ThemedText } from '@/components/themed-text';
 import { setBudget } from '@/src/services/dataService';
 import { CATEGORY_EMOJIS } from '@/constants/maps';
 
@@ -58,40 +60,51 @@ export default function AddBudgetScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Category field */}
-      <TouchableOpacity
-        onPress={() => setShowPicker(true)}
-        style={[styles.field, { borderBottomColor: theme.border }]}
-      >
-        <Text style={[styles.fieldText, { color: categoryLabel ? theme.text : '#666' }]}>
-          {categoryLabel || 'Category'}
-        </Text>
-      </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-      {/* Amount field */}
-      <View style={[styles.field, { borderBottomColor: theme.border }]}>
-        <TextInput
-          style={[styles.fieldText, { color: theme.text }]}
-          placeholder="Amount"
-          placeholderTextColor="#666"
-          keyboardType="numeric"
-          value={amount}
-          onChangeText={setAmount}
-        />
-      </View>
+        {/* Category field */}
+        <View style={styles.inputGroup}>
+          <ThemedText style={styles.label}>Category</ThemedText>
+          <TouchableOpacity
+            onPress={() => setShowPicker(true)}
+            style={[styles.inputField, { backgroundColor: theme.card, borderColor: theme.border }]}
+          >
+            <Text style={[styles.inputText, { color: categoryLabel ? theme.text : theme.secondaryText }]}>
+              {categoryLabel || 'Select Category'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Save button */}
-      <TouchableOpacity
-        onPress={handleSave}
-        disabled={loading}
-        style={[styles.saveBtn, loading && { opacity: 0.7 }]}
-        activeOpacity={0.8}
-      >
-        {loading
-          ? <ActivityIndicator color="#FFF" />
-          : <Text style={styles.saveBtnText}>Save</Text>
-        }
-      </TouchableOpacity>
+        {/* Amount field */}
+        <View style={styles.inputGroup}>
+          <ThemedText style={styles.label}>Budget Limit</ThemedText>
+          <View style={[styles.inputField, { backgroundColor: theme.card, borderColor: theme.border, flexDirection: 'row', alignItems: 'center' }]}>
+            <Text style={{ fontSize: 16, color: theme.secondaryText, marginRight: 8 }}>₹</Text>
+            <TextInput
+              style={[styles.inputText, { color: theme.text, flex: 1, paddingVertical: 8 }]}
+              placeholder="0.00"
+              placeholderTextColor={theme.secondaryText}
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+            />
+          </View>
+        </View>
+
+        {/* Save button */}
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={loading}
+          style={[styles.saveBtn, { backgroundColor: theme.tint }, loading && { opacity: 0.7 }]}
+          activeOpacity={0.8}
+        >
+          {loading
+            ? <ActivityIndicator color={theme.tintText} />
+            : <Text style={[styles.saveBtnText, { color: theme.tintText }]}>Save Budget</Text>
+          }
+        </TouchableOpacity>
+
+      </ScrollView>
 
       {/* Category picker bottom sheet */}
       <Modal visible={showPicker} transparent animationType="slide" statusBarTranslucent>
@@ -133,7 +146,7 @@ export default function AddBudgetScreen() {
                     activeOpacity={0.65}
                   >
                     <Text style={styles.catEmoji}>{item.emoji}</Text>
-                    <Text style={[styles.catName, { color: theme.text }]}>{item.label}</Text>
+                    <Text style={[styles.catName, { color: selected ? theme.tintText : theme.text }]}>{item.label}</Text>
                   </TouchableOpacity>
                 );
               }}
@@ -152,29 +165,32 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     alignItems:        'center',
     justifyContent:    'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     paddingBottom:     12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: { fontSize: 18, fontWeight: '700' },
 
-  field: {
-    paddingHorizontal: 20,
-    paddingVertical:   18,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  scroll: { paddingHorizontal: 12, paddingTop: 16, paddingBottom: 40 },
+  inputGroup: { marginBottom: 20 },
+  label: { fontSize: 13, fontWeight: '700', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  inputField: {
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
   },
-  fieldText: { fontSize: 16 },
+  inputText: { fontSize: 16 },
 
   saveBtn: {
-    marginHorizontal: 20,
-    marginTop:        32,
-    height:           54,
-    borderRadius:     14,
-    backgroundColor:  '#E8635A',
+    marginTop:        12,
+    height:           56,
+    borderRadius:     18,
     alignItems:       'center',
     justifyContent:   'center',
   },
-  saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  saveBtnText: { fontSize: 17, fontWeight: '800' },
 
   // Bottom sheet
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
@@ -187,7 +203,7 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     alignItems:        'center',
     justifyContent:    'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     paddingVertical:   16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },

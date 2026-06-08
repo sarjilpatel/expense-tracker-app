@@ -415,24 +415,28 @@ export default function HomeScreen() {
   const renderSectionHeader = useCallback(({ section }: any) => {
     const isFirst = filteredSections[0]?.title === section.title;
     return (
-      <View style={isFirst ? undefined : { marginTop: 10 }}>
+      <View style={{ marginTop: isFirst ? 0 : 12 }}>
         <TransactionSectionHeader section={section} theme={theme} />
       </View>
     );
   }, [theme, filteredSections]);
 
-  const renderItem = useCallback(({ item, index }: any) => (
-    <TransactionRow
-      item={item}
-      index={index}
-      theme={theme}
-      t={t}
-      accountName={accountNameMap[item._id] ?? null}
-      hasReceipt={!!receiptMap[item._id]}
-      onPress={handleEdit}
-      onLongPress={handleDelete}
-    />
-  ), [theme, t, accountNameMap, receiptMap, handleEdit, handleDelete]);
+  const renderItem = useCallback(({ item, index, section }: any) => {
+    const isLast = index === section.data.length - 1;
+    return (
+      <TransactionRow
+        item={item}
+        index={index}
+        theme={theme}
+        t={t}
+        accountName={accountNameMap[item._id] ?? null}
+        hasReceipt={!!receiptMap[item._id]}
+        onPress={handleEdit}
+        onLongPress={handleDelete}
+        isLast={isLast}
+      />
+    );
+  }, [theme, t, accountNameMap, receiptMap, handleEdit, handleDelete]);
 
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -669,7 +673,7 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/add')}
           activeOpacity={0.85}
         >
-          <Ionicons name="add" size={28} color="#FFF" />
+          <Ionicons name="add" size={28} color={theme.tintText} />
         </TouchableOpacity>
 
         {/* Notifications */}
@@ -696,7 +700,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container:     { flex: 1 },
-  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, marginBottom: 12 },
   monthSelector: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   monthText:     { fontSize: 18, fontWeight: '800' },
   headerIcons:   { flexDirection: 'row', gap: 16, alignItems: 'center' },
@@ -704,7 +708,7 @@ const styles = StyleSheet.create({
   notifDot:      { position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: '#FFF' },
 
   listContent:   { paddingBottom: 120 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 120, paddingTop: 4 },
+  scrollContent: { paddingHorizontal: 12, paddingBottom: 120, paddingTop: 4 },
   card:          { borderRadius: 20, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
   empty:         { marginTop: 56, alignItems: 'center' },
   emptyText:     { fontSize: 13, fontWeight: '600' },

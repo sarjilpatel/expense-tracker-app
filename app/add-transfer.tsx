@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
 
   headerRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingBottom: 16,
+    paddingHorizontal: 12, paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: { fontSize: 18, fontWeight: '800' },
 
-  content: { padding: 24, paddingBottom: 60 },
+  content: { paddingHorizontal: 12, paddingTop: 16, paddingBottom: 60 },
 
   inputGroup: { marginBottom: 24 },
   label:      { fontSize: 14, fontWeight: '600', marginBottom: 10 },

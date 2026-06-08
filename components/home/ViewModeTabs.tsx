@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { useTheme } from '@/src/context/ThemeContext';
 
 export type HomeViewMode = 'daily' | 'weekly' | 'calendar' | 'monthly' | 'total' | 'note';
 
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function ViewModeTabs({ active, onPress, tintColor, secondaryText }: Props) {
+  const { theme } = useTheme();
   return (
     <View style={[styles.track, { backgroundColor: `${secondaryText}14` }]}>
       <ScrollView
@@ -32,11 +34,11 @@ export function ViewModeTabs({ active, onPress, tintColor, secondaryText }: Prop
           return (
             <TouchableOpacity
               key={tab.key}
-              style={[styles.pill, isActive && { backgroundColor: tintColor }]}
+              style={[styles.pill, isActive && { backgroundColor: theme.tint }]}
               onPress={() => onPress(tab.key)}
               activeOpacity={0.75}
             >
-              <Text style={[styles.label, { color: isActive ? '#FFF' : secondaryText }]}>
+              <Text style={[styles.label, { color: isActive ? theme.tintText : secondaryText }]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
@@ -49,10 +51,10 @@ export function ViewModeTabs({ active, onPress, tintColor, secondaryText }: Prop
 
 const styles = StyleSheet.create({
   track: {
-    marginHorizontal: 20,
+    marginHorizontal: 12,
     borderRadius: 14,
     padding: 3,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   scrollContent: {
     flexDirection: 'row',

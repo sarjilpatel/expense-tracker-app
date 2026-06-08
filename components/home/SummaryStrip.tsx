@@ -65,9 +65,9 @@ export function SummaryStrip({
 const styles = StyleSheet.create({
   strip: {
     flexDirection: 'row',
-    marginHorizontal: 20,
+    marginHorizontal: 12,
     paddingVertical: 12,
-    marginBottom: 16,
+    marginBottom: 12,
     borderRadius: 12,
     borderWidth: 1,
   },

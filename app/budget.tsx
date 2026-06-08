@@ -95,7 +95,7 @@ export default function BudgetScreen() {
       {/* Info banner */}
       <View style={[styles.banner, { borderBottomColor: theme.border }]}>
         <View style={[styles.bannerIcon, { backgroundColor: theme.expense }]}>
-          <Ionicons name="wallet-outline" size={20} color='#FFF' />
+          <Ionicons name="wallet-outline" size={20} color={theme.expenseText} />
         </View>
         <Text style={[styles.bannerText, { color: theme.secondaryText }]}>
           You can check out the budget status in{' '}
@@ -122,15 +122,15 @@ export default function BudgetScreen() {
             onPress={() => router.push('/add-budget')}
             activeOpacity={0.8}
           >
-            <Ionicons name="add-circle-outline" size={18} color="#FFF" />
-            <Text style={styles.emptyBtnText}>Add First Budget</Text>
+            <Ionicons name="add-circle-outline" size={18} color={theme.tintText} />
+            <Text style={[styles.emptyBtnText, { color: theme.tintText }]}>Add First Budget</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <FlatList
           data={budgets}
           keyExtractor={item => item._id}
-          contentContainerStyle={{ paddingBottom: 120 }}
+          contentContainerStyle={{ paddingTop: 12, paddingBottom: 120 }}
           renderItem={({ item }) => {
             const isMain = !item.category;
             const effectiveBudget = isMain && carryForward > 0 ? item.amount + carryForward : item.amount;
@@ -141,7 +141,7 @@ export default function BudgetScreen() {
             const emoji  = item.category ? (CATEGORY_EMOJIS[item.category] ?? '🏷️') : '📊';
 
             return (
-              <View style={[styles.card, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+              <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <View style={styles.cardTop}>
                   <View style={styles.cardLeft}>
                     <Text style={styles.cardEmoji}>{emoji}</Text>
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     alignItems:        'center',
     justifyContent:    'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingBottom:     12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     alignItems:        'center',
     gap:               12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical:   14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
@@ -237,9 +237,11 @@ const styles = StyleSheet.create({
   emptyBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
 
   card: {
-    paddingHorizontal: 16,
-    paddingVertical:   14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    padding:           16,
+    borderRadius:      16,
+    borderWidth:       1,
+    marginHorizontal:  12,
+    marginBottom:      12,
     gap:               10,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

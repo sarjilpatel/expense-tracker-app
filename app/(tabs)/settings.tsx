@@ -1,17 +1,15 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  Alert, Switch, ActivityIndicator, Modal, FlatList,
+  Modal, View, Text, TouchableOpacity,
+  StyleSheet, ActivityIndicator, ScrollView, Switch, Alert, FlatList
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TYPE_SCALE } from '@/constants/theme';
-import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
-
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLanguage } from '@/src/i18n/LanguageContext';
 import { useAuth } from '@/src/context/AuthContext';
@@ -35,12 +33,12 @@ import {
 import { discardLocalData, getLastSyncTime } from '@/src/services/syncService';
 import apiClient from '@/src/services/apiClient';
 import { setPin, disableLock, isLockEnabled } from '@/src/services/lockService';
+import { TYPE_SCALE } from '@/constants/theme';
 
-// ── Language options ─────────────────────────────────────────────────────────
 const LANGS = [
   { code: 'en', label: 'EN' },
   { code: 'gu', label: 'ગુ' },
-  { code: 'hi', label: 'हि' },
+  { code: 'hi', label: 'હિ' },
 ] as const;
 
 type ModalType = 'currency' | 'monthlyStart' | null;
@@ -58,11 +56,10 @@ function formatSyncTime(iso: string | null): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-// ── Shared row component ──────────────────────────────────────────────────────
 function Row({
-  icon, iconBg, iconColor = '#FFF', title, sub, right, onPress, danger,
+  icon, iconBg, iconColor, title, sub, right, onPress, danger,
 }: {
-  icon: string; iconBg: string; iconColor?: string;
+  icon: string; iconBg: string; iconColor: string;
   title: string; sub?: string;
   right?: React.ReactNode; onPress?: () => void; danger?: boolean;
 }) {
@@ -87,13 +84,11 @@ function Row({
   return <TouchableOpacity onPress={onPress} activeOpacity={0.65}>{content}</TouchableOpacity>;
 }
 
-// ── Hairline separator ────────────────────────────────────────────────────────
 function Sep() {
   const { theme } = useTheme();
   return <View style={[S.sep, { backgroundColor: theme.separator }]} />;
 }
 
-// ── Card wrapper ──────────────────────────────────────────────────────────────
 function Card({ children }: { children: React.ReactNode }) {
   const { theme } = useTheme();
   return (
@@ -103,7 +98,6 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 export default function SettingsScreen() {
   const { theme, overrides }           = useTheme();
   const { language, setLanguage }      = useLanguage();
@@ -140,7 +134,6 @@ export default function SettingsScreen() {
       setBudget(main);
 
       if (!isGuest) {
-        // groupData is the full group object (name, members, categories, etc.)
         setGroup(groupData);
         setUser(profileData ?? null);
         getLastSyncTime().then(setLastSync).catch(() => {});
@@ -165,13 +158,10 @@ export default function SettingsScreen() {
     }).catch(() => {});
   }, [fetchData]));
 
-  // ── Actions ─────────────────────────────────────────────────────────────────
-
   const handleToggleReminder = () => {
     if (reminderEnabled) {
       cancelDailyReminder().then(() => { setReminderEnabled(false); setReminderTime(null); });
     } else {
-      // Default: 8 PM reminder
       const defaultHour = 20;
       const defaultMin  = 0;
       const ok = requestNotificationPermissions();
@@ -193,7 +183,6 @@ export default function SettingsScreen() {
         { text: 'Disable', style: 'destructive', onPress: async () => { await disableLock(); setLockEnabled(false); } },
       ]);
     } else {
-      // Ask user to set a 4-digit PIN via two-step Alert prompt
       Alert.prompt('Set PIN', 'Enter a 4-digit PIN', [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -231,9 +220,7 @@ export default function SettingsScreen() {
     setExporting(true);
     try {
       const now = new Date();
-      const m = month ?? now.getMonth() + 1;
-      const y = year ?? now.getFullYear();
-      const txs = await getTransactions(month, y) as any[];
+      const txs = await getTransactions(month, year ?? now.getFullYear()) as any[];
       const rows = [
         ['Date', 'Type', 'Category', 'Amount', 'Note'],
         ...txs.map(tx => [
@@ -243,7 +230,7 @@ export default function SettingsScreen() {
         ]),
       ];
       const csv = rows.map(r => r.join(',')).join('\n');
-      const nameSuffix = label ?? `${now.toLocaleString('default', { month: 'long' })}_${y}`;
+      const nameSuffix = label ?? `${now.toLocaleString('default', { month: 'long' })}_${year ?? now.getFullYear()}`;
       const name = `transactions_${nameSuffix}.csv`;
       const path = `${FileSystem.documentDirectory}${name}`;
       await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
@@ -340,7 +327,7 @@ export default function SettingsScreen() {
             activeOpacity={0.8}
           >
             <View style={[S.guestIcon, { backgroundColor: accentColor }]}>
-              <Ionicons name="cloud-outline" size={20} color={accentColor} />
+              <Ionicons name="cloud-outline" size={20} color={theme.tintText} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[S.guestTitle, { color: theme.text }]}>Sign in to unlock cloud features</Text>
@@ -355,7 +342,7 @@ export default function SettingsScreen() {
               <View style={[S.avatar, { backgroundColor: accentColor }]}>
                 {user?.profilePhoto
                   ? <Image source={{ uri: user.profilePhoto }} style={S.avatarImg} />
-                  : <Text style={S.avatarLetter}>{user?.name?.charAt(0)?.toUpperCase() || 'U'}</Text>
+                  : <Text style={[S.avatarLetter, { color: theme.tintText }]}>{user?.name?.charAt(0)?.toUpperCase() || 'U'}</Text>
                 }
               </View>
               <View style={{ flex: 1 }}>
@@ -366,7 +353,7 @@ export default function SettingsScreen() {
                 style={[S.editBtn, { backgroundColor: accentColor }]}
                 onPress={() => router.push('/edit-profile')}
               >
-                <Ionicons name="pencil" size={16} color='#FFF' />
+                <Ionicons name="pencil" size={16} color={theme.tintText} />
               </TouchableOpacity>
             </View>
           </Card>
@@ -377,7 +364,7 @@ export default function SettingsScreen() {
         <Card>
           {/* Appearance */}
           <Row
-            icon="color-palette-outline" iconBg={accentColor} iconColor='#FFF'
+            icon="color-palette-outline" iconBg={accentColor} iconColor={theme.tintText}
             title="Theme & Colors" sub="Accent, income & expense palette"
             onPress={() => router.push('/settings/customization')}
           />
@@ -385,7 +372,7 @@ export default function SettingsScreen() {
 
           {/* Currency */}
           <Row
-            icon="card-outline" iconBg={accentColor} iconColor='#FFF'
+            icon="card-outline" iconBg={accentColor} iconColor={theme.tintText}
             title="Currency" sub={currencyMeta?.name}
             onPress={() => setActiveModal('currency')}
             right={
@@ -399,7 +386,7 @@ export default function SettingsScreen() {
 
           {/* Monthly Start */}
           <Row
-            icon="calendar-outline" iconBg={accentColor} iconColor='#FFF'
+            icon="calendar-outline" iconBg={accentColor} iconColor={theme.tintText}
             title="Month Starts On" sub="Period reset date"
             onPress={() => setActiveModal('monthlyStart')}
             right={
@@ -414,7 +401,7 @@ export default function SettingsScreen() {
           {/* Week Start — inline toggle */}
           <View style={S.row}>
             <View style={[S.iconBox, { backgroundColor: accentColor }]}>
-              <Ionicons name="today-outline" size={18} color='#FFF' />
+              <Ionicons name="today-outline" size={18} color={theme.tintText} />
             </View>
             <Text style={[S.rowTitle, { color: theme.text, flex: 1 }]}>Week Starts On</Text>
             <View style={[S.segmentWrap, { backgroundColor: theme.cardAlt ?? theme.border }]}>
@@ -424,7 +411,7 @@ export default function SettingsScreen() {
                   style={[S.segBtn, prefs.weekStart === day && { backgroundColor: accentColor }]}
                   onPress={() => updatePrefs({ weekStart: day })}
                 >
-                  <Text style={[S.segBtnText, { color: prefs.weekStart === day ? '#FFF' : theme.secondaryText }]}>
+                  <Text style={[S.segBtnText, { color: prefs.weekStart === day ? theme.tintText : theme.secondaryText }]}>
                     {day}
                   </Text>
                 </TouchableOpacity>
@@ -436,7 +423,7 @@ export default function SettingsScreen() {
           {/* Language — inline chips */}
           <View style={S.row}>
             <View style={[S.iconBox, { backgroundColor: accentColor }]}>
-              <Ionicons name="language-outline" size={18} color='#FFF' />
+              <Ionicons name="language-outline" size={18} color={theme.tintText} />
             </View>
             <Text style={[S.rowTitle, { color: theme.text, flex: 1 }]}>Language</Text>
             <View style={S.langRow}>
@@ -449,7 +436,7 @@ export default function SettingsScreen() {
                       active && { backgroundColor: accentColor }]}
                     onPress={() => setLanguage(l.code as any)}
                   >
-                    <Text style={[S.langChipText, { color: active ? '#FFF' : theme.secondaryText }]}>
+                    <Text style={[S.langChipText, { color: active ? theme.tintText : theme.secondaryText }]}>
                       {l.label}
                     </Text>
                   </TouchableOpacity>
@@ -487,7 +474,7 @@ export default function SettingsScreen() {
         <Text style={[S.groupLabel, { color: theme.secondaryText }]}>MONEY</Text>
         <Card>
           <Row
-            icon="wallet-outline" iconBg={accentColor} iconColor='#FFF'
+            icon="wallet-outline" iconBg={accentColor} iconColor={theme.tintText}
             title="Monthly Budget"
             sub={budget ? `${currencyMeta?.symbol ?? '₹'} ${budget.amount.toLocaleString('en-IN')}/month` : 'Not set'}
             onPress={() => router.push('/budget')}
@@ -501,7 +488,7 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
             >
               <View style={[S.catIcon, { backgroundColor: theme.income }]}>
-                <Ionicons name="arrow-down-outline" size={18} color='#FFF' />
+                <Ionicons name="arrow-down-outline" size={18} color={theme.incomeText} />
               </View>
               <Text style={[S.catTitle, { color: theme.income }]}>Income</Text>
               <Text style={[S.catCount, { color: theme.secondaryText }]}>
@@ -514,7 +501,7 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
             >
               <View style={[S.catIcon, { backgroundColor: theme.expense }]}>
-                <Ionicons name="arrow-up-outline" size={18} color='#FFF' />
+                <Ionicons name="arrow-up-outline" size={18} color={theme.expenseText} />
               </View>
               <Text style={[S.catTitle, { color: theme.expense }]}>Expenses</Text>
               <Text style={[S.catCount, { color: theme.secondaryText }]}>
@@ -573,7 +560,7 @@ export default function SettingsScreen() {
             <>
               <View style={S.row}>
                 <View style={[S.iconBox, { backgroundColor: accentColor }]}>
-                  <Ionicons name="cloud-done-outline" size={18} color='#FFF' />
+                  <Ionicons name="cloud-done-outline" size={18} color={theme.tintText} />
                 </View>
                 <View style={S.rowMid}>
                   <Text style={[S.rowTitle, { color: theme.text }]}>Cloud Backup</Text>
@@ -585,7 +572,7 @@ export default function SettingsScreen() {
             </>
           )}
           <Row
-            icon="download-outline" iconBg={theme.income} iconColor='#FFF'
+            icon="download-outline" iconBg={theme.income} iconColor={theme.incomeText}
             title="Export CSV" sub="Current month transactions"
             onPress={handleExport}
             right={exporting ? <ActivityIndicator size="small" color={theme.income} /> : undefined}
@@ -601,7 +588,7 @@ export default function SettingsScreen() {
             <>
               <Sep />
               <Row
-                icon="trash-outline" iconBg={theme.danger} iconColor='#FFF'
+                icon="trash-outline" iconBg={theme.danger} iconColor={theme.expenseText}
                 title="Wipe Local Data" sub="Delete all offline data permanently"
                 onPress={handleWipe} danger
                 right={wiping ? <ActivityIndicator size="small" color={theme.danger} /> : undefined}
@@ -617,14 +604,14 @@ export default function SettingsScreen() {
             <Card>
               {group ? (
                 <Row
-                  icon="people-outline" iconBg={accentColor} iconColor='#FFF'
+                  icon="people-outline" iconBg={accentColor} iconColor={theme.tintText}
                   title={group.name}
                   sub={`${group.members?.length || 0} member${(group.members?.length || 0) !== 1 ? 's' : ''}`}
                   onPress={() => router.push('/manage-group')}
                 />
               ) : (
                 <Row
-                  icon="people-outline" iconBg={accentColor} iconColor='#FFF'
+                  icon="people-outline" iconBg={accentColor} iconColor={theme.tintText}
                   title="Create or Join Group"
                   sub="Share expenses with family or team"
                   onPress={() => router.push('/group-setup')}
@@ -632,7 +619,7 @@ export default function SettingsScreen() {
               )}
               <Sep />
               <Row
-                icon="person-remove-outline" iconBg={theme.danger} iconColor='#FFF'
+                icon="person-remove-outline" iconBg={theme.danger} iconColor={theme.expenseText}
                 title="Delete Account" sub="Permanently remove your account"
                 onPress={handleDeleteAccount} danger
               />
@@ -669,7 +656,7 @@ export default function SettingsScreen() {
                     onPress={() => { updatePrefs({ currency: code }); setActiveModal(null); }}
                   >
                     <View style={[S.symbolBox, { backgroundColor: accentColor }]}>
-                      <Text style={[S.symbolText, { color: '#FFF' }]}>{meta.symbol}</Text>
+                      <Text style={[S.symbolText, { color: theme.tintText }]}>{meta.symbol}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[S.pickerRowTitle, { color: theme.text }]}>{code}</Text>
@@ -703,7 +690,7 @@ export default function SettingsScreen() {
                     style={[S.dayBtn, { borderColor: sel ? accentColor : theme.border }, sel && { backgroundColor: accentColor }]}
                     onPress={() => { updatePrefs({ monthlyStart: day }); setActiveModal(null); }}
                   >
-                    <Text style={[S.dayBtnText, { color: sel ? '#FFF' : theme.text }]}>{day}</Text>
+                    <Text style={[S.dayBtnText, { color: sel ? theme.tintText : theme.text }]}>{day}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -718,12 +705,11 @@ export default function SettingsScreen() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
   container:   { flex: 1 },
-  header:      { paddingHorizontal: 20, paddingBottom: 16 },
+  header:      { paddingHorizontal: 12, paddingBottom: 16 },
   headerTitle: TYPE_SCALE.screenTitle,
-  scroll:      { paddingHorizontal: 16, paddingBottom: 40 },
+  scroll:      { paddingHorizontal: 12, paddingBottom: 40 },
 
   groupLabel: {
     fontSize: 11, fontWeight: '800', letterSpacing: 0.8,
@@ -744,7 +730,6 @@ const S = StyleSheet.create({
   rowRight:{ flexDirection: 'row', alignItems: 'center', gap: 4 },
   rowValue:{ fontSize: 14, fontWeight: '700' },
 
-  // Guest banner
   guestBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     borderRadius: 14, borderWidth: StyleSheet.hairlineWidth,
@@ -754,16 +739,14 @@ const S = StyleSheet.create({
   guestTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
   guestSub:   { fontSize: 12 },
 
-  // Profile card
   profileRow:   { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   avatar:       { width: 46, height: 46, borderRadius: 23, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   avatarImg:    { width: '100%', height: '100%' },
-  avatarLetter: { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  avatarLetter: { fontSize: 18, fontWeight: '800' },
   profileName:  { fontSize: 15, fontWeight: '700' },
   profileEmail: { fontSize: 12, marginTop: 2 },
   editBtn:      { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
 
-  // Inline controls
   segmentWrap: { flexDirection: 'row', borderRadius: 9, padding: 2, gap: 2 },
   segBtn:      { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 7 },
   segBtnText:  { fontSize: 13, fontWeight: '700' },
@@ -774,7 +757,6 @@ const S = StyleSheet.create({
 
   syncDot: { width: 8, height: 8, borderRadius: 4 },
 
-  // 2-column category grid
   catGrid: { flexDirection: 'row', gap: 10, padding: 12 },
   catCard: {
     flex: 1, borderRadius: 12, borderWidth: 1,
@@ -784,7 +766,6 @@ const S = StyleSheet.create({
   catTitle: { fontSize: 13, fontWeight: '800' },
   catCount: { fontSize: 11 },
 
-  // Logout
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderWidth: StyleSheet.hairlineWidth, borderRadius: 14,
@@ -792,7 +773,6 @@ const S = StyleSheet.create({
   },
   logoutText: { fontSize: 15, fontWeight: '700' },
 
-  // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   modalSheet:   { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%' },
   modalHandle:  { width: 36, height: 4, borderRadius: 2, backgroundColor: '#8E8E93', alignSelf: 'center', marginBottom: 16 },

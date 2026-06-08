@@ -136,7 +136,7 @@ export function WeeklyView({ transactions }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap:        { flex: 1, paddingHorizontal: 20 },
+  wrap:        { flex: 1, paddingHorizontal: 12 },
   period:      { fontSize: 12, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
   strip: {
     flexDirection: 'row', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,

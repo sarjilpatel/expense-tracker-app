@@ -268,10 +268,10 @@ export default function AddTransactionScreen() {
             onPress={handleSubmit}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color="#FFF" /> : (
+            {loading ? <ActivityIndicator color={theme.tintText} /> : (
               <View style={styles.submitRow}>
-                <Ionicons name="checkmark-circle" size={24} color="#FFF" />
-                <Text style={styles.submitText}>{t('save')}</Text>
+                <Ionicons name="checkmark-circle" size={24} color={theme.tintText} />
+                <Text style={[styles.submitText, { color: theme.tintText }]}>{t('save')}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -283,7 +283,7 @@ export default function AddTransactionScreen() {
 
 const styles = StyleSheet.create({
   container:   { flex: 1, paddingTop: 60 },
-  scrollContent: { padding: 24 },
+  scrollContent: { paddingHorizontal: 12, paddingTop: 16 },
   header:      { marginBottom: 32 },
   subtitle:    { fontSize: 16, marginTop: 4 },
   inputGroup:  { marginBottom: 24 },

@@ -20,15 +20,15 @@ export function TypeSelector({ type, onChange, incomeLabel = 'Income', expenseLa
         style={[styles.btn, type === 'expense' && { backgroundColor: expenseColor }]}
         onPress={() => onChange('expense')}
       >
-        <Ionicons name="arrow-up-circle" size={20} color={type === 'expense' ? '#FFF' : expenseColor} />
-        <Text style={[styles.label, type === 'expense' && styles.activeLabel]}>{expenseLabel}</Text>
+        <Ionicons name="arrow-up-circle" size={20} color={type === 'expense' ? theme.expenseText : expenseColor} />
+        <Text style={[styles.label, type === 'expense' && { color: theme.expenseText }]}>{expenseLabel}</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.btn, type === 'income' && { backgroundColor: incomeColor }]}
         onPress={() => onChange('income')}
       >
-        <Ionicons name="arrow-down-circle" size={20} color={type === 'income' ? '#FFF' : incomeColor} />
-        <Text style={[styles.label, type === 'income' && styles.activeLabel]}>{incomeLabel}</Text>
+        <Ionicons name="arrow-down-circle" size={20} color={type === 'income' ? theme.incomeText : incomeColor} />
+        <Text style={[styles.label, type === 'income' && { color: theme.incomeText }]}>{incomeLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -54,8 +54,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#8E8E93',
-  },
-  activeLabel: {
-    color: '#FFF',
   },
 });

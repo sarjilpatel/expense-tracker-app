@@ -163,11 +163,11 @@ export default function ManageCategoriesScreen() {
   const getTypeBadge = (type?: string) => {
     switch (type) {
         case 'income':
-            return { label: 'Income', color: '#FFF', bg: theme.income };
+            return { label: 'Income', color: theme.incomeText, bg: theme.income };
         case 'both':
-            return { label: 'Universal', color: '#FFF', bg: theme.tint };
+            return { label: 'Universal', color: theme.tintText, bg: theme.tint };
         default:
-            return { label: 'Expense', color: '#FFF', bg: theme.expense };
+            return { label: 'Expense', color: theme.expenseText, bg: theme.expense };
     }
   };
 
@@ -205,7 +205,7 @@ export default function ManageCategoriesScreen() {
                 >
                     <Text style={[
                         styles.typeToggleText,
-                        selectedType === type && styles.activeTypeText
+                        selectedType === type && { color: type === 'income' ? theme.incomeText : (type === 'expense' ? theme.expenseText : theme.tintText) }
                     ]}>
                         {type.charAt(0).toUpperCase() + type.slice(1)}
                     </Text>
@@ -226,7 +226,7 @@ export default function ManageCategoriesScreen() {
               onPress={handleAddCategory}
               disabled={isAdding}
             >
-              {isAdding ? <ActivityIndicator color="#FFF" /> : <Ionicons name="add" size={28} color="#FFF" />}
+              {isAdding ? <ActivityIndicator color={theme.tintText} /> : <Ionicons name="add" size={28} color={theme.tintText} />}
             </TouchableOpacity>
           </View>
         </View>
@@ -235,7 +235,7 @@ export default function ManageCategoriesScreen() {
           <View style={styles.sectionHeader}>
               <ThemedText style={styles.label}>{selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Categories</ThemedText>
               <View style={[styles.countBadge, { backgroundColor: theme.tint }]}>
-                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>
+                  <Text style={{ color: theme.tintText, fontSize: 12, fontWeight: '800' }}>
                       {categories.filter(c => selectedType === 'both' ? true : (c.type === selectedType || c.type === 'both' || !c.type)).length}
                   </Text>
               </View>
@@ -266,7 +266,7 @@ export default function ManageCategoriesScreen() {
                       </View>
                       {categoryBudgets[item.name] && (
                         <View style={[styles.typeBadge, { backgroundColor: theme.tint }]}>
-                          <Text style={[styles.typeBadgeText, { color: '#FFF' }]}>
+                          <Text style={[styles.typeBadgeText, { color: theme.tintText }]}>
                             ₹{categoryBudgets[item.name].amount}
                           </Text>
                         </View>
@@ -346,9 +346,9 @@ export default function ManageCategoriesScreen() {
                 disabled={budgetSaving}
               >
                 {budgetSaving ? (
-                  <ActivityIndicator color="#FFF" size="small" />
+                  <ActivityIndicator color={theme.tintText} size="small" />
                 ) : (
-                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Save</Text>
+                  <Text style={{ color: theme.tintText, fontWeight: '700' }}>Save</Text>
                 )}
               </TouchableOpacity>
             </View>

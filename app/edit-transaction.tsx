@@ -186,10 +186,10 @@ export default function EditTransactionScreen() {
                 onPress={handleSubmit}
                 disabled={loading}
               >
-                {loading ? <ActivityIndicator color="#FFF" /> : (
+                {loading ? <ActivityIndicator color={theme.tintText} /> : (
                   <View style={styles.submitRow}>
-                    <Ionicons name="save-outline" size={24} color="#FFF" />
-                    <Text style={styles.submitText}>{t('update')}</Text>
+                    <Ionicons name="save-outline" size={24} color={theme.tintText} />
+                    <Text style={[styles.submitText, { color: theme.tintText }]}>{t('update')}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -203,9 +203,9 @@ export default function EditTransactionScreen() {
 
 const styles = StyleSheet.create({
   container:   { flex: 1, paddingTop: 60 },
-  topBar:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 20 },
+  topBar:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, marginBottom: 20 },
   backBtn:     { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { padding: 24 },
+  scrollContent: { paddingHorizontal: 12, paddingTop: 16 },
   inputGroup:  { marginBottom: 24 },
   label:       { fontSize: 14, fontWeight: '600', marginBottom: 10 },
   noteInput:   { borderRadius: 16, padding: 16, fontSize: 16, height: 120, textAlignVertical: 'top', borderWidth: 1 },
