@@ -32,7 +32,7 @@ export default function LoginScreen() {
     try {
       const data = await loginUser(email, password);
       if (data && data.token && data.user) {
-        await login(data.token, data.user);
+        await login(data.token, data.user, data.refreshToken);
         router.replace('/(tabs)');
       } else {
         throw new Error('Invalid response from server');

@@ -125,12 +125,13 @@ export default function SearchScreen() {
     router.push({
       pathname: '/edit-transaction',
       params: {
-        id:       item._id,
-        amount:   item.amount != null ? String(item.amount) : '0',
-        type:     item.type   ?? 'expense',
-        category: item.category ?? '',
-        note:     item.note   ?? '',
-        date:     item.date   ?? item.createdAt ?? new Date().toISOString(),
+        id:        item._id,
+        amount:    item.amount != null ? String(item.amount) : '0',
+        type:      item.type   ?? 'expense',
+        category:  item.category ?? '',
+        note:      item.note   ?? '',
+        date:      item.date   ?? item.createdAt ?? new Date().toISOString(),
+        isPrivate: String(!!item.isPrivate),
       },
     });
   };

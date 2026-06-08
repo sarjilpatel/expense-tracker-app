@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, Switch,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -33,6 +33,7 @@ export default function EditTransactionScreen() {
   const initialType    = Array.isArray(params.type)     ? params.type[0]     : params.type;
   const initialNote    = Array.isArray(params.note)     ? params.note[0]     : params.note;
   const initialDate    = Array.isArray(params.date)     ? params.date[0]     : params.date;
+  const initialIsPrivate = Array.isArray(params.isPrivate) ? params.isPrivate[0] : params.isPrivate;
 
   const [amount, setAmount]     = useState(initialAmount  || '');
   const [type, setType]         = useState<'income' | 'expense'>((initialType as any) || 'expense');
@@ -44,6 +45,7 @@ export default function EditTransactionScreen() {
   const [fetching, setFetching] = useState(true);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [isPrivate, setIsPrivate] = useState(initialIsPrivate === 'true');
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -87,7 +89,7 @@ export default function EditTransactionScreen() {
     }
     setLoading(true);
     try {
-      await updateTransaction(txId as string, { amount: parseFloat(amount), type, category, note, date: date.toISOString() });
+      await updateTransaction(txId as string, { amount: parseFloat(amount), type, category, note, date: date.toISOString(), isPrivate });
       if (txId) {
         if (selectedAccountId) await setTxAccount(txId as string, selectedAccountId);
       }
@@ -181,6 +183,19 @@ export default function EditTransactionScreen() {
                 />
               </View>
 
+              <View style={[styles.privateRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <View style={styles.privateTextGroup}>
+                  <ThemedText style={styles.privateLabel}>Private transaction</ThemedText>
+                  <ThemedText style={[styles.privateHint, { color: theme.secondaryText }]}>Only visible to you</ThemedText>
+                </View>
+                <Switch
+                  value={isPrivate}
+                  onValueChange={setIsPrivate}
+                  trackColor={{ false: theme.border, true: theme.tint }}
+                  thumbColor="#FFF"
+                />
+              </View>
+
               <TouchableOpacity
                 style={[styles.submitBtn, { backgroundColor: theme.tint }, loading && { opacity: 0.7 }]}
                 onPress={handleSubmit}
@@ -211,5 +226,9 @@ const styles = StyleSheet.create({
   noteInput:   { borderRadius: 16, padding: 16, fontSize: 16, height: 120, textAlignVertical: 'top', borderWidth: 1 },
   submitBtn:   { height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 12, shadowColor: '#5856D6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
   submitRow:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  submitText:  { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  submitText:   { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  privateRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 24 },
+  privateTextGroup: { flex: 1 },
+  privateLabel: { fontSize: 15, fontWeight: '600' },
+  privateHint:  { fontSize: 12, marginTop: 2 },
 });

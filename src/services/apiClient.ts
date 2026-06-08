@@ -1,57 +1,86 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
-
-// Dynamically set the API URL based on the environment variable
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-
 
 interface ApiClientInstance extends ReturnType<typeof axios.create> {
   logout?: () => Promise<void> | void;
   injectLogout: (logoutFn: () => Promise<void> | void) => void;
 }
 
+let isRefreshing = false;
 let isLoggingOut = false;
+let refreshQueue: Array<(token: string) => void> = [];
+
+function drainQueue(newToken: string) {
+  refreshQueue.forEach(cb => cb(newToken));
+  refreshQueue = [];
+}
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 }) as ApiClientInstance;
 
-// Interceptor to add Authorization token automatically
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
-      const token = await AsyncStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch (error) {
-      console.error('Error fetching token from storage', error);
-    }
+      const token = await SecureStore.getItemAsync('token');
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+    } catch {}
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Interceptor to handle 401 Unauthorized responses
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response && error.response.status === 401) {
-      if (apiClient.logout && !isLoggingOut) {
-        isLoggingOut = true;
-        try {
-          await apiClient.logout();
-        } finally {
-          isLoggingOut = false;
+    const original = error.config;
+
+    // Only attempt refresh on 401, once per request, and not on the refresh endpoint itself
+    if (
+      error.response?.status === 401 &&
+      !original._retried &&
+      !original.url?.includes('/auth/refresh')
+    ) {
+      if (isRefreshing) {
+        // Queue this request until the in-flight refresh completes
+        return new Promise(resolve => {
+          refreshQueue.push((token: string) => {
+            original.headers.Authorization = `Bearer ${token}`;
+            resolve(apiClient(original));
+          });
+        });
+      }
+
+      original._retried = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = await SecureStore.getItemAsync('refreshToken');
+        if (!refreshToken) throw new Error('no_refresh_token');
+
+        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        const newToken: string = data.token;
+
+        await SecureStore.setItemAsync('token', newToken);
+        drainQueue(newToken);
+
+        original.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(original);
+      } catch {
+        refreshQueue = [];
+        // Refresh failed — session truly expired, force logout
+        if (apiClient.logout && !isLoggingOut) {
+          isLoggingOut = true;
+          try { await apiClient.logout(); } finally { isLoggingOut = false; }
         }
+      } finally {
+        isRefreshing = false;
       }
     }
+
     return Promise.reject(error);
   }
 );

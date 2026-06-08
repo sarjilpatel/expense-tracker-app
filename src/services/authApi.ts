@@ -50,3 +50,11 @@ export const updateProfile = async (formData: FormData) => {
     throw error.response?.data?.message || 'Failed to update profile';
   }
 };
+
+export const deleteAccount = async (password: string): Promise<void> => {
+  try {
+    await apiClient.delete('/auth/account', { data: { password } });
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to delete account';
+  }
+};

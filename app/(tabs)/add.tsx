@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, KeyboardAvoidingView, StyleSheet, Text, Image,
+  ActivityIndicator, Alert, KeyboardAvoidingView, StyleSheet, Text, Image, Switch,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -46,6 +46,7 @@ export default function AddTransactionScreen() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [currency, setCurrency] = useState<CurrencyCode>('INR');
+  const [isPrivate, setIsPrivate] = useState(false);
 
   const { prefillDate, prefillAccountId } = useLocalSearchParams<{ prefillDate?: string; prefillAccountId?: string }>();
   const amountInputRef = useRef<TextInput>(null);
@@ -125,6 +126,7 @@ export default function AddTransactionScreen() {
         currency,
         isRecurring,
         recurrenceFrequency: isRecurring ? recurrenceFrequency : null,
+        isPrivate,
       });
       if (selectedAccountId && newTx?._id) {
         await setTxAccount(newTx._id, selectedAccountId);
@@ -134,7 +136,7 @@ export default function AddTransactionScreen() {
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await invalidateAllTransactionCache();
-      setAmount(''); setCategory(null); setNote(''); setDate(new Date()); setIsRecurring(false); setSelectedAccountId(null); setReceiptUri(null); setCurrency('INR');
+      setAmount(''); setCategory(null); setNote(''); setDate(new Date()); setIsRecurring(false); setSelectedAccountId(null); setReceiptUri(null); setCurrency('INR'); setIsPrivate(false);
       router.replace('/(tabs)');
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -263,6 +265,19 @@ export default function AddTransactionScreen() {
             />
           </View>
 
+          <View style={[styles.privateRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.privateTextGroup}>
+              <ThemedText style={styles.privateLabel}>Private transaction</ThemedText>
+              <ThemedText style={[styles.privateHint, { color: theme.secondaryText }]}>Only visible to you</ThemedText>
+            </View>
+            <Switch
+              value={isPrivate}
+              onValueChange={setIsPrivate}
+              trackColor={{ false: theme.border, true: theme.tint }}
+              thumbColor="#FFF"
+            />
+          </View>
+
           <TouchableOpacity
             style={[styles.submitBtn, { backgroundColor: theme.tint }, loading && { opacity: 0.7 }]}
             onPress={handleSubmit}
@@ -295,5 +310,9 @@ const styles = StyleSheet.create({
   receiptLabel:{ flex: 1, fontSize: 14 },
   submitBtn:   { height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 12, shadowColor: '#5856D6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6 },
   submitRow:   { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  submitText:  { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  submitText:   { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  privateRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 24 },
+  privateTextGroup: { flex: 1 },
+  privateLabel: { fontSize: 15, fontWeight: '600' },
+  privateHint:  { fontSize: 12, marginTop: 2 },
 });

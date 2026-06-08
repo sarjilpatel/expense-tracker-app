@@ -107,8 +107,8 @@ export default function HomeScreen() {
       if (!user || tx.userId?._id === user._id) return;
       if (tx.amount >= LARGE_TRANSACTION_THRESHOLD) {
         sendLocalNotification(
-          `Large ${tx.type} by ${tx.userId?.name || 'Member'}`,
-          `${tx.type === 'expense' ? '-' : '+'}₹${tx.amount} · ${tx.category}`
+          `New group transaction recorded`,
+          `A large ${tx.type} was added by ${tx.userId?.name || 'a group member'}`
         );
       }
       setAllTransactions(prev => [tx, ...prev]);
@@ -127,7 +127,10 @@ export default function HomeScreen() {
       }, ...prev].slice(0, 20));
     });
     socketService.onTransactionUpdated(updated =>
-      setAllTransactions(prev => prev.map(tx => tx._id === updated._id ? updated : tx))
+      // note is stripped from the socket payload — merge to preserve existing note
+      setAllTransactions(prev => prev.map(tx =>
+        tx._id === updated._id ? { ...tx, ...updated, note: tx.note } : tx
+      ))
     );
     socketService.onTransactionDeleted(id =>
       setAllTransactions(prev => prev.filter(tx => tx._id !== id))
@@ -401,12 +404,13 @@ export default function HomeScreen() {
     router.push({
       pathname: '/edit-transaction',
       params: {
-        id:       item._id,
-        amount:   item.amount != null ? String(item.amount) : '0',
-        type:     item.type ?? 'expense',
-        category: item.category ?? '',
-        note:     item.note ?? '',
-        date:     item.date ?? item.createdAt ?? new Date().toISOString(),
+        id:        item._id,
+        amount:    item.amount != null ? String(item.amount) : '0',
+        type:      item.type ?? 'expense',
+        category:  item.category ?? '',
+        note:      item.note ?? '',
+        date:      item.date ?? item.createdAt ?? new Date().toISOString(),
+        isPrivate: String(!!item.isPrivate),
       },
     });
   }, []);

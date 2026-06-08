@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { getInsights } from '@/src/services/dataService';
 import { getCachedInsights, setCachedInsights } from '@/src/cache/transactionCache';
+
+const AI_CONSENT_KEY = '@ai_consent_given';
 
 type Insight = {
   title: string;
@@ -30,10 +33,16 @@ const TYPE_CONFIG = {
 export function AIInsightCard({ month, year, hasData }: Props) {
   const { theme } = useTheme();
 
-  const [loading,  setLoading]  = useState(false);
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [revealed, setRevealed] = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+  const [loading,       setLoading]       = useState(false);
+  const [insights,      setInsights]      = useState<Insight[]>([]);
+  const [revealed,      setRevealed]      = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
+  const [showConsent,   setShowConsent]   = useState(false);
+  const [consentGiven,  setConsentGiven]  = useState<boolean | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(AI_CONSENT_KEY).then(val => setConsentGiven(val === 'true'));
+  }, []);
 
   const reset = useCallback(() => {
     setInsights([]);
@@ -95,10 +104,41 @@ export function AIInsightCard({ month, year, hasData }: Props) {
         </View>
       </View>
 
+      {/* One-time consent modal */}
+      <Modal visible={showConsent} transparent animationType="fade">
+        <View style={styles.consentOverlay}>
+          <View style={[styles.consentCard, { backgroundColor: theme.card }]}>
+            <View style={[styles.consentIcon, { backgroundColor: theme.tint + '22' }]}>
+              <Ionicons name="shield-checkmark-outline" size={28} color={theme.tint} />
+            </View>
+            <Text style={[styles.consentTitle, { color: theme.text }]}>AI Insights — Data Notice</Text>
+            <Text style={[styles.consentBody, { color: theme.secondaryText }]}>
+              To generate insights, your monthly spending totals and category percentages are sent to Anthropic AI (Claude).{'\n\n'}
+              No individual transaction details, notes, or personal information are included.{'\n\n'}
+              Anthropic may retain inputs for up to 30 days per their privacy policy.
+            </Text>
+            <TouchableOpacity
+              style={[styles.consentAccept, { backgroundColor: theme.tint }]}
+              onPress={async () => {
+                await AsyncStorage.setItem(AI_CONSENT_KEY, 'true');
+                setConsentGiven(true);
+                setShowConsent(false);
+                fetchInsights();
+              }}
+            >
+              <Text style={[styles.consentAcceptText, { color: theme.tintText }]}>I understand — Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.consentDecline} onPress={() => setShowConsent(false)}>
+              <Text style={[styles.consentDeclineText, { color: theme.secondaryText }]}>No thanks</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {!revealed && !loading && !error && (
         <TouchableOpacity
           style={[styles.revealBtn, { backgroundColor: theme.tint }]}
-          onPress={() => fetchInsights()}
+          onPress={() => consentGiven ? fetchInsights() : setShowConsent(true)}
           activeOpacity={0.82}
         >
           <Ionicons name="sparkles-outline" size={17} color="#fff" />
@@ -203,4 +243,25 @@ const styles = StyleSheet.create({
     gap: 5, paddingVertical: 8,
   },
   regenText: { fontSize: 12, fontWeight: '600' },
+
+  consentOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center', alignItems: 'center', padding: 24,
+  },
+  consentCard: {
+    width: '100%', borderRadius: 24, padding: 24, alignItems: 'center',
+  },
+  consentIcon: {
+    width: 56, height: 56, borderRadius: 18,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 14,
+  },
+  consentTitle: { fontSize: 17, fontWeight: '800', marginBottom: 12, textAlign: 'center' },
+  consentBody: { fontSize: 13, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
+  consentAccept: {
+    width: '100%', paddingVertical: 14, borderRadius: 14,
+    alignItems: 'center', marginBottom: 10,
+  },
+  consentAcceptText: { fontSize: 15, fontWeight: '700' },
+  consentDecline: { paddingVertical: 8 },
+  consentDeclineText: { fontSize: 13 },
 });

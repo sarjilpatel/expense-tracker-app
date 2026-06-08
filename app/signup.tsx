@@ -33,7 +33,7 @@ export default function SignupScreen() {
     try {
       const data = await signupUser({ name, email, password });
       if (data && data.token && data.user) {
-        await login(data.token, data.user);
+        await login(data.token, data.user, data.refreshToken);
         router.replace('/(tabs)');
       }
     } catch (error: any) {

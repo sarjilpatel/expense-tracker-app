@@ -1,6 +1,30 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const PREFIX = '@txcache_v1';
+const PREFIX           = '@txcache_v1';
+const BUDGET_KEY       = '@budgetcache_v1';
+const GROUP_KEY        = '@groupcache_v1';
+const PROFILE_KEY      = '@profilecache_v1';
+const ANALYTICS_PREFIX = '@analyticscache_v1';
+const TREND_KEY        = '@trendcache_v1';
+const INSIGHT_PREFIX   = '@insightcache_v1';
+
+const CACHE_TTL_MS    = 24 * 60 * 60 * 1000; // 24 hours for all caches
+const INSIGHT_TTL_MS  =  6 * 60 * 60 * 1000; // 6 hours for AI insights
+
+function wrap(data: any): string {
+  return JSON.stringify({ data, ts: Date.now() });
+}
+
+function unwrap<T>(raw: string | null, ttl: number): T | null {
+  if (!raw) return null;
+  try {
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > ttl) return null;
+    return data as T;
+  } catch {
+    return null;
+  }
+}
 
 function txKey(month?: number, year?: number) {
   if (!month && !year) return `${PREFIX}_all`;
@@ -8,17 +32,13 @@ function txKey(month?: number, year?: number) {
   return `${PREFIX}_m${month}_y${year}`;
 }
 
-const BUDGET_KEY = '@budgetcache_v1';
-
 // ── Transactions ─────────────────────────────────────────────────────────────
 
 export async function getCachedTransactions(month?: number, year?: number): Promise<any[] | null> {
   try {
     const raw = await AsyncStorage.getItem(txKey(month, year));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return null;
-    return parsed;
+    const result = unwrap<any[]>(raw, CACHE_TTL_MS);
+    return Array.isArray(result) ? result : null;
   } catch {
     return null;
   }
@@ -26,8 +46,7 @@ export async function getCachedTransactions(month?: number, year?: number): Prom
 
 export async function setCachedTransactions(data: any[], month?: number, year?: number): Promise<void> {
   try {
-    const safe = Array.isArray(data) ? data : [];
-    await AsyncStorage.setItem(txKey(month, year), JSON.stringify(safe));
+    await AsyncStorage.setItem(txKey(month, year), wrap(Array.isArray(data) ? data : []));
   } catch {}
 }
 
@@ -47,13 +66,10 @@ export async function invalidateAllTransactionCache(): Promise<void> {
 
 // ── Group ─────────────────────────────────────────────────────────────────────
 
-const GROUP_KEY = '@groupcache_v1';
-
 export async function getCachedGroup(): Promise<any | null> {
   try {
     const raw = await AsyncStorage.getItem(GROUP_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    return unwrap<any>(raw, CACHE_TTL_MS);
   } catch {
     return null;
   }
@@ -61,7 +77,7 @@ export async function getCachedGroup(): Promise<any | null> {
 
 export async function setCachedGroup(data: any): Promise<void> {
   try {
-    await AsyncStorage.setItem(GROUP_KEY, JSON.stringify(data));
+    await AsyncStorage.setItem(GROUP_KEY, wrap(data));
   } catch {}
 }
 
@@ -73,13 +89,10 @@ export async function invalidateCachedGroup(): Promise<void> {
 
 // ── Profile ───────────────────────────────────────────────────────────────────
 
-const PROFILE_KEY = '@profilecache_v1';
-
 export async function getCachedProfile(): Promise<any | null> {
   try {
     const raw = await AsyncStorage.getItem(PROFILE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    return unwrap<any>(raw, CACHE_TTL_MS);
   } catch {
     return null;
   }
@@ -87,7 +100,7 @@ export async function getCachedProfile(): Promise<any | null> {
 
 export async function setCachedProfile(data: any): Promise<void> {
   try {
-    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(data));
+    await AsyncStorage.setItem(PROFILE_KEY, wrap(data));
   } catch {}
 }
 
@@ -99,9 +112,6 @@ export async function invalidateCachedProfile(): Promise<void> {
 
 // ── Analytics ────────────────────────────────────────────────────────────────
 
-const ANALYTICS_PREFIX = '@analyticscache_v1';
-const TREND_KEY        = '@trendcache_v1';
-
 function analyticsKey(month: number, year: number) {
   return `${ANALYTICS_PREFIX}_m${month}_y${year}`;
 }
@@ -109,8 +119,7 @@ function analyticsKey(month: number, year: number) {
 export async function getCachedAnalytics(month: number, year: number): Promise<any | null> {
   try {
     const raw = await AsyncStorage.getItem(analyticsKey(month, year));
-    if (!raw) return null;
-    return JSON.parse(raw);
+    return unwrap<any>(raw, CACHE_TTL_MS);
   } catch {
     return null;
   }
@@ -118,17 +127,15 @@ export async function getCachedAnalytics(month: number, year: number): Promise<a
 
 export async function setCachedAnalytics(data: any, month: number, year: number): Promise<void> {
   try {
-    await AsyncStorage.setItem(analyticsKey(month, year), JSON.stringify(data));
+    await AsyncStorage.setItem(analyticsKey(month, year), wrap(data));
   } catch {}
 }
 
 export async function getCachedTrend(): Promise<any[] | null> {
   try {
     const raw = await AsyncStorage.getItem(TREND_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return null;
-    return parsed;
+    const result = unwrap<any[]>(raw, CACHE_TTL_MS);
+    return Array.isArray(result) ? result : null;
   } catch {
     return null;
   }
@@ -136,15 +143,11 @@ export async function getCachedTrend(): Promise<any[] | null> {
 
 export async function setCachedTrend(data: any[]): Promise<void> {
   try {
-    const safe = Array.isArray(data) ? data : [];
-    await AsyncStorage.setItem(TREND_KEY, JSON.stringify(safe));
+    await AsyncStorage.setItem(TREND_KEY, wrap(Array.isArray(data) ? data : []));
   } catch {}
 }
 
 // ── AI Insights (6-hour TTL) ──────────────────────────────────────────────────
-
-const INSIGHT_PREFIX = '@insightcache_v1';
-const INSIGHT_TTL_MS = 6 * 60 * 60 * 1000;
 
 function insightKey(month: number, year: number) {
   return `${INSIGHT_PREFIX}_m${month}_y${year}`;
@@ -153,10 +156,8 @@ function insightKey(month: number, year: number) {
 export async function getCachedInsights(month: number, year: number): Promise<any[] | null> {
   try {
     const raw = await AsyncStorage.getItem(insightKey(month, year));
-    if (!raw) return null;
-    const { data, ts } = JSON.parse(raw);
-    if (Date.now() - ts > INSIGHT_TTL_MS) return null;
-    return Array.isArray(data) ? data : null;
+    const result = unwrap<any[]>(raw, INSIGHT_TTL_MS);
+    return Array.isArray(result) ? result : null;
   } catch {
     return null;
   }
@@ -164,7 +165,7 @@ export async function getCachedInsights(month: number, year: number): Promise<an
 
 export async function setCachedInsights(data: any[], month: number, year: number): Promise<void> {
   try {
-    await AsyncStorage.setItem(insightKey(month, year), JSON.stringify({ data, ts: Date.now() }));
+    await AsyncStorage.setItem(insightKey(month, year), wrap(data));
   } catch {}
 }
 
@@ -173,10 +174,8 @@ export async function setCachedInsights(data: any[], month: number, year: number
 export async function getCachedBudgets(): Promise<any[] | null> {
   try {
     const raw = await AsyncStorage.getItem(BUDGET_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return null;
-    return parsed;
+    const result = unwrap<any[]>(raw, CACHE_TTL_MS);
+    return Array.isArray(result) ? result : null;
   } catch {
     return null;
   }
@@ -184,7 +183,31 @@ export async function getCachedBudgets(): Promise<any[] | null> {
 
 export async function setCachedBudgets(data: any[]): Promise<void> {
   try {
-    const safe = Array.isArray(data) ? data : [];
-    await AsyncStorage.setItem(BUDGET_KEY, JSON.stringify(safe));
+    await AsyncStorage.setItem(BUDGET_KEY, wrap(Array.isArray(data) ? data : []));
+  } catch {}
+}
+
+// ── Full logout wipe ──────────────────────────────────────────────────────────
+
+/** Wipes every user-specific cache key from the device. Call on logout. */
+export async function clearAllUserCaches(): Promise<void> {
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const cacheKeys = allKeys.filter(k =>
+      k.startsWith(PREFIX) ||
+      k.startsWith('@budgetcache') ||
+      k.startsWith(ANALYTICS_PREFIX) ||
+      k.startsWith(INSIGHT_PREFIX) ||
+      k === GROUP_KEY ||
+      k === PROFILE_KEY ||
+      k === TREND_KEY ||
+      k === '@daily_reminder_id' ||
+      k === '@daily_reminder_time' ||
+      // Guest-mode local data — clear on logout so residual data never persists
+      k === '@local_transactions_v1' ||
+      k === '@local_categories_v1' ||
+      k === '@local_budgets_v1'
+    );
+    if (cacheKeys.length) await AsyncStorage.multiRemove(cacheKeys);
   } catch {}
 }

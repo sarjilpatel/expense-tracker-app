@@ -1,9 +1,10 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import socketService from '../services/socketService';
 import { requestNotificationPermissions } from '../services/notificationService';
 import { setMode as setDataMode } from '../services/dataService';
-import { invalidateCachedGroup, invalidateCachedProfile, invalidateAllTransactionCache } from '../cache/transactionCache';
+import { clearAllUserCaches } from '../cache/transactionCache';
 
 export interface User {
   _id: string;
@@ -18,7 +19,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   isGuest: boolean;
-  login: (token: string, user: User) => Promise<void>;
+  login: (token: string, user: User, refreshToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updatedUser: Partial<User>) => Promise<void>;
   enterGuestMode: () => void;
@@ -35,8 +36,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadStorageData = async () => {
       try {
-        const storedToken = await AsyncStorage.getItem('token');
-        const storedUser  = await AsyncStorage.getItem('user');
+        const storedToken = await SecureStore.getItemAsync('token');
+        const storedUser  = await SecureStore.getItemAsync('user');
 
         if (storedToken && storedUser) {
           setToken(storedToken);
@@ -71,10 +72,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, token, loading, isGuest]);
 
-  const login = async (newToken: string, newUser: User) => {
+  const login = async (newToken: string, newUser: User, newRefreshToken?: string) => {
     try {
-      await AsyncStorage.setItem('token', newToken);
-      await AsyncStorage.setItem('user', JSON.stringify(newUser));
+      await SecureStore.setItemAsync('token', newToken);
+      await SecureStore.setItemAsync('user', JSON.stringify(newUser));
+      if (newRefreshToken) await SecureStore.setItemAsync('refreshToken', newRefreshToken);
       setToken(newToken);
       setUser(newUser);
       setIsGuest(false);
@@ -87,16 +89,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
+      await SecureStore.deleteItemAsync('token');
+      await SecureStore.deleteItemAsync('refreshToken');
+      await SecureStore.deleteItemAsync('user');
       setToken(null);
       setUser(null);
       setIsGuest(true);
       setDataMode(true);
       socketService.disconnect();
-      invalidateCachedGroup();
-      invalidateCachedProfile();
-      invalidateAllTransactionCache();
+      await clearAllUserCaches();
     } catch (error) {
       console.error('Error during logout storage:', error);
     }
@@ -106,7 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       if (!user) return;
       const mergedUser = { ...user, ...updatedData };
-      await AsyncStorage.setItem('user', JSON.stringify(mergedUser));
+      await SecureStore.setItemAsync('user', JSON.stringify(mergedUser));
       setUser(mergedUser);
     } catch (error) {
       console.error('Error updating user state:', error);

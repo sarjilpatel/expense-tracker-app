@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   Modal, View, Text, TouchableOpacity,
-  StyleSheet, ActivityIndicator, ScrollView, Switch, Alert, FlatList
+  StyleSheet, ActivityIndicator, ScrollView, Switch, Alert, FlatList, TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -15,7 +15,7 @@ import { useLanguage } from '@/src/i18n/LanguageContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { ThemedView } from '@/components/themed-view';
-import { getProfile } from '@/src/services/authApi';
+import { getProfile, deleteAccount as deleteAccountApi } from '@/src/services/authApi';
 import {
   getBudgets, getTransactions,
   getCurrentGroup as getCategoryData,
@@ -119,9 +119,13 @@ export default function SettingsScreen() {
   const [lockEnabled,   setLockEnabled]  = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime,    setReminderTime]    = useState<{ hour: number; minute: number } | null>(null);
-  const [wiping,       setWiping]       = useState(false);
-  const [loading,      setLoading]      = useState(!isGuest);
-  const [activeModal,  setActiveModal]  = useState<ModalType>(null);
+  const [wiping,             setWiping]             = useState(false);
+  const [loading,            setLoading]            = useState(!isGuest);
+  const [activeModal,        setActiveModal]        = useState<ModalType>(null);
+  const [showDeleteModal,    setShowDeleteModal]    = useState(false);
+  const [deletePassword,     setDeletePassword]     = useState('');
+  const [deletingAccount,    setDeletingAccount]    = useState(false);
+  const [deleteError,        setDeleteError]        = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -208,16 +212,27 @@ export default function SettingsScreen() {
       { text: 'Logout', style: 'destructive', onPress: async () => { await logout(); router.replace('/(tabs)'); } },
     ]);
 
-  const handleDeleteAccount = () =>
-    Alert.alert('Delete Account', 'Permanently delete your account and all data?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          try { await apiClient.delete('/auth/account'); await logout(); router.replace('/(tabs)'); }
-          catch { Alert.alert('Error', 'Failed to delete account.'); }
-        },
-      },
-    ]);
+  const handleDeleteAccount = () => {
+    setDeletePassword('');
+    setDeleteError('');
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (!deletePassword.trim()) { setDeleteError('Enter your password to confirm.'); return; }
+    setDeletingAccount(true);
+    setDeleteError('');
+    try {
+      await deleteAccountApi(deletePassword);
+      setShowDeleteModal(false);
+      await logout();
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      setDeleteError(typeof err === 'string' ? err : 'Failed to delete account.');
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
 
   const doExportCsv = async (month?: number, year?: number, label?: string) => {
     setExporting(true);
@@ -335,6 +350,44 @@ export default function SettingsScreen() {
 
   return (
     <ThemedView style={[S.container, { paddingTop: top }]}>
+
+      {/* Delete Account confirmation modal */}
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={S.deleteOverlay}>
+          <View style={[S.deleteCard, { backgroundColor: theme.card }]}>
+            <View style={[S.deleteIconWrap, { backgroundColor: (theme.danger ?? '#EF4444') + '22' }]}>
+              <Ionicons name="trash-outline" size={26} color={theme.danger ?? '#EF4444'} />
+            </View>
+            <Text style={[S.deleteTitle, { color: theme.text }]}>Delete Account</Text>
+            <Text style={[S.deleteSub, { color: theme.secondaryText }]}>
+              This permanently deletes your account and all your transactions, goals, and splits. This cannot be undone.
+            </Text>
+            <TextInput
+              style={[S.deleteInput, { backgroundColor: theme.cardAlt ?? theme.border, color: theme.text, borderColor: deleteError ? (theme.danger ?? '#EF4444') : theme.border }]}
+              placeholder="Enter your password to confirm"
+              placeholderTextColor={theme.secondaryText}
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={t => { setDeletePassword(t); setDeleteError(''); }}
+              autoCapitalize="none"
+            />
+            {!!deleteError && <Text style={[S.deleteErrorText, { color: theme.danger ?? '#EF4444' }]}>{deleteError}</Text>}
+            <TouchableOpacity
+              style={[S.deleteConfirmBtn, { backgroundColor: theme.danger ?? '#EF4444', opacity: deletingAccount ? 0.7 : 1 }]}
+              onPress={confirmDeleteAccount}
+              disabled={deletingAccount}
+            >
+              {deletingAccount
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={S.deleteConfirmText}>Delete My Account</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={S.deleteCancelBtn} onPress={() => setShowDeleteModal(false)} disabled={deletingAccount}>
+              <Text style={[S.deleteCancelText, { color: theme.secondaryText }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <View style={S.header}>
         <Text style={[S.headerTitle, { color: theme.text }]}>More</Text>
       </View>
@@ -833,4 +886,17 @@ const S = StyleSheet.create({
   dayGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
   dayBtn:     { width: 46, height: 46, borderRadius: 12, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   dayBtnText: { fontSize: 14, fontWeight: '700' },
+
+  // Delete Account modal
+  deleteOverlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  deleteCard:        { width: '100%', borderRadius: 24, padding: 24, alignItems: 'center' },
+  deleteIconWrap:    { width: 56, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+  deleteTitle:       { fontSize: 18, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
+  deleteSub:         { fontSize: 13, lineHeight: 19, textAlign: 'center', marginBottom: 18 },
+  deleteInput:       { width: '100%', height: 50, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontSize: 15, marginBottom: 8 },
+  deleteErrorText:   { fontSize: 12, marginBottom: 10, alignSelf: 'flex-start' },
+  deleteConfirmBtn:  { width: '100%', height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 10, marginTop: 4 },
+  deleteConfirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  deleteCancelBtn:   { paddingVertical: 10 },
+  deleteCancelText:  { fontSize: 14 },
 });
