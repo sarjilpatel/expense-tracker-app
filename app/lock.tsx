@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Vibration, Animated,
+  View, Text, TouchableOpacity, StyleSheet, Vibration,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { verifyPin } from '@/src/services/lockService';
@@ -22,8 +23,12 @@ export default function LockScreen({ onUnlock }: Props) {
   const [attempts, setAttempts]   = useState(0);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [countdown, setCountdown] = useState(0);
-  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useSharedValue(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeAnim.value }],
+  }));
 
   // Countdown ticker when locked out
   useEffect(() => {
@@ -45,12 +50,13 @@ export default function LockScreen({ onUnlock }: Props) {
   const shake = useCallback(() => {
     setError(true);
     Vibration.vibrate(400);
-    Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 10,  duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 10,  duration: 60, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0,   duration: 60, useNativeDriver: true }),
-    ]).start(() => { setPin(''); setError(false); });
+    shakeAnim.value = withSequence(
+      withTiming(10,  { duration: 60 }),
+      withTiming(-10, { duration: 60 }),
+      withTiming(10,  { duration: 60 }),
+      withTiming(0,   { duration: 60 }),
+    );
+    setTimeout(() => { setPin(''); setError(false); }, 250);
   }, [shakeAnim]);
 
   const press = useCallback(async (digit: string) => {
@@ -116,7 +122,7 @@ export default function LockScreen({ onUnlock }: Props) {
           )}
 
           {/* Dots */}
-          <Animated.View style={[styles.dotsRow, { transform: [{ translateX: shakeAnim }] }]}>
+          <Animated.View style={[styles.dotsRow, shakeStyle]}>
             {Array.from({ length: DOTS }).map((_, i) => (
               <View
                 key={i}

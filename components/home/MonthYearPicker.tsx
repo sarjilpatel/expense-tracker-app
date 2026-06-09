@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, FlatList, Animated,
+  View, Text, TouchableOpacity, StyleSheet, FlatList,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/src/i18n/LanguageContext';
 
@@ -32,7 +33,10 @@ export function MonthYearPicker({
   const { t } = useLanguage();
   const [tempMonth, setTempMonth] = useState(selectedMonth);
   const [tempYear, setTempYear] = useState(selectedYear);
-  const slideAnim = useRef(new Animated.Value(-100)).current;
+  const slideAnim = useSharedValue(-100);
+  const slideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: slideAnim.value }],
+  }));
 
   const monthListRef = useRef<FlatList>(null);
   const yearListRef = useRef<FlatList>(null);
@@ -44,14 +48,8 @@ export function MonthYearPicker({
     if (visible) {
       setTempMonth(selectedMonth);
       setTempYear(selectedYear);
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 60,
-        friction: 9,
-        useNativeDriver: true,
-      }).start();
+      slideAnim.value = withSpring(0, { damping: 18, stiffness: 180 });
 
-      // Scroll to center selected item in view
       setTimeout(() => {
         if (!showYearOnly && monthListRef.current) {
           monthListRef.current.scrollToIndex({
@@ -72,11 +70,7 @@ export function MonthYearPicker({
         }
       }, 80);
     } else {
-      Animated.timing(slideAnim, {
-        toValue: -100,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
+      slideAnim.value = withTiming(-100, { duration: 150 });
     }
   }, [visible, selectedMonth, selectedYear]);
 
@@ -98,11 +92,8 @@ export function MonthYearPicker({
     <Animated.View
       style={[
         styles.sheet,
-        {
-          backgroundColor: theme.card,
-          borderColor: theme.border,
-          transform: [{ translateY: slideAnim }],
-        }
+        { backgroundColor: theme.card, borderColor: theme.border },
+        slideStyle,
       ]}
     >
       {/* Header */}

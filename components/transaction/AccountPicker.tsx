@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Account, ACCOUNT_TYPE_META } from '@/src/services/accountService';
 
 interface Props {
@@ -23,17 +24,27 @@ export function AccountPicker({ accounts, selectedId, onChange, theme }: Props) 
   // Grid items: "No Account" + actual accounts
   const gridItems: (Account | null)[] = [null, ...accounts];
 
+  const handleSelect = (accountId: string | null) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onChange(accountId);
+    setOpen(false);
+  };
+
   return (
     <>
       <TouchableOpacity onPress={() => setOpen(true)} activeOpacity={0.7} style={styles.rowValue}>
-        <Text style={[styles.valueText, !selected && { color: theme.secondaryText }]}>
-          {selected ? selected.name : 'Accounts'}
+        <Text style={[styles.valueText, { color: selected ? theme.text : theme.secondaryText }]}>
+          {selected ? selected.name : 'Select Account'}
         </Text>
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
-          <Pressable style={[styles.sheet, { backgroundColor: theme.background }]} onPress={e => e.stopPropagation()}>
+          <Pressable style={[styles.sheet, { backgroundColor: theme.card }]} onPress={e => e.stopPropagation()}>
+            
+            {/* Drag Handle */}
+            <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
+
             {/* Header */}
             <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
               <Text style={[styles.sheetTitle, { color: theme.text }]}>Accounts</Text>
@@ -80,10 +91,10 @@ export function AccountPicker({ accounts, selectedId, onChange, theme }: Props) 
                   <TouchableOpacity
                     style={[
                       styles.gridCell,
-                      { borderColor: theme.border },
-                      isSelected && { borderColor: theme.tint, backgroundColor: theme.tint + '18' },
+                      { borderColor: theme.border, backgroundColor: theme.background },
+                      isSelected && { borderColor: theme.tint, backgroundColor: theme.tint + '12' },
                     ]}
-                    onPress={() => { onChange(item?.id ?? null); setOpen(false); }}
+                    onPress={() => handleSelect(item?.id ?? null)}
                     activeOpacity={0.7}
                   >
                     <Ionicons
@@ -110,29 +121,32 @@ export function AccountPicker({ accounts, selectedId, onChange, theme }: Props) 
 
 const styles = StyleSheet.create({
   rowValue:  { flex: 1 },
-  valueText: { fontSize: 14 },
+  valueText: { fontSize: 14, fontWeight: '600' },
 
-  overlay:   { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
-  sheet:     { borderTopLeftRadius: 14, borderTopRightRadius: 14, maxHeight: '72%' },
+  overlay:   { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  sheet:     { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '75%', paddingBottom: 24 },
+  dragHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 8, opacity: 0.8 },
+
   sheetHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 18, paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  sheetTitle:    { fontSize: 15, fontWeight: '600' },
+  sheetTitle:    { fontSize: 16, fontWeight: '700' },
   headerActions: { flexDirection: 'row', gap: 2 },
   headerBtn:     { padding: 6 },
-  grid:          { padding: 6 },
+  grid:          { padding: 8 },
   gridCell: {
-    flex: 1, margin: 3, height: 72,
-    borderRadius: 8, borderWidth: StyleSheet.hairlineWidth,
+    flex: 1, margin: 4, height: 76,
+    borderRadius: 12, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center', padding: 6,
   },
-  gridLabel: { fontSize: 11, fontWeight: '500', marginTop: 5, textAlign: 'center' },
+  gridLabel: { fontSize: 12, fontWeight: '600', marginTop: 6, textAlign: 'center' },
   addRow:    {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 18, paddingVertical: 12,
+    paddingHorizontal: 18, paddingVertical: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 8,
   },
-  addText:   { fontSize: 13, fontWeight: '600' },
+  addText:   { fontSize: 14, fontWeight: '700' },
 });

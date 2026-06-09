@@ -650,7 +650,7 @@ export default function SettingsScreen() {
               <Text style={[S.rowTitle, { color: theme.text }]}>Daily Reminder</Text>
               <Text style={[S.rowSub, { color: theme.secondaryText }]}>
                 {reminderEnabled && reminderTime
-                  ? `Daily at ${reminderTime.hour}:${String(reminderTime.minute).padStart(2, '0')}`
+                  ? `Daily at ${reminderTime.hour % 12 || 12}:${String(reminderTime.minute).padStart(2, '0')} ${reminderTime.hour >= 12 ? 'PM' : 'AM'}`
                   : 'Remind you to log expenses every day'}
               </Text>
             </View>
@@ -714,7 +714,7 @@ export default function SettingsScreen() {
           )}
         </Card>
 
-        {/* ── 5. Account (logged-in) ── */}
+        {/* ── 6. Account (logged-in) ── */}
         {!isGuest && (
           <>
             <Text style={[S.groupLabel, { color: theme.secondaryText }]}>ACCOUNT</Text>

@@ -24,7 +24,6 @@ import { SkeletonLoader } from '@/components/SkeletonLoader';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TYPE_SCALE } from '@/constants/theme';
 import { CategoryBar } from '@/components/analytics/CategoryBar';
-import { ComparisonCard } from '@/components/analytics/ComparisonCard';
 import { MONTHS } from '@/constants/maps';
 import {
   getCachedAnalytics, setCachedAnalytics,

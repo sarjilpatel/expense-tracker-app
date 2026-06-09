@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   Modal, View, Text, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Animated,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { getSyncSummary, syncLocalToServer, discardLocalData, SyncSummary } from '@/src/services/syncService';
@@ -20,29 +21,29 @@ export function SyncModal({ visible, onDone }: Props) {
   const [step,      setStep]      = useState<Step>('confirm');
   const [progress,  setProgress]  = useState({ label: '', done: 0, total: 0 });
   const [errorMsg,  setErrorMsg]  = useState('');
-  const progressAnim = useState(new Animated.Value(0))[0];
+  const progressAnim = useSharedValue(0);
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progressAnim.value * 100}%` as any,
+  }));
 
   useEffect(() => {
     if (visible) {
       setStep('confirm');
       setProgress({ label: '', done: 0, total: 0 });
+      progressAnim.value = 0;
       getSyncSummary().then(setSummary).catch(() => setSummary(null));
     }
   }, [visible]);
 
   useEffect(() => {
     if (progress.total > 0) {
-      Animated.timing(progressAnim, {
-        toValue: progress.done / progress.total,
-        duration: 200,
-        useNativeDriver: false,
-      }).start();
+      progressAnim.value = withTiming(progress.done / progress.total, { duration: 200 });
     }
   }, [progress]);
 
   const handleSync = async () => {
     setStep('syncing');
-    progressAnim.setValue(0);
+    progressAnim.value = 0;
     const result = await syncLocalToServer((label, done, total) => {
       setProgress({ label, done, total });
     });
@@ -59,10 +60,6 @@ export function SyncModal({ visible, onDone }: Props) {
     onDone();
   };
 
-  const barWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -114,7 +111,7 @@ export function SyncModal({ visible, onDone }: Props) {
                 {progress.label ? `Uploading ${progress.label}` : 'Preparing…'}
               </Text>
               <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
-                <Animated.View style={[styles.progressFill, { width: barWidth, backgroundColor: theme.tint }]} />
+                <Animated.View style={[styles.progressFill, { backgroundColor: theme.tint }, progressStyle]} />
               </View>
               {progress.total > 0 && (
                 <Text style={[styles.progressLabel, { color: theme.secondaryText }]}>
@@ -167,7 +164,7 @@ function SummaryRow({ icon, label, count, color }: { icon: any; label: string; c
     <View style={styles.summaryRow}>
       <Ionicons name={icon} size={16} color={color} />
       <Text style={[styles.summaryLabel, { color: theme.text }]}>{label}</Text>
-      <View style={[styles.countBadge, { backgroundColor: theme.card }]}>
+      <View style={[styles.countBadge, { backgroundColor: theme.cardAlt ?? theme.border }]}>
         <Text style={[styles.countText, { color }]}>{count}</Text>
       </View>
     </View>

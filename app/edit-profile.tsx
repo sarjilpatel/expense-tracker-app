@@ -125,7 +125,7 @@ export default function EditProfileScreen() {
                     <Ionicons name="person" size={50} color={theme.tint} />
                  </View>
                )}
-               <TouchableOpacity style={[styles.editBadge, { backgroundColor: theme.tint }]} onPress={pickImage}>
+               <TouchableOpacity style={[styles.editBadge, { backgroundColor: theme.tint, borderColor: theme.background }]} onPress={pickImage}>
                   <Ionicons name="camera" size={20} color="#FFF" />
                </TouchableOpacity>
             </View>
@@ -134,18 +134,18 @@ export default function EditProfileScreen() {
 
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>{t('name')}</ThemedText>
+              <ThemedText style={[styles.label, { color: theme.secondaryText }]}>{t('name')}</ThemedText>
               <TextInput
                 style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
                 value={name}
                 onChangeText={setName}
                 placeholder="Your Name"
-                placeholderTextColor="#A0A0A0"
+                placeholderTextColor={theme.secondaryText}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Email (Read-only)</ThemedText>
+              <ThemedText style={[styles.label, { color: theme.secondaryText }]}>Email (Read-only)</ThemedText>
               <TextInput
                 style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
                 value={email}
@@ -192,12 +192,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#FFF',
   },
   photoHint: { marginTop: 16, fontSize: 13 },
   form: { width: '100%' },
   inputGroup: { marginBottom: 24 },
-  label: { fontSize: 13, fontWeight: '700', color: '#8E8E93', textTransform: 'uppercase', marginBottom: 8, paddingLeft: 4 },
+  label: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8, paddingLeft: 4 },
   input: { height: 56, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontWeight: '600' },
   saveBtn: { height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
   saveBtnText: { color: '#FFF', fontSize: 18, fontWeight: '800' },

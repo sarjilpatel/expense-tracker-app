@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, SectionList, RefreshControl,
+  View, Text, TouchableOpacity, RefreshControl,
   Alert, ScrollView, StyleSheet, Dimensions,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, runOnJS,
@@ -35,8 +36,6 @@ import { SkeletonLoader } from '@/components/SkeletonLoader';
 
 import { ViewModeTabs, HomeViewMode } from '@/components/home/ViewModeTabs';
 import { FilterDrawer, FilterState, DEFAULT_FILTERS } from '@/components/home/FilterDrawer';
-import { SummaryStrip } from '@/components/home/SummaryStrip';
-import { BudgetBar } from '@/components/home/BudgetBar';
 import { TransactionRow } from '@/components/home/TransactionRow';
 import { TransactionSectionHeader } from '@/components/home/TransactionSectionHeader';
 import { CalendarView } from '@/components/home/CalendarView';
@@ -390,29 +389,26 @@ export default function HomeScreen() {
   }, [filteredTransactions]);
 
   const ITEM_HEIGHT   = 56;
-  const HEADER_HEIGHT = 36;
+  const HEADER_HEIGHT = 46;
 
-  const itemLayoutMap = useMemo(() => {
-    const map: Record<number, { length: number; offset: number; index: number }> = {};
-    let offset = 0;
-    let absIdx = 0;
+  type FlatItem =
+    | { _type: 'header'; title: string; dateObj: Date; income: number; expense: number; isFirst: boolean }
+    | { _type: 'row'; item: any; itemIndex: number; isLast: boolean };
+
+  const flatData = useMemo<FlatItem[]>(() => {
+    const result: FlatItem[] = [];
     filteredSections.forEach((section, si) => {
-      const headerH = si === 0 ? HEADER_HEIGHT : HEADER_HEIGHT + 10;
-      map[absIdx] = { length: headerH, offset, index: absIdx };
-      offset += headerH;
-      absIdx++;
-      section.data.forEach(() => {
-        map[absIdx] = { length: ITEM_HEIGHT, offset, index: absIdx };
-        offset += ITEM_HEIGHT;
-        absIdx++;
+      result.push({ _type: 'header', title: section.title, dateObj: section.dateObj, income: section.income, expense: section.expense, isFirst: si === 0 });
+      section.data.forEach((item: any, ii: number) => {
+        result.push({ _type: 'row', item, itemIndex: ii, isLast: ii === section.data.length - 1 });
       });
     });
-    return map;
+    return result;
   }, [filteredSections]);
 
-  const getItemLayout = useCallback((_: any, index: number) =>
-    itemLayoutMap[index] ?? { length: ITEM_HEIGHT, offset: 0, index },
-  [itemLayoutMap]);
+  const overrideItemLayout = useCallback((layout: any, item: FlatItem) => {
+    layout.size = item._type === 'header' ? HEADER_HEIGHT : ITEM_HEIGHT;
+  }, []);
 
   const budgetProgress = useMemo(() => {
     if (!budget?.amount) return 0;
@@ -491,31 +487,34 @@ export default function HomeScreen() {
   }, []);
 
   // ── Render helpers ────────────────────────────────────────────────────────
-  const renderSectionHeader = useCallback(({ section }: any) => {
-    const isFirst = filteredSections[0]?.title === section.title;
-    return (
-      <View style={{ marginTop: isFirst ? 0 : 12 }}>
-        <TransactionSectionHeader section={section} theme={theme} />
-      </View>
-    );
-  }, [theme, filteredSections]);
-
-  const renderItem = useCallback(({ item, index, section }: any) => {
-    const isLast = index === section.data.length - 1;
+  const renderFlashItem = useCallback(({ item: flatItem }: { item: FlatItem }) => {
+    if (flatItem._type === 'header') {
+      return (
+        <View style={{ marginTop: flatItem.isFirst ? 0 : 12 }}>
+          <TransactionSectionHeader section={flatItem} theme={theme} />
+        </View>
+      );
+    }
     return (
       <TransactionRow
-        item={item}
-        index={index}
+        item={flatItem.item}
+        index={flatItem.itemIndex}
         theme={theme}
         t={t}
-        accountName={accountNameMap[item._id] ?? null}
-        hasReceipt={!!receiptMap[item._id]}
+        accountName={accountNameMap[flatItem.item._id] ?? null}
+        hasReceipt={!!receiptMap[flatItem.item._id]}
         onPress={handleEdit}
         onLongPress={handleDelete}
-        isLast={isLast}
+        isLast={flatItem.isLast}
       />
     );
   }, [theme, t, accountNameMap, receiptMap, handleEdit, handleDelete]);
+
+  const flashKeyExtractor = useCallback((item: FlatItem) =>
+    item._type === 'header' ? 'h-' + item.title : item.item._id,
+  []);
+
+  const getItemType = useCallback((item: FlatItem) => item._type, []);
 
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -613,7 +612,7 @@ export default function HomeScreen() {
             style={[
               styles.summaryCard,
               {
-                backgroundColor: theme.background === '#0D1117' ? '#14532D20' : '#F0FDF4',
+                backgroundColor: theme.income + '18',
                 borderColor: activeFilters.type === 'income' ? theme.tint : theme.border,
                 borderWidth: 1,
               }
@@ -637,7 +636,7 @@ export default function HomeScreen() {
             style={[
               styles.summaryCard,
               {
-                backgroundColor: theme.background === '#0D1117' ? '#4C001220' : '#FFF1F2',
+                backgroundColor: theme.expense + '18',
                 borderColor: activeFilters.type === 'expense' ? theme.tint : theme.border,
                 borderWidth: 1,
               }
@@ -691,17 +690,13 @@ export default function HomeScreen() {
             <>
               {/* Daily list */}
               {viewMode === 'daily' && (
-                <SectionList
-                  sections={filteredSections}
-                  keyExtractor={item => item._id}
-                  renderItem={renderItem}
-                  renderSectionHeader={renderSectionHeader}
-                  getItemLayout={getItemLayout}
-                  stickySectionHeadersEnabled={false}
-                  maxToRenderPerBatch={10}
-                  windowSize={5}
-                  initialNumToRender={14}
-                  removeClippedSubviews
+                <FlashList
+                  data={flatData}
+                  keyExtractor={flashKeyExtractor}
+                  renderItem={renderFlashItem}
+                  getItemType={getItemType}
+                  overrideItemLayout={overrideItemLayout}
+                  estimatedItemSize={ITEM_HEIGHT}
                   refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.tint} />}
                   contentContainerStyle={styles.listContent}
                   showsVerticalScrollIndicator={false}
@@ -715,7 +710,7 @@ export default function HomeScreen() {
                       </Text>
                       <TouchableOpacity
                         style={[styles.emptyCta, { backgroundColor: theme.tint }]}
-                        onPress={() => router.push('/(tabs)/add')}
+                        onPress={() => router.push('/add-transaction')}
                       >
                         <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Add Transaction</Text>
                       </TouchableOpacity>
@@ -823,7 +818,7 @@ export default function HomeScreen() {
                              <View style={styles.noteTop}>
                                <Text style={[styles.noteCat, { color: theme.secondaryText }]}>{tx.category}</Text>
                                <Text style={[styles.noteAmt, { color: isExpense ? theme.expense : theme.income }]}>
-                                 {isExpense ? '-' : '+'}₹{tx.amount.toLocaleString('en-IN')}
+                                 {isExpense ? '-' : '+'}{formatAmount(tx.amount)}
                                </Text>
                              </View>
                              <Text style={[styles.noteText, { color: theme.text }]}>{tx.note}</Text>

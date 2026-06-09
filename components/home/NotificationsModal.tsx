@@ -23,9 +23,6 @@ export function NotificationsModal({ visible, onClose, notifications, theme }: P
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
       <View style={styles.overlay}>
-        <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: theme.card }]}
-        />
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
         <Animated.View entering={FadeInDown} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1, borderBottomWidth: 0 }]}>
           <View style={styles.header}>

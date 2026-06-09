@@ -111,7 +111,7 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={navTheme}>
       <OfflineBanner />
-      <Stack screenOptions={{ animation: 'ios', contentStyle: { backgroundColor: bgColor } }}>
+      <Stack screenOptions={{ animation: 'default', contentStyle: { backgroundColor: bgColor } }}>
         <Stack.Screen name="login"              options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="signup"             options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: 'slide_from_bottom' }} />
@@ -120,7 +120,8 @@ function RootLayoutNav() {
         <Stack.Screen name="manage-group"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="(tabs)"             options={{ headerShown: false, animation: 'fade'              }} />
         <Stack.Screen name="settings/customization" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="edit-transaction"   options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="add-transaction"     options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="edit-transaction"   options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="budget"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="add-budget"         options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="add-account"        options={{ headerShown: false, animation: 'slide_from_right'  }} />

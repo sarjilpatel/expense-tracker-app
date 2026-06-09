@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, TextInput,
-  ScrollView, StyleSheet, Animated, Dimensions, Keyboard,
+  ScrollView, StyleSheet, Dimensions, Keyboard,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/context/ThemeContext';
 
@@ -33,7 +34,10 @@ const DRAWER_H = SCREEN_H * 0.72;
 
 export function FilterDrawer({ visible, onClose, onApply, availableCategories, current }: Props) {
   const { theme } = useTheme();
-  const slideY = useRef(new Animated.Value(DRAWER_H)).current;
+  const slideY = useSharedValue(DRAWER_H);
+  const drawerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: slideY.value }],
+  }));
 
   const [local, setLocal] = useState<FilterState>(current);
 
@@ -41,9 +45,9 @@ export function FilterDrawer({ visible, onClose, onApply, availableCategories, c
 
   useEffect(() => {
     if (visible) {
-      Animated.spring(slideY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+      slideY.value = withSpring(0, { damping: 20, stiffness: 180 });
     } else {
-      Animated.timing(slideY, { toValue: DRAWER_H, duration: 220, useNativeDriver: true }).start();
+      slideY.value = withTiming(DRAWER_H, { duration: 220 });
     }
   }, [visible]);
 
@@ -82,7 +86,8 @@ export function FilterDrawer({ visible, onClose, onApply, availableCategories, c
       <Animated.View
         style={[
           styles.sheet,
-          { backgroundColor: theme.background, transform: [{ translateY: slideY }] },
+          { backgroundColor: theme.background },
+          drawerStyle,
         ]}
       >
         {/* Handle */}

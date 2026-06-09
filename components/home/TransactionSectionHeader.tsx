@@ -44,7 +44,7 @@ export function TransactionSectionHeader({ section, theme }: Props) {
         }
       ]}
       onPress={() =>
-        router.push({ pathname: '/(tabs)/add', params: { prefillDate: d.toISOString() } })
+        router.push({ pathname: '/add-transaction', params: { prefillDate: d.toISOString() } })
       }
       activeOpacity={0.55}
     >

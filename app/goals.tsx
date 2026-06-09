@@ -420,7 +420,7 @@ export default function GoalsScreen() {
               {/* Amounts */}
               <View style={S.row2}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[S.label, { color: theme.secondaryText }]}>TARGET (₹)</Text>
+                  <Text style={[S.label, { color: theme.secondaryText }]}>TARGET ({Currency.symbol})</Text>
                   <TextInput
                     style={[S.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
                     value={form.targetAmount}
@@ -431,7 +431,7 @@ export default function GoalsScreen() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[S.label, { color: theme.secondaryText }]}>SAVED SO FAR (₹)</Text>
+                  <Text style={[S.label, { color: theme.secondaryText }]}>SAVED SO FAR ({Currency.symbol})</Text>
                   <TextInput
                     style={[S.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
                     value={form.savedAmount}
@@ -523,7 +523,7 @@ export default function GoalsScreen() {
                   value={fundsAmt}
                   onChangeText={setFundsAmt}
                   keyboardType="numeric"
-                  placeholder="Amount (₹)"
+                  placeholder={`Amount (${Currency.symbol})`}
                   placeholderTextColor={theme.secondaryText}
                   autoFocus
                 />

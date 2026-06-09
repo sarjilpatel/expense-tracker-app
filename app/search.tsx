@@ -241,7 +241,7 @@ export default function SearchScreen() {
         <Ionicons name="search-circle-outline" size={48} color={theme.secondaryText} style={{ marginBottom: 12 }} />
         <Text style={[styles.hintTitle, { color: theme.text }]}>No results</Text>
         <Text style={[styles.hintSub, { color: theme.secondaryText }]}>
-          Nothing matched &quot;{query}&quot; — try a different word
+          {`Nothing matched "${query}" — try a different word`}
         </Text>
       </View>
     );

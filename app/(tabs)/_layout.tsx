@@ -1,4 +1,4 @@
-import { Tabs, router } from 'expo-router';
+import { Tabs, router, usePathname } from 'expo-router';
 import React, { useState } from 'react';
 import { Platform, StyleSheet, View, TouchableOpacity, Dimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -53,7 +53,7 @@ const CustomAddButton = ({ theme }: { theme: any }) => {
       style={[styles.floatingAddBtn, { backgroundColor: theme.tint, shadowColor: theme.tint }]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.push('/(tabs)/add');
+        router.push('/add-transaction');
       }}
       activeOpacity={0.85}
     >
@@ -64,6 +64,8 @@ const CustomAddButton = ({ theme }: { theme: any }) => {
 
 export default function TabLayout() {
   const { theme } = useTheme();
+  const pathname = usePathname();
+  const isAddScreen = pathname === '/add' || pathname === '/add-transaction';
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -118,6 +120,7 @@ export default function TabLayout() {
             title: '',
             tabBarLabel: () => null,
             tabBarButton: () => <View style={{ flex: 1 }} />, // Empty placeholder to keep symmetry
+            tabBarStyle: { display: 'none' },
           }}
         />
         <Tabs.Screen
@@ -139,7 +142,7 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-      <CustomAddButton theme={theme} />
+      {!isAddScreen && <CustomAddButton theme={theme} />}
     </View>
   );
 }

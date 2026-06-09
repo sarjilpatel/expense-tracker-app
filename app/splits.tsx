@@ -430,7 +430,7 @@ export default function SplitsScreen() {
               </View>
 
               <View>
-                <Text style={[S.label, { color: theme.secondaryText }]}>TOTAL AMOUNT (₹)</Text>
+                <Text style={[S.label, { color: theme.secondaryText }]}>TOTAL AMOUNT ({Currency.symbol})</Text>
                 <TextInput
                   style={[S.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
                   value={total} onChangeText={onTotalChange}
