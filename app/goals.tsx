@@ -29,8 +29,8 @@ const ICONS = [
 ];
 
 const COLORS = [
-  '#6366F1', '#22C55E', '#F59E0B', '#EF4444', '#3B82F6',
-  '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#06B6D4',
+  '#18181B', '#27272A', '#3F3F46', '#52525B', '#71717A',
+  '#A1A1AA', '#D4D4D8', '#E5E7EB', '#F4F4F5', '#18181B',
 ];
 
 type GoalStatus = 'completed' | 'on-track' | 'behind' | 'overdue' | 'active';
@@ -52,7 +52,7 @@ function getStatus(goal: Goal): GoalStatus {
 function statusColor(status: GoalStatus, goal: Goal, theme: any): string {
   if (status === 'completed') return theme.income;
   if (status === 'overdue')   return theme.expense;
-  if (status === 'behind')    return '#F59E0B';
+  if (status === 'behind')    return theme.secondaryText;
   return goal.color;
 }
 
@@ -315,8 +315,8 @@ export default function GoalsScreen() {
                         </View>
                       )}
                       {status === 'behind' && (
-                        <View style={[S.badge, { backgroundColor: '#F59E0B22' }]}>
-                          <Text style={[S.badgeText, { color: '#F59E0B' }]}>Behind pace</Text>
+                        <View style={[S.badge, { backgroundColor: theme.secondaryText + '22' }]}>
+                          <Text style={[S.badgeText, { color: theme.secondaryText }]}>Behind pace</Text>
                         </View>
                       )}
                       {(status === 'on-track' || status === 'active') && goal.deadline && (

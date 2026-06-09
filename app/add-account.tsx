@@ -16,7 +16,7 @@ import {
   saveAccount, deleteAccount, getAccounts,
 } from '@/src/services/accountService';
 
-const COLORS = ['#10B981', '#3B82F6', '#EF4444', '#F59E0B', '#8B5CF6', '#EC4899', '#6B7280', '#14B8A6', '#F97316', '#6366F1'];
+const COLORS = ['#18181B', '#27272A', '#3F3F46', '#52525B', '#71717A', '#A1A1AA', '#D4D4D8', '#E5E7EB', '#F4F4F5', '#18181B'];
 
 export default function AddAccountScreen() {
   const { theme } = useTheme();
@@ -93,7 +93,7 @@ export default function AddAccountScreen() {
           <ThemedText type="subtitle">{isEdit ? 'Edit Account' : 'Add Account'}</ThemedText>
           {isEdit ? (
             <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Ionicons name="trash-outline" size={20} color="#F55345" />
             </TouchableOpacity>
           ) : (
             <View style={{ width: 36 }} />

@@ -1,13 +1,13 @@
 import { Platform } from 'react-native';
 
-const primaryLight  = '#059669';
-const primaryDark   = '#34D399';
-const successLight  = '#16A34A';
-const successDark   = '#22C55E';
-const dangerLight   = '#DC2626';
-const dangerDark    = '#EF4444';
-const warningLight  = '#F59E0B';
-const warningDark   = '#FBBF24';
+const primaryLight  = '#18181B';
+const primaryDark   = '#3F3F46';
+const successLight  = '#1999FC';
+const successDark   = '#1999FC';
+const dangerLight   = '#F55345';
+const dangerDark    = '#F55345';
+const warningLight  = '#71717A';
+const warningDark   = '#A1A1AA';
 
 export type ThemeColors = {
   text: string;
@@ -37,19 +37,19 @@ export type ThemeColors = {
 
 export const Colors: { light: ThemeColors; dark: ThemeColors } = {
   light: {
-    text:            '#1C1917',
-    secondaryText:   '#78716C',
-    background:      '#FAFAF9',
+    text:            '#18181B',
+    secondaryText:   '#71717A',
+    background:      '#F5F5F5',
     card:            '#FFFFFF',
-    cardAlt:         '#F5F5F0',
-    border:          '#E7E5E4',
-    separator:       '#F5F5F0',
-    surface:         '#F0FDF4',
-    inputBg:         '#FAFAF9',
+    cardAlt:         '#E5E7EB',
+    border:          '#D1D5DB',
+    separator:       '#E5E7EB',
+    surface:         '#F3F4F6',
+    inputBg:         '#FFFFFF',
     tint:            primaryLight,
     tintText:        '#FFFFFF',
-    icon:            '#78716C',
-    tabIconDefault:  '#A8A29E',
+    icon:            '#71717A',
+    tabIconDefault:  '#A1A1AA',
     tabIconSelected: primaryLight,
     income:          successLight,
     incomeText:      '#FFFFFF',
@@ -59,22 +59,22 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     success:         successLight,
     danger:          dangerLight,
     warning:         warningLight,
-    chart: ['#059669','#16A34A','#F59E0B','#8B5CF6','#EC4899','#06B6D4','#DC2626'],
+    chart: ['#18181B','#27272A','#3F3F46','#52525B','#71717A','#A1A1AA','#D4D4D8'],
   },
   dark: {
-    text:            '#F0F6FC',
-    secondaryText:   '#8B949E',
-    background:      '#0D1117',
-    card:            '#161B22',
-    cardAlt:         '#1F2937',
-    border:          '#30363D',
-    separator:       '#161B22',
-    surface:         '#111827',
-    inputBg:         '#0D1117',
+    text:            '#F4F4F5',
+    secondaryText:   '#A1A1AA',
+    background:      '#09090B',
+    card:            '#18181B',
+    cardAlt:         '#27272A',
+    border:          '#3F3F46',
+    separator:       '#18181B',
+    surface:         '#1C1C1E',
+    inputBg:         '#18181B',
     tint:            primaryDark,
     tintText:        '#FFFFFF',
-    icon:            '#8B949E',
-    tabIconDefault:  '#484F58',
+    icon:            '#A1A1AA',
+    tabIconDefault:  '#71717A',
     tabIconSelected: primaryDark,
     income:          successDark,
     incomeText:      '#FFFFFF',
@@ -84,7 +84,7 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     success:         successDark,
     danger:          dangerDark,
     warning:         warningDark,
-    chart: ['#34D399','#22C55E','#FBBF24','#A78BFA','#F472B6','#22D3EE','#EF4444'],
+    chart: ['#F4F4F5','#E7E5E4','#D4D4D8','#A1A1AA','#71717A','#52525B','#3F3F46'],
   },
 };
 
@@ -105,79 +105,79 @@ export interface ThemePreset {
 
 export const THEME_PRESETS: ThemePreset[] = [
   {
-    name: 'Indigo Slate',
+    name: 'Graphite',
     light: {
-      accent: '#4F46E5',
+      accent: '#18181B',
       accentText: '#FFFFFF',
-      income: '#2E7D5C',
+      income: '#1999FC',
       incomeText: '#FFFFFF',
-      expense: '#C25975',
+      expense: '#F55345',
       expenseText: '#FFFFFF',
     },
     dark: {
-      accent: '#818CF8',
+      accent: '#3F3F46',
       accentText: '#FFFFFF',
-      income: '#48BB78',
+      income: '#1999FC',
       incomeText: '#FFFFFF',
-      expense: '#E07A8B',
+      expense: '#F55345',
       expenseText: '#FFFFFF',
     },
   },
   {
-    name: 'Nordic Sage',
+    name: 'Slate',
     light: {
-      accent: '#3B7A7A',
+      accent: '#27272A',
       accentText: '#FFFFFF',
-      income: '#4A8B6F',
+      income: '#1999FC',
       incomeText: '#FFFFFF',
-      expense: '#C86A5A',
+      expense: '#F55345',
       expenseText: '#FFFFFF',
     },
     dark: {
-      accent: '#8FAEC4',
-      accentText: '#18181B',
-      income: '#76AB94',
-      incomeText: '#18181B',
-      expense: '#DCA498',
-      expenseText: '#18181B',
+      accent: '#52525B',
+      accentText: '#FFFFFF',
+      income: '#1999FC',
+      incomeText: '#FFFFFF',
+      expense: '#F55345',
+      expenseText: '#FFFFFF',
     },
   },
   {
-    name: 'Ocean Breeze',
+    name: 'Ash',
     light: {
-      accent: '#0D9488',
+      accent: '#3F3F46',
       accentText: '#FFFFFF',
-      income: '#059669',
+      income: '#1999FC',
       incomeText: '#FFFFFF',
-      expense: '#E15F41',
+      expense: '#F55345',
       expenseText: '#FFFFFF',
     },
     dark: {
-      accent: '#2DD4BF',
-      accentText: '#18181B',
-      income: '#34D399',
-      incomeText: '#18181B',
-      expense: '#F87171',
-      expenseText: '#18181B',
+      accent: '#71717A',
+      accentText: '#FFFFFF',
+      income: '#1999FC',
+      incomeText: '#FFFFFF',
+      expense: '#F55345',
+      expenseText: '#FFFFFF',
     },
   },
   {
-    name: 'Sunset Gold',
+    name: 'Pearl',
     light: {
-      accent: '#C25E00',
+      accent: '#52525B',
       accentText: '#FFFFFF',
-      income: '#5A7D36',
+      income: '#1999FC',
       incomeText: '#FFFFFF',
-      expense: '#A94442',
+      expense: '#F55345',
       expenseText: '#FFFFFF',
     },
     dark: {
-      accent: '#F59E0B',
+      accent: '#A1A1AA',
       accentText: '#18181B',
-      income: '#8CAE68',
-      incomeText: '#18181B',
-      expense: '#DB6A6A',
-      expenseText: '#18181B',
+      income: '#1999FC',
+      incomeText: '#FFFFFF',
+      expense: '#F55345',
+      expenseText: '#FFFFFF',
     },
   },
   {
@@ -185,18 +185,18 @@ export const THEME_PRESETS: ThemePreset[] = [
     light: {
       accent: '#18181B',
       accentText: '#FFFFFF',
-      income: '#4E5C4A',
+      income: '#1999FC',
       incomeText: '#FFFFFF',
-      expense: '#695555',
+      expense: '#F55345',
       expenseText: '#FFFFFF',
     },
     dark: {
       accent: '#F4F4F5',
       accentText: '#18181B',
-      income: '#A7B5A2',
-      incomeText: '#18181B',
-      expense: '#BAA3A3',
-      expenseText: '#18181B',
+      income: '#1999FC',
+      incomeText: '#FFFFFF',
+      expense: '#F55345',
+      expenseText: '#FFFFFF',
     },
   },
 ];
@@ -238,25 +238,25 @@ export const CATEGORIES = [
 ];
 
 export const CATEGORY_COLORS = {
-  'Food':          { bg: '#FFF3E0', icon: '#FF6B35' },
-  'Transport':     { bg: '#E3F2FD', icon: '#2196F3' },
-  'Shopping':      { bg: '#FCE4EC', icon: '#E91E63' },
-  'Health':        { bg: '#FFEBEE', icon: '#F44336' },
-  'Entertainment': { bg: '#F3E5F5', icon: '#9C27B0' },
-  'Bills':         { bg: '#ECEFF1', icon: '#607D8B' },
-  'Rent':          { bg: '#E8EAF6', icon: '#3F51B5' },
-  'Education':     { bg: '#E0F2F1', icon: '#009688' },
-  'Salary':        { bg: '#E8F5E9', icon: '#4CAF50' },
-  'Business':      { bg: '#E3F2FD', icon: '#1976D2' },
-  'Investment':    { bg: '#F9FBE7', icon: '#827717' },
-  'Other':         { bg: '#F5F5F5', icon: '#9E9E9E' },
+  'Food':          { bg: '#F3F4F6', icon: '#18181B' },
+  'Transport':     { bg: '#E5E7EB', icon: '#27272A' },
+  'Shopping':      { bg: '#F4F4F5', icon: '#3F3F46' },
+  'Health':        { bg: '#E7E5E4', icon: '#52525B' },
+  'Entertainment': { bg: '#F5F5F4', icon: '#71717A' },
+  'Bills':         { bg: '#E5E7EB', icon: '#3F3F46' },
+  'Rent':          { bg: '#E5E7EB', icon: '#27272A' },
+  'Education':     { bg: '#F3F4F6', icon: '#52525B' },
+  'Salary':        { bg: '#E5E7EB', icon: '#18181B' },
+  'Business':      { bg: '#F3F4F6', icon: '#3F3F46' },
+  'Investment':    { bg: '#F9FAFB', icon: '#71717A' },
+  'Other':         { bg: '#F5F5F5', icon: '#9CA3AF' },
 };
 
 export const BORDER_RADIUS = {
-  card: 20,
-  input: 14,
-  chip: 10,
-  button: 16,
+  card: 16,
+  input: 12,
+  chip: 8,
+  button: 14,
   pill: 999,
   avatar: '50%',
 };

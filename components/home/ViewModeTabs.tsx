@@ -51,24 +51,24 @@ export function ViewModeTabs({ active, onPress, tintColor, secondaryText }: Prop
 
 const styles = StyleSheet.create({
   track: {
-    marginHorizontal: 12,
+    marginHorizontal: 8,
     borderRadius: 12,
-    padding: 3,
-    marginBottom: 12,
+    padding: 2,
+    marginBottom: 6,
   },
   scrollContent: {
     flexDirection: 'row',
-    gap: 3,
+    gap: 2,
   },
   pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
   },
   label: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
 });

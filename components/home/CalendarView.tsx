@@ -58,7 +58,7 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
   const div = theme.border;
 
   return (
-    <View>
+    <View style={styles.wrap}>
       {/* ── Day-of-week header ── */}
       <View style={[styles.headerRow, { borderBottomColor: div, borderTopColor: div }]}>
         {DAY_NAMES.map((name, i) => (
@@ -253,6 +253,12 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
   // Day-of-week header
   headerRow: {
     flexDirection: 'row',
@@ -276,7 +282,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,         // ← fills 1/7 of available width, no overflow
-    height: 88,
+    height: 84,
     padding: 5,
     justifyContent: 'space-between',
   },
@@ -295,8 +301,8 @@ const styles = StyleSheet.create({
   // Detail panel
   panel: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingHorizontal: 14,
+    paddingTop: 12,
     paddingBottom: 8,
   },
   panelHeader: {

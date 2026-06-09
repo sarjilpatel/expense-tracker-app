@@ -330,7 +330,7 @@ export default function ManageGroupScreen() {
                     </View>
                     {isActive
                       ? (
-                        <View style={[styles.activeCheck, { backgroundColor: '#34C759' }]}>
+                        <View style={[styles.activeCheck, { backgroundColor: theme.tint }]}>
                           <Ionicons name="checkmark" size={13} color="#FFF" />
                         </View>
                       )

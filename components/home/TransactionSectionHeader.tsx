@@ -21,12 +21,9 @@ export function TransactionSectionHeader({ section, theme }: Props) {
   const dayName = DAY_NAMES[d.getDay()];
   const monthYr = `${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
 
-  const isSun = d.getDay() === 0;
-  const isSat = d.getDay() === 6;
-
-  const dayColor  = isSun ? '#E05757' : isSat ? '#5B9CF6' : theme.text;
-  const badgeBg   = isSun ? '#E05757' : isSat ? '#5B9CF6' : theme.tint;
-  const badgeText = isSun || isSat ? '#FFF' : theme.tintText;
+  const dayColor  = theme.text;
+  const badgeBg   = theme.card;
+  const badgeText = theme.secondaryText;
 
   return (
     <TouchableOpacity
@@ -35,12 +32,12 @@ export function TransactionSectionHeader({ section, theme }: Props) {
         {
           backgroundColor: theme.cardAlt,
           borderColor: theme.border,
-          borderTopLeftRadius: 12,
-          borderTopRightRadius: 12,
+          borderTopLeftRadius: 10,
+          borderTopRightRadius: 10,
           borderWidth: StyleSheet.hairlineWidth,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: theme.separator,
-          marginHorizontal: 12,
+          marginHorizontal: 8,
         }
       ]}
       onPress={() =>
@@ -52,7 +49,7 @@ export function TransactionSectionHeader({ section, theme }: Props) {
         <Text style={[styles.dayNum, { color: dayColor }]}>
           {String(dayNum).padStart(2, '0')}
         </Text>
-        <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+        <View style={[styles.badge, { backgroundColor: badgeBg, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
           <Text style={[styles.badgeText, { color: badgeText }]}>{dayName}</Text>
         </View>
         <Text style={[styles.dateLabel, { color: theme.secondaryText }]}>{monthYr}</Text>
@@ -75,7 +72,7 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     alignItems:        'center',
     justifyContent:    'space-between',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical:   5,
   },
   left: { flexDirection: 'row', alignItems: 'center', gap: 7 },

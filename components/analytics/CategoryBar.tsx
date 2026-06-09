@@ -10,7 +10,7 @@ import Animated, {
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Currency } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
-import { Ionicons } from '@expo/vector-icons';
+import { CATEGORY_EMOJIS } from '@/constants/maps';
 
 interface Props {
   category: string;
@@ -19,21 +19,6 @@ interface Props {
   color: string;
   rank: number;
 }
-
-const CATEGORY_ICONS: Record<string, string> = {
-  'Food': 'restaurant',
-  'Transport': 'car',
-  'Shopping': 'cart',
-  'Health': 'heart',
-  'Entertainment': 'game-controller',
-  'Bills': 'receipt',
-  'Rent': 'home',
-  'Education': 'book',
-  'Salary': 'cash',
-  'Business': 'briefcase',
-  'Investment': 'trending-up',
-  'Other': 'ellipsis-horizontal',
-};
 
 export function CategoryBar({ category, amount, percentage, color, rank }: Props) {
   const scheme = useColorScheme() || 'light';
@@ -49,15 +34,12 @@ export function CategoryBar({ category, amount, percentage, color, rank }: Props
     width: `${barW.value * 100}%` as any,
   }));
 
-  const isDark = scheme === 'dark';
-  const iconName = CATEGORY_ICONS[category] || 'ellipsis-horizontal';
-
   return (
     <Animated.View entering={FadeInDown.delay(rank * 60).duration(300)} style={styles.item}>
       <View style={styles.top}>
         <View style={styles.left}>
           <View style={styles.iconChip}>
-            <Ionicons name={iconName as any} size={12} color={color} />
+            <Text style={styles.emoji}>{CATEGORY_EMOJIS[category] || '🏷️'}</Text>
           </View>
           <ThemedText style={styles.name}>{category}</ThemedText>
         </View>
@@ -77,7 +59,8 @@ const styles = StyleSheet.create({
   item: { gap: 6 },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   left: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  iconChip: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  iconChip: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  emoji: { fontSize: 16, lineHeight: 20, textAlign: 'center' },
   name: { fontSize: 14, fontWeight: '600', flex: 1 },
   right: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pct: { fontSize: 12, fontWeight: '800' },

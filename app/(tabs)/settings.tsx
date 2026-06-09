@@ -376,15 +376,15 @@ export default function SettingsScreen() {
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={S.deleteOverlay}>
           <View style={[S.deleteCard, { backgroundColor: theme.card }]}>
-            <View style={[S.deleteIconWrap, { backgroundColor: (theme.danger ?? '#EF4444') + '22' }]}>
-              <Ionicons name="trash-outline" size={26} color={theme.danger ?? '#EF4444'} />
+            <View style={[S.deleteIconWrap, { backgroundColor: (theme.danger ?? '#F55345') + '22' }]}>
+              <Ionicons name="trash-outline" size={26} color={theme.danger ?? '#F55345'} />
             </View>
             <Text style={[S.deleteTitle, { color: theme.text }]}>Delete Account</Text>
             <Text style={[S.deleteSub, { color: theme.secondaryText }]}>
               Your account will be scheduled for deletion in 30 days. You can cancel within that window. After 30 days, all your transactions, goals, and splits are permanently removed.
             </Text>
             <TextInput
-              style={[S.deleteInput, { backgroundColor: theme.cardAlt ?? theme.border, color: theme.text, borderColor: deleteError ? (theme.danger ?? '#EF4444') : theme.border }]}
+              style={[S.deleteInput, { backgroundColor: theme.cardAlt ?? theme.border, color: theme.text, borderColor: deleteError ? (theme.danger ?? '#F55345') : theme.border }]}
               placeholder="Enter your password to confirm"
               placeholderTextColor={theme.secondaryText}
               secureTextEntry
@@ -392,9 +392,9 @@ export default function SettingsScreen() {
               onChangeText={t => { setDeletePassword(t); setDeleteError(''); }}
               autoCapitalize="none"
             />
-            {!!deleteError && <Text style={[S.deleteErrorText, { color: theme.danger ?? '#EF4444' }]}>{deleteError}</Text>}
+            {!!deleteError && <Text style={[S.deleteErrorText, { color: theme.danger ?? '#F55345' }]}>{deleteError}</Text>}
             <TouchableOpacity
-              style={[S.deleteConfirmBtn, { backgroundColor: theme.danger ?? '#EF4444', opacity: deletingAccount ? 0.7 : 1 }]}
+              style={[S.deleteConfirmBtn, { backgroundColor: theme.danger ?? '#F55345', opacity: deletingAccount ? 0.7 : 1 }]}
               onPress={confirmDeleteAccount}
               disabled={deletingAccount}
             >
@@ -544,7 +544,7 @@ export default function SettingsScreen() {
 
           {/* Notifications */}
           <View style={S.row}>
-            <View style={[S.iconBox, { backgroundColor: theme.warning ?? '#FF9500' }]}>
+            <View style={[S.iconBox, { backgroundColor: theme.warning ?? theme.secondaryText }]}>
               <Ionicons name="notifications-outline" size={18} color='#FFF' />
             </View>
             <View style={S.rowMid}>
@@ -577,14 +577,14 @@ export default function SettingsScreen() {
           />
           <Sep />
           <Row
-            icon="flag-outline" iconBg="#22C55E22" iconColor="#22C55E"
+            icon="flag-outline" iconBg={theme.tint + '18'} iconColor={theme.tint}
             title="Savings Goals"
             sub="Track progress toward your goals"
             onPress={() => router.push('/goals')}
           />
           <Sep />
           <Row
-            icon="git-branch-outline" iconBg="#6366F122" iconColor="#6366F1"
+            icon="git-branch-outline" iconBg={theme.tint + '18'} iconColor={theme.tint}
             title="Expense Splits"
             sub="Split bills with group members"
             onPress={() => router.push('/splits')}
@@ -625,7 +625,7 @@ export default function SettingsScreen() {
         <Text style={[S.groupLabel, { color: theme.secondaryText }]}>SECURITY</Text>
         <Card>
           <View style={S.row}>
-            <View style={[S.iconBox, { backgroundColor: '#3B82F6' }]}>
+            <View style={[S.iconBox, { backgroundColor: theme.tint }]}>
               <Ionicons name="lock-closed-outline" size={18} color='#FFF' />
             </View>
             <View style={S.rowMid}>
@@ -637,13 +637,13 @@ export default function SettingsScreen() {
             <Switch
               value={lockEnabled}
               onValueChange={handleToggleLock}
-              trackColor={{ false: theme.border, true: '#3B82F6' }}
-              thumbColor={lockEnabled ? '#3B82F6' : theme.secondaryText}
+              trackColor={{ false: theme.border, true: theme.tint }}
+              thumbColor={lockEnabled ? theme.tint : theme.secondaryText}
             />
           </View>
           <Sep />
           <View style={S.row}>
-            <View style={[S.iconBox, { backgroundColor: theme.warning ?? '#FF9500' }]}>
+            <View style={[S.iconBox, { backgroundColor: theme.warning ?? theme.secondaryText }]}>
               <Ionicons name="alarm-outline" size={18} color='#FFF' />
             </View>
             <View style={S.rowMid}>
@@ -657,8 +657,8 @@ export default function SettingsScreen() {
             <Switch
               value={reminderEnabled}
               onValueChange={handleToggleReminder}
-              trackColor={{ false: theme.border, true: theme.warning ?? '#FF9500' }}
-              thumbColor={reminderEnabled ? (theme.warning ?? '#FF9500') : theme.secondaryText}
+              trackColor={{ false: theme.border, true: theme.warning ?? theme.secondaryText }}
+              thumbColor={reminderEnabled ? (theme.warning ?? theme.secondaryText) : theme.secondaryText}
             />
           </View>
         </Card>
@@ -676,30 +676,30 @@ export default function SettingsScreen() {
                   <Text style={[S.rowTitle, { color: theme.text }]}>Cloud Backup</Text>
                   <Text style={[S.rowSub, { color: theme.secondaryText }]}>{formatSyncTime(lastSync)}</Text>
                 </View>
-                <View style={[S.syncDot, { backgroundColor: lastSync ? '#34C759' : theme.secondaryText }]} />
+                <View style={[S.syncDot, { backgroundColor: lastSync ? theme.tint : theme.secondaryText }]} />
               </View>
               <Sep />
             </>
           )}
           <Row
-            icon="download-outline" iconBg={theme.income} iconColor={theme.incomeText}
+            icon="download-outline" iconBg={theme.tint} iconColor={theme.tintText}
             title="Export CSV" sub="Current month transactions"
             onPress={handleExport}
-            right={exporting ? <ActivityIndicator size="small" color={theme.income} /> : undefined}
+            right={exporting ? <ActivityIndicator size="small" color={theme.tint} /> : undefined}
           />
           <Sep />
           <Row
-            icon="document-outline" iconBg="#16A34A" iconColor='#FFF'
+            icon="document-outline" iconBg={theme.tint} iconColor={theme.tintText}
             title="Export XLSX" sub="Excel spreadsheet — current month"
             onPress={handleExportXlsx}
-            right={exportingXlsx ? <ActivityIndicator size="small" color="#16A34A" /> : undefined}
+            right={exportingXlsx ? <ActivityIndicator size="small" color={theme.tint} /> : undefined}
           />
           <Sep />
           <Row
-            icon="document-text-outline" iconBg="#DC2626" iconColor='#FFF'
+            icon="document-text-outline" iconBg={theme.tint} iconColor={theme.tintText}
             title="Export PDF Report" sub="Monthly summary with charts"
             onPress={handleExportPdf}
-            right={exportingPdf ? <ActivityIndicator size="small" color="#DC2626" /> : undefined}
+            right={exportingPdf ? <ActivityIndicator size="small" color={theme.tint} /> : undefined}
           />
           {isGuest && (
             <>
@@ -757,14 +757,14 @@ export default function SettingsScreen() {
         <Text style={[S.groupLabel, { color: theme.secondaryText }]}>LEGAL</Text>
         <Card>
           <Row
-            icon="shield-checkmark-outline" iconBg="#6366F1" iconColor="#FFF"
+            icon="shield-checkmark-outline" iconBg={theme.tint} iconColor={theme.tintText}
             title="Privacy Policy"
             sub="How we collect and use your data"
             onPress={() => Linking.openURL('https://sarjilpatel.github.io/expense-tracker/privacy')}
           />
           <Sep />
           <Row
-            icon="document-text-outline" iconBg="#8B5CF6" iconColor="#FFF"
+            icon="document-text-outline" iconBg={theme.tint} iconColor={theme.tintText}
             title="Terms of Service"
             sub="Rules and conditions of use"
             onPress={() => Linking.openURL('https://sarjilpatel.github.io/expense-tracker/terms')}

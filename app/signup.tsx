@@ -15,9 +15,9 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
   if (/[A-Z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { score, label: 'Weak',   color: '#EF4444' };
-  if (score <= 3) return { score, label: 'Fair',   color: '#F59E0B' };
-  return              { score, label: 'Strong', color: '#22C55E' };
+  if (score <= 1) return { score, label: 'Weak',   color: '#F55345' };
+  if (score <= 3) return { score, label: 'Fair',   color: '#71717A' };
+  return              { score, label: 'Strong', color: '#1999FC' };
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -83,7 +83,7 @@ export default function SignupScreen() {
             <ThemedView style={styles.inputWrapper}>
               <ThemedText style={styles.label}>Full Name</ThemedText>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: errors.name ? '#EF4444' : theme.border }]}
+                style={[styles.input, { color: theme.text, borderColor: errors.name ? '#F55345' : theme.border }]}
                 placeholder="Your Name"
                 placeholderTextColor="#A0A0A0"
                 value={name}
@@ -95,7 +95,7 @@ export default function SignupScreen() {
             <ThemedView style={styles.inputWrapper}>
               <ThemedText style={styles.label}>Email Address</ThemedText>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: errors.email ? '#EF4444' : theme.border }]}
+                style={[styles.input, { color: theme.text, borderColor: errors.email ? '#F55345' : theme.border }]}
                 placeholder="email@example.com"
                 placeholderTextColor="#A0A0A0"
                 value={email}
@@ -109,7 +109,7 @@ export default function SignupScreen() {
             <ThemedView style={styles.inputWrapper}>
               <ThemedText style={styles.label}>Password</ThemedText>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: errors.password ? '#EF4444' : theme.border }]}
+                style={[styles.input, { color: theme.text, borderColor: errors.password ? '#F55345' : theme.border }]}
                 placeholder="Min. 8 characters"
                 placeholderTextColor="#A0A0A0"
                 value={password}
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   guestText: { fontSize: 15, fontWeight: '600' },
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
   link: { fontWeight: 'bold' },
-  fieldError:      { fontSize: 12, color: '#EF4444', marginTop: 4, marginLeft: 2 },
+  fieldError:      { fontSize: 12, color: '#F55345', marginTop: 4, marginLeft: 2 },
   strengthRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   strengthBar:     { flex: 1, flexDirection: 'row', gap: 4 },
   strengthSegment: { flex: 1, height: 4, borderRadius: 2 },

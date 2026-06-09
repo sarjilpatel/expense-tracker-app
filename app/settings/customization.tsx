@@ -9,26 +9,20 @@ import { Currency, THEME_PRESETS, ThemePreset } from '@/constants/theme';
 import * as Haptics from 'expo-haptics';
 
 const ACCENT_COLORS = [
-  { label: 'Indigo',     value: '#4F46E5', text: '#FFFFFF' },
-  { label: 'Slate Blue', value: '#3B7A7A', text: '#FFFFFF' },
-  { label: 'Teal',       value: '#0D9488', text: '#FFFFFF' },
-  { label: 'Copper',     value: '#C25E00', text: '#FFFFFF' },
+  { label: 'Graphite',   value: '#18181B', text: '#FFFFFF' },
+  { label: 'Slate',      value: '#27272A', text: '#FFFFFF' },
+  { label: 'Ash',        value: '#3F3F46', text: '#FFFFFF' },
+  { label: 'Pearl',      value: '#52525B', text: '#FFFFFF' },
   { label: 'Charcoal',   value: '#18181B', text: '#FFFFFF' },
-  { label: 'Rose Gold',  value: '#C25975', text: '#FFFFFF' },
+  { label: 'Cloud',      value: '#E5E7EB', text: '#18181B' },
 ];
 
 const INCOME_COLORS = [
-  { label: 'Sage',    value: '#4A8B6F' },
-  { label: 'Emerald', value: '#2E7D5C' },
-  { label: 'Mint',    value: '#059669' },
-  { label: 'Olive',   value: '#5A7D36' },
+  { label: 'Blue', value: '#1999FC' },
 ];
 
 const EXPENSE_COLORS = [
-  { label: 'Terracotta', value: '#C86A5A' },
-  { label: 'Dusty Rose', value: '#C25975' },
-  { label: 'Coral',      value: '#E15F41' },
-  { label: 'Burgundy',   value: '#A94442' },
+  { label: 'Red', value: '#F55345' },
 ];
 
 export default function CustomizationScreen() {

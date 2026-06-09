@@ -87,7 +87,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     expenseText:     currentExpenseText,
     tabIconSelected: currentTint,
     primary:         currentTint,
-    success:         currentIncome,
+    success:         base.success,
     danger:          currentExpense,
   };
 

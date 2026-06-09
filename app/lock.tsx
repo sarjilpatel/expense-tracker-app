@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Vibration,
 } from 'react-native';
@@ -92,7 +92,7 @@ export default function LockScreen({ onUnlock }: Props) {
 
   return (
     <LinearGradient
-      colors={theme.background === '#0D1117' ? ['#059669', '#022C22'] : ['#059669', '#047857']}
+      colors={theme.background === '#09090B' ? ['#18181B', '#09090B'] : ['#18181B', '#3F3F46']}
       style={styles.wrap}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}

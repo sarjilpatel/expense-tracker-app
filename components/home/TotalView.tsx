@@ -149,7 +149,7 @@ export function TotalView({ transactions, summary, budget, month, year, theme }:
   };
 
   return (
-    <View>
+    <View style={styles.wrap}>
       {/* ── Budget row ── */}
       <View style={[styles.budgetRow, { borderBottomColor: theme.border }]}>
         <View style={styles.rowLeft}>
@@ -191,10 +191,10 @@ export function TotalView({ transactions, summary, budget, month, year, theme }:
         style={[styles.exportBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
       >
         {exporting ? (
-          <ActivityIndicator size="small" color="#2ECC71" />
+          <ActivityIndicator size="small" color={theme.tint} />
         ) : (
           <>
-            <Ionicons name="document-text-outline" size={18} color="#2ECC71" />
+            <Ionicons name="document-text-outline" size={18} color={theme.tint} />
             <Text style={[styles.exportText, { color: theme.text }]}>Export data to Excel</Text>
           </>
         )}
@@ -262,9 +262,14 @@ function StatRow({ label, value, valueColor, theme, last = false }: {
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
   budgetRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 16,
+    paddingHorizontal: 16, paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   rowLeft:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -277,8 +282,8 @@ const styles = StyleSheet.create({
 
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
-    marginTop: 20,
+    paddingHorizontal: 16, paddingVertical: 12,
+    marginTop: 12,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700' },
   dateRange:    { fontSize: 12 },
@@ -286,19 +291,19 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderRadius: 12,
-    paddingVertical: 4,
-    marginTop: 4,
+    paddingVertical: 2,
+    marginTop: 2,
   },
   statRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingVertical: 11,
   },
   statLabel: { fontSize: 14, flex: 1, marginRight: 12 },
   statValue: { fontSize: 14, fontWeight: '500' },
 
   exportBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    marginTop: 20, paddingVertical: 14,
+    marginTop: 14, paddingVertical: 13,
     borderWidth: 1,
     borderRadius: 12,
     minHeight: 48,

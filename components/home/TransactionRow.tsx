@@ -4,6 +4,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Currency } from '@/constants/theme';
 import { CURRENCY_META } from '@/src/services/preferencesService';
+import { CATEGORY_EMOJIS } from '@/constants/maps';
 
 interface Props {
   item: any;
@@ -19,22 +20,7 @@ interface Props {
   marginHorizontal?: number;
 }
 
-const CATEGORY_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
-  'Food': 'restaurant',
-  'Transport': 'car',
-  'Shopping': 'cart',
-  'Health': 'heart',
-  'Entertainment': 'game-controller',
-  'Bills': 'receipt',
-  'Rent': 'home',
-  'Education': 'book',
-  'Salary': 'cash',
-  'Business': 'briefcase',
-  'Investment': 'trending-up',
-  'Other': 'ellipsis-horizontal',
-};
-
-export const TransactionRow = memo(function TransactionRow({ item, index, theme, t, onPress, onLongPress, accountName, hasReceipt, isFirst, isLast, marginHorizontal = 12 }: Props) {
+export const TransactionRow = memo(function TransactionRow({ item, index, theme, t, onPress, onLongPress, accountName, hasReceipt, isFirst, isLast, marginHorizontal = 8 }: Props) {
   const isExpense   = item.type === 'expense';
   const amountColor = isExpense ? theme.expense : theme.income;
 
@@ -42,8 +28,6 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
   const formattedAmount = txCurrencyMeta
     ? `${txCurrencyMeta.symbol}${item.amount.toLocaleString(txCurrencyMeta.locale)}`
     : Currency.format(item.amount);
-
-  const iconName = (CATEGORY_ICONS[item.category] || 'ellipsis-horizontal') as any;
 
   const timeLabel = new Date(item.date || item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
@@ -63,10 +47,10 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
             borderTopWidth: isFirst ? StyleSheet.hairlineWidth : 0,
             borderBottomColor: isLast ? theme.border : theme.separator,
             marginHorizontal: marginHorizontal,
-            borderTopLeftRadius: isFirst ? 12 : 0,
-            borderTopRightRadius: isFirst ? 12 : 0,
-            borderBottomLeftRadius: isLast ? 12 : 0,
-            borderBottomRightRadius: isLast ? 12 : 0,
+            borderTopLeftRadius: isFirst ? 10 : 0,
+            borderTopRightRadius: isFirst ? 10 : 0,
+            borderBottomLeftRadius: isLast ? 10 : 0,
+            borderBottomRightRadius: isLast ? 10 : 0,
             marginTop: 0,
           }
         ]}
@@ -75,9 +59,9 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
         delayLongPress={500}
         activeOpacity={0.6}
       >
-        {/* LEFT: Category Icon Chip */}
+        {/* LEFT: Category Emoji */}
         <View style={styles.iconChip}>
-          <Ionicons name={iconName} size={16} color={amountColor} />
+          <Text style={styles.emoji}>{CATEGORY_EMOJIS[item.category] || '🏷️'}</Text>
         </View>
 
         {/* MIDDLE: Notes/Name + Category */}
@@ -113,16 +97,21 @@ const styles = StyleSheet.create({
   row: {
     flexDirection:     'row',
     alignItems:        'center',
-    paddingHorizontal: 12,
-    minHeight:         56,
+    paddingHorizontal: 10,
+    minHeight:         54,
   },
   iconChip: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
+  },
+  emoji: {
+    fontSize: 22,
+    lineHeight: 28,
+    textAlign: 'center',
   },
   middle: {
     flex: 1,

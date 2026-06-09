@@ -16,13 +16,13 @@ export interface Account {
 }
 
 export const ACCOUNT_TYPE_META: Record<AccountType, { label: string; icon: string; color: string; emoji: string }> = {
-  cash:        { label: 'Cash',        icon: 'cash-outline',         color: '#10B981', emoji: '💵' },
-  bank:        { label: 'Bank Account', icon: 'business-outline',    color: '#3B82F6', emoji: '🏦' },
-  credit_card: { label: 'Credit Card',  icon: 'card-outline',        color: '#EF4444', emoji: '💳' },
-  savings:     { label: 'Savings',      icon: 'wallet-outline',      color: '#F59E0B', emoji: '🏪' },
-  investment:  { label: 'Investment',   icon: 'trending-up-outline', color: '#8B5CF6', emoji: '📈' },
-  wallet:      { label: 'Wallet',       icon: 'wallet-outline',      color: '#EC4899', emoji: '👛' },
-  other:       { label: 'Other',        icon: 'ellipse-outline',     color: '#6B7280', emoji: '📁' },
+  cash:        { label: 'Cash',        icon: 'cash-outline',         color: '#18181B', emoji: '💵' },
+  bank:        { label: 'Bank Account', icon: 'business-outline',    color: '#27272A', emoji: '🏦' },
+  credit_card: { label: 'Credit Card',  icon: 'card-outline',        color: '#3F3F46', emoji: '💳' },
+  savings:     { label: 'Savings',      icon: 'wallet-outline',      color: '#52525B', emoji: '🏪' },
+  investment:  { label: 'Investment',   icon: 'trending-up-outline', color: '#71717A', emoji: '📈' },
+  wallet:      { label: 'Wallet',       icon: 'wallet-outline',      color: '#A1A1AA', emoji: '👛' },
+  other:       { label: 'Other',        icon: 'ellipse-outline',     color: '#71717A', emoji: '📁' },
 };
 
 function generateId(): string {

@@ -5,13 +5,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import { PieChart, LineChart, BarChart } from 'react-native-gifted-charts';
+import { LineChart, BarChart } from 'react-native-gifted-charts';
 import Animated, {
   FadeInDown, FadeIn,
   useSharedValue, useAnimatedStyle, withTiming, runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Currency, hexToRGBA, getCategoryColors } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { getAnalytics, getTrend } from '@/src/services/dataService';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,9 +21,10 @@ import { useLanguage } from '@/src/i18n/LanguageContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { TYPE_SCALE } from '@/constants/theme';
+import { Currency, TYPE_SCALE } from '@/constants/theme';
 import { CategoryBar } from '@/components/analytics/CategoryBar';
-import { MONTHS } from '@/constants/maps';
+import { ConnectedDonutChart } from '@/components/analytics/ConnectedDonutChart';
+import { MONTHS, CATEGORY_COLORS, CATEGORY_PALETTE } from '@/constants/maps';
 import {
   getCachedAnalytics, setCachedAnalytics,
   getCachedTrend, setCachedTrend,
@@ -204,17 +204,27 @@ export default function AnalyticsScreen() {
       const gross = inc + exp;
       if (gross === 0) return [];
       return [
-        { value: inc, color: theme.income, text: `${Math.round((inc / gross) * 100)}%`, category: t('income'), percentage: (inc / gross) * 100 },
-        { value: exp, color: theme.expense, text: `${Math.round((exp / gross) * 100)}%`, category: t('expenses'), percentage: (exp / gross) * 100 },
+        {
+          value: inc,
+          color: theme.income,
+          text: `${Math.round((inc / gross) * 100)}%`,
+          category: t('income'),
+          percentage: (inc / gross) * 100,
+        },
+        {
+          value: exp,
+          color: theme.expense,
+          text: `${Math.round((exp / gross) * 100)}%`,
+          category: t('expenses'),
+          percentage: (exp / gross) * 100,
+        },
       ];
     }
-    const baseColor = activeTab === 'income' ? theme.income : theme.expense;
     return sortedCategories.map((item: any, i: number) => {
-      const opacity = Math.max(0.2, 1 - i * 0.12);
-      const color = hexToRGBA(baseColor, opacity);
+      const color = CATEGORY_COLORS[item.category] ?? CATEGORY_PALETTE[i % CATEGORY_PALETTE.length];
       return {
         value: item.amount,
-        color: color,
+        color,
         text: `${Math.round(item.percentage)}%`,
         category: t(item.category),
         percentage: item.percentage,
@@ -255,7 +265,7 @@ export default function AnalyticsScreen() {
         <View style={styles.header}>
           <View style={styles.monthSelector}>
             <TouchableOpacity onPress={() => changeMonth(-1)} hitSlop={16}>
-              <Ionicons name="chevron-back" size={20} color={theme.text} />
+              <Ionicons name="chevron-back" size={18} color={theme.text} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
               <ThemedText style={styles.title}>
@@ -263,13 +273,13 @@ export default function AnalyticsScreen() {
               </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => changeMonth(1)} hitSlop={16}>
-              <Ionicons name="chevron-forward" size={20} color={theme.text} />
+              <Ionicons name="chevron-forward" size={18} color={theme.text} />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* ── Tabs — always visible ── */}
-        <View style={[styles.modeTabs, { backgroundColor: theme.card }]}>
+        <View style={[styles.modeTabs, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth }]}>
           {(['overview', 'trends'] as ViewMode[]).map(mode => (
             <TouchableOpacity
               key={mode}
@@ -278,9 +288,9 @@ export default function AnalyticsScreen() {
             >
               <Ionicons
                 name={mode === 'overview' ? 'pie-chart' : 'trending-up'}
-                size={14}
+                size={12}
                 color={viewMode === mode ? theme.tintText : theme.secondaryText}
-                style={{ marginRight: 5 }}
+                style={{ marginRight: 4 }}
               />
               <Text style={[styles.modeTabText, { color: viewMode === mode ? theme.tintText : theme.secondaryText }]}>
                 {mode === 'overview' ? 'Overview' : 'Trends'}
@@ -292,7 +302,7 @@ export default function AnalyticsScreen() {
         {/* ── Content — animated, skeleton only here ── */}
         <Animated.View style={[{ flex: 1 }, contentAnimStyle]}>
           {loading && !refreshing ? (
-            <View style={{ paddingTop: 16 }}>
+            <View style={{ paddingTop: 12 }}>
               <SkeletonLoader type="card" />
               <SkeletonLoader type="chart" />
             </View>
@@ -321,39 +331,14 @@ export default function AnalyticsScreen() {
                     )}
                   </Animated.View>
 
-                  <View style={styles.donutWrap}>
+                      <View style={styles.donutWrap}>
                     {pieData.length > 0 ? (
-                      <>
-                        <PieChart
-                          data={pieData}
-                          radius={90}
-                          innerRadius={74}
-                          strokeWidth={3}
-                          strokeColor={theme.background}
-                          showText={false}
-                          focusOnPress
-                          innerCircleColor={theme.background}
-                          centerLabelComponent={() => (
-                            <View style={styles.donutCenter}>
-                              <Text style={[styles.donutCenterLabel, { color: theme.secondaryText }]}>
-                                {activeTab === 'total' ? 'Flow' : activeTab === 'expense' ? 'Spent' : 'Earned'}
-                              </Text>
-                              <Text style={[styles.donutCenterValue, { color: activeTab === 'total' ? theme.tint : activeTab === 'expense' ? theme.expense : theme.income }]}>
-                                {Currency.format(total || 0)}
-                              </Text>
-                            </View>
-                          )}
-                        />
-                        <View style={styles.donutLegendRow}>
-                          {pieData.slice(0, Math.min(4, pieData.length)).map((item: any, i: number) => (
-                            <View key={i} style={[styles.donutLegendItem, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth }]}>
-                              <View style={[styles.donutLegendDot, { backgroundColor: item.color }]} />
-                              <ThemedText style={styles.donutLegendName} numberOfLines={1}>{item.category}</ThemedText>
-                              <Text style={[styles.donutLegendPct, { color: item.color }]}>{item.text}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      </>
+                      <ConnectedDonutChart
+                        slices={pieData}
+                        centerTitle={activeTab === 'total' ? 'Flow' : activeTab === 'expense' ? 'Spent' : 'Earned'}
+                        centerValue={Currency.format(total || 0)}
+                        theme={theme}
+                      />
                     ) : (
                       <View style={styles.emptyChart}>
                         <Ionicons name="pie-chart-outline" size={56} color={theme.icon} />
@@ -399,9 +384,7 @@ export default function AnalyticsScreen() {
                       </View>
                       <View style={[styles.catSection, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
                         {sortedCategories.map((item: any, i: number) => {
-                          const color = activeTab === 'total'
-                            ? (item.itemType === 'income' ? theme.income : theme.expense)
-                            : activeTab === 'income' ? theme.income : theme.expense;
+                          const color = CATEGORY_COLORS[item.category] ?? CATEGORY_PALETTE[i % CATEGORY_PALETTE.length];
                           const pct = activeTab === 'total'
                             ? (total > 0 ? (Number(item.amount) / total) * 100 : 0)
                             : parseFloat(item.percentage);
@@ -631,21 +614,21 @@ export default function AnalyticsScreen() {
 
 const styles = StyleSheet.create({
   container:    { flex: 1 },
-  header:       { paddingHorizontal: 12, marginBottom: 12, height: 40, flexDirection: 'row', alignItems: 'center' },
-  monthSelector:{ flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title:        { fontSize: 20, fontWeight: '800' },
+  header:       { paddingHorizontal: 6, marginBottom: 8, height: 36, flexDirection: 'row', alignItems: 'center' },
+  monthSelector:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title:        { fontSize: 17, lineHeight: 20, fontWeight: '800' },
 
-  modeTabs:     { flexDirection: 'row', marginHorizontal: 12, borderRadius: 12, padding: 3, marginBottom: 12, gap: 4 },
-  modeTab:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 10 },
-  modeTabText:  { fontSize: 12, fontWeight: '700' },
+  modeTabs:     { flexDirection: 'row', marginHorizontal: 8, borderRadius: 12, padding: 0, marginBottom: 6, gap: 4 },
+  modeTab:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 10 },
+  modeTabText:  { fontSize: 11, fontWeight: '700' },
 
-  scrollContent:{ paddingHorizontal: 12, paddingBottom: 120 },
+  scrollContent:{ paddingHorizontal: 8, paddingBottom: 96, paddingTop: 2 },
 
-  compRow:      { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  netCard:      { borderRadius: 12, paddingVertical: 18, paddingHorizontal: 16, marginBottom: 16, alignItems: 'center', justifyContent: 'center' },
+  compRow:      { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  netCard:      { borderRadius: 16, paddingVertical: 14, paddingHorizontal: 14, marginBottom: 10, alignItems: 'center', justifyContent: 'center' },
   netLabel:     { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
-  netValue:     { fontSize: 32, fontWeight: '900', marginBottom: 10 },
-  savingsBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1 },
+  netValue:     { fontSize: 28, fontWeight: '900', marginBottom: 6 },
+  savingsBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 18, borderWidth: 1 },
   savingsText:  { fontSize: 11, fontWeight: '700' },
 
   tabBar:       { flexDirection: 'row', padding: 4, borderRadius: 12, marginBottom: 12, gap: 4 },
@@ -653,21 +636,13 @@ const styles = StyleSheet.create({
   tabText:      { fontSize: 13, fontWeight: '600' },
   tabSubText:   { fontSize: 11, fontWeight: '700', marginTop: 1 },
 
-  donutWrap:          { alignItems: 'center', marginBottom: 12 },
-  donutCenter:        { alignItems: 'center' },
-  donutCenterLabel:   { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  donutCenterValue:   { fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.5, marginTop: 2 },
-  donutLegendRow:     { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 20, paddingHorizontal: 10 },
-  donutLegendItem:    { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
-  donutLegendDot:     { width: 8, height: 8, borderRadius: 4 },
-  donutLegendName:    { fontSize: 11, fontWeight: '600', maxWidth: 70 },
-  donutLegendPct:     { fontSize: 11, fontWeight: '800' },
+  donutWrap:          { alignItems: 'center', marginBottom: 10 },
 
-  sectionHeader:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 12 },
-  catSection:   { borderRadius: 12, padding: 16, gap: 14 },
+  sectionHeader:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 6 },
+  catSection:   { borderRadius: 14, padding: 13, gap: 12 },
 
   memberList:   { gap: 12 },
-  memberCard:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 12 },
+  memberCard:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 14 },
   memberInfo:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
   memberPhoto:  { width: 40, height: 40, borderRadius: 20 },
   memberPhotoPlaceholder: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
@@ -675,18 +650,18 @@ const styles = StyleSheet.create({
   memberMeta:   { fontSize: 12 },
   memberAmount: { fontSize: 16, fontWeight: '800' },
 
-  insightCard:  { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 12, marginTop: 12 },
+  insightCard:  { flexDirection: 'row', alignItems: 'center', padding: 13, borderRadius: 14, marginTop: 8 },
   insightTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   insightBody:  { fontSize: 13, lineHeight: 18 },
 
-  chartCard:    { borderRadius: 12, padding: 20, alignItems: 'center' },
-  trendLegend:  { flexDirection: 'row', gap: 16, alignSelf: 'flex-start', marginBottom: 12 },
+  chartCard:    { borderRadius: 16, padding: 12, alignItems: 'center' },
+  trendLegend:  { flexDirection: 'row', gap: 12, alignSelf: 'flex-start', marginBottom: 10 },
   trendLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   trendLegendDot:  { width: 10, height: 10, borderRadius: 5 },
   trendLegendText: { fontSize: 12, fontWeight: '600' },
 
-  monthlyList:  { gap: 12 },
-  monthlyItem:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 12 },
+  monthlyList:  { gap: 9 },
+  monthlyItem:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 11, borderRadius: 14 },
   monthlyLeft:  { gap: 4 },
   monthlyLabel: { fontSize: 14, fontWeight: '700' },
   monthlySubRow:{ flexDirection: 'row', alignItems: 'center' },

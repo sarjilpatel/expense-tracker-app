@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   typeToggleText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#71717A',
   },
   activeTypeText: {
     color: '#FFF',
