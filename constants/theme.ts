@@ -2,10 +2,10 @@ import { Platform } from 'react-native';
 
 const primaryLight  = '#18181B';
 const primaryDark   = '#3F3F46';
-const successLight  = '#1999FC';
-const successDark   = '#1999FC';
-const dangerLight   = '#F55345';
-const dangerDark    = '#F55345';
+const successLight  = '#5AAEF0';
+const successDark   = '#5AAEF0';
+const dangerLight   = '#E07068';
+const dangerDark    = '#E07068';
 const warningLight  = '#71717A';
 const warningDark   = '#A1A1AA';
 
@@ -109,17 +109,17 @@ export const THEME_PRESETS: ThemePreset[] = [
     light: {
       accent: '#18181B',
       accentText: '#FFFFFF',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
     dark: {
       accent: '#3F3F46',
       accentText: '#FFFFFF',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
   },
@@ -128,17 +128,17 @@ export const THEME_PRESETS: ThemePreset[] = [
     light: {
       accent: '#27272A',
       accentText: '#FFFFFF',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
     dark: {
       accent: '#52525B',
       accentText: '#FFFFFF',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
   },
@@ -147,17 +147,17 @@ export const THEME_PRESETS: ThemePreset[] = [
     light: {
       accent: '#3F3F46',
       accentText: '#FFFFFF',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
     dark: {
       accent: '#71717A',
       accentText: '#FFFFFF',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
   },
@@ -166,17 +166,17 @@ export const THEME_PRESETS: ThemePreset[] = [
     light: {
       accent: '#52525B',
       accentText: '#FFFFFF',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
     dark: {
       accent: '#A1A1AA',
       accentText: '#18181B',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
   },
@@ -185,17 +185,17 @@ export const THEME_PRESETS: ThemePreset[] = [
     light: {
       accent: '#18181B',
       accentText: '#FFFFFF',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
     dark: {
       accent: '#F4F4F5',
       accentText: '#18181B',
-      income: '#1999FC',
+      income: '#5AAEF0',
       incomeText: '#FFFFFF',
-      expense: '#F55345',
+      expense: '#E07068',
       expenseText: '#FFFFFF',
     },
   },

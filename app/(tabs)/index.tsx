@@ -631,7 +631,7 @@ export default function HomeScreen() {
 
           <View style={styles.summaryRow}>
             <TouchableOpacity
-              style={[styles.summaryCard, { backgroundColor: theme.background }]}
+              style={[styles.summaryCard, { backgroundColor: theme.background, borderColor: theme.tint, borderWidth: StyleSheet.hairlineWidth }]}
               onPress={() => setActiveFilters(DEFAULT_FILTERS)}
               activeOpacity={0.75}
             >
@@ -646,7 +646,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.summaryCard, { backgroundColor: theme.income + '0F' }]}
+              style={[styles.summaryCard, { borderColor: theme.income, borderWidth: activeFilters.type === 'income' ? 1 : StyleSheet.hairlineWidth }]}
               onPress={() => setActiveFilters(prev => ({ ...prev, type: 'income' }))}
               activeOpacity={0.75}
             >
@@ -661,7 +661,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.summaryCard, { backgroundColor: theme.expense + '0F' }]}
+              style={[styles.summaryCard, { borderColor: theme.expense, borderWidth: activeFilters.type === 'expense' ? 1 : StyleSheet.hairlineWidth }]}
               onPress={() => setActiveFilters(prev => ({ ...prev, type: 'expense' }))}
               activeOpacity={0.75}
             >
@@ -741,7 +741,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container:     { flex: 1 },
-  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 6, height: 36, marginBottom: 8 },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 36, marginBottom: 8 },
   monthSelector: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   monthText:     { fontSize: 17, fontWeight: '800' },
   headerIcons:   { flexDirection: 'row', gap: 8, alignItems: 'center' },
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
   notifDot:      { position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: '#FFF' },
 
   topBlock: {
-    marginHorizontal: 0,
+    marginHorizontal: 8,
     marginBottom: 4,
   },
 

@@ -51,7 +51,7 @@ export function ViewModeTabs({ active, onPress, tintColor, secondaryText }: Prop
 
 const styles = StyleSheet.create({
   track: {
-    marginHorizontal: 8,
+    marginHorizontal: 0,
     borderRadius: 12,
     padding: 2,
     marginBottom: 6,

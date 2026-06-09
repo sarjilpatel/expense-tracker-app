@@ -36,42 +36,75 @@ export const CATEGORY_ICONS: Record<string, string> = {
   Household: 'home-outline',
 };
 
-// Muted, distinct per-category colours. Saturation ≈ 45–60 %, lightness ≈ 54–65 %
-// so they read on both light and dark cards without looking neon.
+// Per-category colours — expense categories use warm tones, income categories use cool/green tones.
+// Saturation ≈ 45–58 %, lightness ≈ 50–62 % — readable on both light & dark, never neon.
 export const CATEGORY_COLORS: Record<string, string> = {
-  Food:          '#D97B6C',   // terracotta
-  Transport:     '#6B9ED4',   // steel blue
-  Transportation:'#6B9ED4',
-  Shopping:      '#9B82C8',   // lavender
-  Rent:          '#6BA88C',   // sage green
-  Entertainment: '#D4924E',   // amber
-  Health:        '#C97A88',   // dusty rose
-  Bills:         '#7BA3C4',   // sky blue
-  Education:     '#8FA85E',   // olive
-  Investment:    '#4AACB8',   // teal
-  Income:        '#6AAE78',   // leaf green
-  Salary:        '#79A86A',   // medium green
-  Other:         '#A0A0A0',   // neutral gray
-  Beauty:        '#D485A0',   // dusty pink
-  Recharge:      '#56B0C8',   // muted cyan
-  Apparel:       '#B880AC',   // muted plum
-  Household:     '#C8A84B',   // golden mustard
-  Business:      '#8A7EC8',   // muted indigo
-  Gift:          '#D49070',   // muted peach
-  Culture:       '#7AAEC8',   // muted cerulean
-  Travel:        '#5AACAB',   // seafoam
-  Groceries:     '#8BBF66',   // muted lime
-  Subscriptions: '#AB85C0',   // muted purple
-  Pets:          '#C8956A',   // caramel
-  Sports:        '#5AAC8A',   // muted emerald
-  Dining:        '#C87060',   // burnt sienna
+  // ── Expense categories (warm spectrum: red → orange → amber → olive) ──
+  Food:          '#BF5048',   // muted crimson-red
+  Dining:        '#C4603C',   // muted red-orange
+  Shopping:      '#C47038',   // muted burnt orange
+  Entertainment: '#C48838',   // muted amber-orange
+  Household:     '#C4A040',   // muted golden amber
+  Rent:          '#B09848',   // muted yellow-ochre
+  Bills:         '#A49450',   // muted olive-amber
+  Recharge:      '#9A9050',   // muted olive-yellow
+  Beauty:        '#C05870',   // muted rose (warm pink sits near red end)
+  Apparel:       '#B06090',   // muted plum-rose
+  Pets:          '#C47848',   // muted caramel-orange
+  Health:        '#C06070',   // muted dusty rose
+  Subscriptions: '#9878B0',   // muted purple (warm tail)
+  // ── Income / savings categories (cool/fresh spectrum: green → teal → blue) ──
+  Income:        '#52A870',   // muted leaf green
+  Salary:        '#60A878',   // medium green
+  Investment:    '#44A4B0',   // muted teal
+  Travel:        '#50A8A0',   // seafoam
+  Groceries:     '#7AB060',   // muted lime green
+  Education:     '#8AA45C',   // muted olive green
+  Transport:     '#5E98C8',   // muted cornflower blue
+  Transportation:'#5E98C8',
+  Culture:       '#6898B8',   // muted cerulean
+  Sports:        '#58A888',   // muted emerald
+  Business:      '#7878BC',   // muted indigo
+  Gift:          '#C49068',   // muted peach (warm — gifts are spending)
+  // ── Neutral ──
+  Other:         '#9898A0',   // cool gray
 };
 
-// Cycling fallback for user-defined categories not in the map above
+// Generic cycling fallback (kept for backwards compat)
 export const CATEGORY_PALETTE: string[] = [
   '#D97B6C', '#6B9ED4', '#9B82C8', '#6BA88C',
   '#D4924E', '#C97A88', '#4AACB8', '#C8A84B',
   '#8A7EC8', '#5AACAB', '#D485A0', '#8FA85E',
+];
+
+// Warm spectrum for expense charts: red → orange → amber → olive → neutral
+export const EXPENSE_PALETTE: string[] = [
+  '#BF5048', // muted crimson
+  '#C4633C', // muted red-orange
+  '#C47438', // muted burnt orange
+  '#C48B3A', // muted amber
+  '#C4A040', // muted golden amber
+  '#B09848', // muted yellow-ochre
+  '#9A9450', // muted olive-yellow
+  '#8AA45C', // muted olive green
+  '#9E82B8', // muted lavender (tail)
+  '#7898BC', // muted steel blue (tail)
+  '#A09898', // warm gray
+];
+
+// Cool/fresh spectrum for income charts: green → teal → blue → indigo → neutral
+export const INCOME_PALETTE: string[] = [
+  '#52A870', // muted leaf green
+  '#44A4B0', // muted teal
+  '#50A8A0', // seafoam
+  '#4EAABF', // muted cyan
+  '#5E98C8', // muted cornflower blue
+  '#6A9CB8', // sky blue
+  '#7E7EBC', // muted indigo
+  '#9880B8', // muted lavender
+  '#7AB060', // muted lime green
+  '#60A080', // sage teal
+  '#9898A0', // cool gray
 ];
 
 export const CATEGORY_EMOJIS: Record<string, string> = {

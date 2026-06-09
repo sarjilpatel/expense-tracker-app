@@ -7,6 +7,7 @@ type DonutSlice = {
   color: string;
   category: string;
   text: string;
+  emoji?: string;
 };
 
 type LabelItem = DonutSlice & {
@@ -82,7 +83,7 @@ function resolvePositions(items: LabelItem[], lo: number, hi: number) {
 export function ConnectedDonutChart({ slices, centerTitle, centerValue, theme }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const W = Math.min(windowWidth - 16, 420);
-  const H = 340;
+  const H = 255;
 
   const chart = useMemo(() => {
     const total = slices.reduce((s, sl) => s + sl.value, 0);
@@ -200,7 +201,6 @@ export function ConnectedDonutChart({ slices, centerTitle, centerValue, theme }:
       </View>
 
       {arranged.map((item, i) => (
-        // Outer wrapper carries the shadow so it isn't clipped by overflow:hidden below
         <View
           key={`lbl-${i}`}
           style={[
@@ -208,22 +208,11 @@ export function ConnectedDonutChart({ slices, centerTitle, centerValue, theme }:
             {
               left: item.chipX,
               top: item.chipY,
-              shadowColor: item.color,
             },
           ]}
         >
-          {/* Inner shell: clips the tinted background to rounded corners */}
-          <View style={[styles.chipInner, { borderColor: item.color, backgroundColor: theme.card }]}>
-            {/* Tinted glass fill — slice color at low opacity */}
-            <View style={[StyleSheet.absoluteFillObject, styles.chipTint, { backgroundColor: item.color }]} />
-
-            {/* Halo dot */}
-            <View style={styles.dotWrap}>
-              <View style={[styles.dotRing, { backgroundColor: item.color }]} />
-              <View style={[styles.dotCore, { backgroundColor: item.color }]} />
-            </View>
-
-            {/* Text */}
+          <View style={[styles.chipInner, { borderColor: theme.border, backgroundColor: theme.card }]}>
+            <Text style={styles.emoji}>{item.emoji ?? '🏷️'}</Text>
             <View style={styles.chipText}>
               <Text style={[styles.cat, { color: theme.secondaryText }]} numberOfLines={1}>
                 {item.category}
@@ -268,42 +257,25 @@ const styles = StyleSheet.create({
     width: LABEL_W,
     height: LABEL_H,
     borderRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
   },
   chipInner: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 8,
-    gap: 6,
+    gap: 5,
     overflow: 'hidden',
   },
-  chipTint: {
-    opacity: 0.1,
-  },
-  dotWrap: {
-    width: 14,
-    height: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+  emoji: {
+    fontSize: 14,
     flexShrink: 0,
-  },
-  dotRing: {
-    position: 'absolute',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    opacity: 0.22,
-  },
-  dotCore: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
   },
   chipText: {
     flex: 1,

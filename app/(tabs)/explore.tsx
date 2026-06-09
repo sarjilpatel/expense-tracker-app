@@ -24,7 +24,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Currency, TYPE_SCALE } from '@/constants/theme';
 import { CategoryBar } from '@/components/analytics/CategoryBar';
 import { ConnectedDonutChart } from '@/components/analytics/ConnectedDonutChart';
-import { MONTHS, CATEGORY_COLORS, CATEGORY_PALETTE } from '@/constants/maps';
+import { MONTHS, CATEGORY_COLORS, CATEGORY_EMOJIS, EXPENSE_PALETTE, INCOME_PALETTE } from '@/constants/maps';
 import {
   getCachedAnalytics, setCachedAnalytics,
   getCachedTrend, setCachedTrend,
@@ -209,6 +209,7 @@ export default function AnalyticsScreen() {
           color: theme.income,
           text: `${Math.round((inc / gross) * 100)}%`,
           category: t('income'),
+          emoji: CATEGORY_EMOJIS['Income'] ?? '💰',
           percentage: (inc / gross) * 100,
         },
         {
@@ -216,17 +217,20 @@ export default function AnalyticsScreen() {
           color: theme.expense,
           text: `${Math.round((exp / gross) * 100)}%`,
           category: t('expenses'),
+          emoji: CATEGORY_EMOJIS['Food'] ?? '💸',
           percentage: (exp / gross) * 100,
         },
       ];
     }
+    const palette = activeTab === 'income' ? INCOME_PALETTE : EXPENSE_PALETTE;
     return sortedCategories.map((item: any, i: number) => {
-      const color = CATEGORY_COLORS[item.category] ?? CATEGORY_PALETTE[i % CATEGORY_PALETTE.length];
+      const color = CATEGORY_COLORS[item.category] ?? palette[i % palette.length];
       return {
         value: item.amount,
         color,
         text: `${Math.round(item.percentage)}%`,
         category: t(item.category),
+        emoji: CATEGORY_EMOJIS[item.category] ?? '🏷️',
         percentage: item.percentage,
       };
     });
@@ -279,7 +283,7 @@ export default function AnalyticsScreen() {
         </View>
 
         {/* ── Tabs — always visible ── */}
-        <View style={[styles.modeTabs, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth }]}>
+        <View style={[styles.modeTabs, { backgroundColor: theme.card }]}>
           {(['overview', 'trends'] as ViewMode[]).map(mode => (
             <TouchableOpacity
               key={mode}
@@ -316,21 +320,6 @@ export default function AnalyticsScreen() {
               {/* ════════════ OVERVIEW ════════════ */}
               {viewMode === 'overview' && (
                 <>
-                  <Animated.View entering={FadeInDown.duration(300)} style={[styles.netCard, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
-                    <ThemedText style={styles.netLabel}>Net Balance</ThemedText>
-                    <Text style={[styles.netValue, { color: (data?.balance || 0) >= 0 ? theme.income : theme.expense }]}>
-                      {(data?.balance || 0) >= 0 ? '+' : ''}{Currency.format(data?.balance || 0)}
-                    </Text>
-                    {data?.totalIncome > 0 && (
-                      <View style={[styles.savingsBadge, { backgroundColor: theme.tint + '15', borderColor: theme.tint }]}>
-                        <Ionicons name="trending-up" size={12} color={theme.tint} />
-                        <Text style={[styles.savingsText, { color: theme.tint }]}>
-                          Savings Rate: {Math.max(0, Math.round(((data.totalIncome - data.totalExpense) / data.totalIncome) * 100))}%
-                        </Text>
-                      </View>
-                    )}
-                  </Animated.View>
-
                       <View style={styles.donutWrap}>
                     {pieData.length > 0 ? (
                       <ConnectedDonutChart
@@ -384,7 +373,8 @@ export default function AnalyticsScreen() {
                       </View>
                       <View style={[styles.catSection, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
                         {sortedCategories.map((item: any, i: number) => {
-                          const color = CATEGORY_COLORS[item.category] ?? CATEGORY_PALETTE[i % CATEGORY_PALETTE.length];
+                          const _palette = activeTab === 'income' ? INCOME_PALETTE : EXPENSE_PALETTE;
+                          const color = CATEGORY_COLORS[item.category] ?? _palette[i % _palette.length];
                           const pct = activeTab === 'total'
                             ? (total > 0 ? (Number(item.amount) / total) * 100 : 0)
                             : parseFloat(item.percentage);
@@ -618,9 +608,9 @@ const styles = StyleSheet.create({
   monthSelector:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
   title:        { fontSize: 17, lineHeight: 20, fontWeight: '800' },
 
-  modeTabs:     { flexDirection: 'row', marginHorizontal: 8, borderRadius: 12, padding: 0, marginBottom: 6, gap: 4 },
-  modeTab:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 10 },
-  modeTabText:  { fontSize: 11, fontWeight: '700' },
+  modeTabs:     { flexDirection: 'row', marginHorizontal: 8, borderRadius: 12, padding: 2, marginBottom: 6, gap: 4 },
+  modeTab:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 7, borderRadius: 9 },
+  modeTabText:  { fontSize: 12, fontWeight: '700' },
 
   scrollContent:{ paddingHorizontal: 8, paddingBottom: 96, paddingTop: 2 },
 
