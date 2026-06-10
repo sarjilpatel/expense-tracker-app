@@ -42,12 +42,21 @@ function RootLayoutNav() {
 
   const [showSync, setShowSync] = useState(false);
   const [locked, setLocked]     = useState(false);
+  const [lockChecked, setLockChecked] = useState(false);
   const prevIsGuest = useRef<boolean | null>(null);
 
   // Inject logout into apiClient for 401 handling
   useEffect(() => {
     apiClient.injectLogout(logout);
   }, [logout]);
+
+  // Cold-start lock check
+  useEffect(() => {
+    shouldLock().then(lock => {
+      if (lock) setLocked(true);
+      setLockChecked(true);
+    });
+  }, []);
 
   // AppState-based lock
   useEffect(() => {
@@ -87,7 +96,7 @@ function RootLayoutNav() {
     SplashScreen.hideAsync();
   }, [user, loading, segments, router]);
 
-  if (loading) {
+  if (loading || !lockChecked) {
     const bg = colorScheme === 'dark' ? Colors.dark.background : Colors.light.background;
     return (
       <View style={[loadingStyles.container, { backgroundColor: bg }]}>

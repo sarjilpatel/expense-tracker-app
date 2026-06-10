@@ -33,7 +33,8 @@ import {
 } from '@/src/services/notificationService';
 import { discardLocalData, getLastSyncTime } from '@/src/services/syncService';
 import apiClient from '@/src/services/apiClient';
-import { setPin, disableLock, isLockEnabled } from '@/src/services/lockService';
+import { disableLock, isLockEnabled, isBiometricAvailable, getBiometricEnabled, setBiometricEnabled } from '@/src/services/lockService';
+import { PinSetupModal } from '@/components/PinSetupModal';
 import { generateMonthlyPDF } from '@/src/services/reportService';
 import { getAnalytics } from '@/src/services/dataService';
 import { TYPE_SCALE } from '@/constants/theme';
@@ -120,7 +121,10 @@ export default function SettingsScreen() {
   const [exportCustomTo,   setExportCustomTo]   = useState(() => { const d = new Date(); d.setHours(23,59,59,999); return d; });
   const [exportShowCustom, setExportShowCustom] = useState(false);
   const [exportDateTarget, setExportDateTarget] = useState<'from' | 'to' | null>(null);
-  const [lockEnabled,   setLockEnabled]  = useState(false);
+  const [lockEnabled,      setLockEnabled]     = useState(false);
+  const [showPinSetup,     setShowPinSetup]    = useState(false);
+  const [biometricAvail,   setBiometricAvail]  = useState(false);
+  const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime,    setReminderTime]    = useState<{ hour: number; minute: number } | null>(null);
   const [wiping,             setWiping]             = useState(false);
@@ -163,6 +167,8 @@ export default function SettingsScreen() {
   useFocusEffect(useCallback(() => {
     fetchData();
     isLockEnabled().then(setLockEnabled).catch(() => {});
+    isBiometricAvailable().then(setBiometricAvail).catch(() => {});
+    getBiometricEnabled().then(setBiometricEnabledState).catch(() => {});
     getReminderTime().then(t => {
       if (t) { setReminderEnabled(true); setReminderTime(t); }
       else    { setReminderEnabled(false); setReminderTime(null); }
@@ -191,22 +197,26 @@ export default function SettingsScreen() {
     if (lockEnabled) {
       Alert.alert('Disable PIN Lock', 'Remove the app lock?', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Disable', style: 'destructive', onPress: async () => { await disableLock(); setLockEnabled(false); } },
-      ]);
-    } else {
-      Alert.prompt('Set PIN', 'Enter a 4-digit PIN', [
-        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Set', onPress: async (pin) => {
-            if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-              Alert.alert('Invalid PIN', 'PIN must be exactly 4 digits.'); return;
-            }
-            await setPin(pin);
-            setLockEnabled(true);
-            Alert.alert('PIN set', 'App will lock after 30 seconds in the background.');
+          text: 'Disable', style: 'destructive', onPress: async () => {
+            await disableLock();
+            setLockEnabled(false);
+            setBiometricEnabledState(false);
           },
         },
-      ], 'secure-text');
+      ]);
+    } else {
+      setShowPinSetup(true);
+    }
+  };
+
+  const handleToggleBiometric = async () => {
+    if (biometricEnabled) {
+      await setBiometricEnabled(false);
+      setBiometricEnabledState(false);
+    } else {
+      await setBiometricEnabled(true);
+      setBiometricEnabledState(true);
     }
   };
 
@@ -659,7 +669,7 @@ export default function SettingsScreen() {
             <View style={S.rowMid}>
               <Text style={[S.rowTitle, { color: theme.text }]}>PIN Lock</Text>
               <Text style={[S.rowSub, { color: theme.secondaryText }]}>
-                {lockEnabled ? 'Locks after 30s in background' : 'Protect the app with a 4-digit PIN'}
+                {lockEnabled ? 'Locks after 5 min in background' : 'Protect the app with a 4-digit PIN'}
               </Text>
             </View>
             <Switch
@@ -669,6 +679,28 @@ export default function SettingsScreen() {
               thumbColor={lockEnabled ? theme.tint : theme.secondaryText}
             />
           </View>
+          {biometricAvail && lockEnabled && (
+            <>
+              <Sep />
+              <View style={S.row}>
+                <View style={[S.iconBox, { backgroundColor: '#6366F1' }]}>
+                  <Ionicons name="finger-print" size={18} color='#FFF' />
+                </View>
+                <View style={S.rowMid}>
+                  <Text style={[S.rowTitle, { color: theme.text }]}>Biometric Unlock</Text>
+                  <Text style={[S.rowSub, { color: theme.secondaryText }]}>
+                    {biometricEnabled ? 'Face ID / fingerprint active' : 'Use Face ID or fingerprint instead of PIN'}
+                  </Text>
+                </View>
+                <Switch
+                  value={biometricEnabled}
+                  onValueChange={handleToggleBiometric}
+                  trackColor={{ false: theme.border, true: '#6366F1' }}
+                  thumbColor={biometricEnabled ? '#6366F1' : theme.secondaryText}
+                />
+              </View>
+            </>
+          )}
           <Sep />
           <View style={S.row}>
             <View style={[S.iconBox, { backgroundColor: theme.warning ?? theme.secondaryText }]}>
@@ -986,6 +1018,16 @@ export default function SettingsScreen() {
           <Text style={[S.exportLoadingText, { color: theme.text }]}>Exporting…</Text>
         </View>
       )}
+
+      <PinSetupModal
+        visible={showPinSetup}
+        onClose={() => setShowPinSetup(false)}
+        onSuccess={() => {
+          setShowPinSetup(false);
+          setLockEnabled(true);
+          Alert.alert('PIN set', 'App will lock after 5 minutes in the background.');
+        }}
+      />
     </ThemedView>
   );
 }
