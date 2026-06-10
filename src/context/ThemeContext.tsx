@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, ThemeColors, THEME_PRESETS } from '@/constants/theme';
+import { Colors, ThemeColors, THEME_PRESETS, getContrastText } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const STORAGE_KEY = '@theme_overrides_v1';
@@ -71,7 +71,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const activePresetColors = activePreset ? activePreset[activeScheme] : undefined;
 
   const currentTint = overrides.tint ?? activePresetColors?.accent ?? base.tint;
-  const currentTintText = overrides.tintText ?? activePresetColors?.accentText ?? base.tintText;
+  // Manual tint override → always auto-compute contrast. Preset → trust the preset's declared accentText.
+  const currentTintText = overrides.tint
+    ? getContrastText(currentTint)
+    : (activePresetColors?.accentText ?? getContrastText(currentTint));
   const currentIncome = overrides.income ?? activePresetColors?.income ?? base.income;
   const currentIncomeText = activePresetColors?.incomeText ?? base.incomeText;
   const currentExpense = overrides.expense ?? activePresetColors?.expense ?? base.expense;

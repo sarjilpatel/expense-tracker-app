@@ -2,19 +2,24 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/src/context/ThemeContext';
-import { Currency, THEME_PRESETS, ThemePreset } from '@/constants/theme';
+import { Currency, THEME_PRESETS, ThemePreset, getContrastText } from '@/constants/theme';
 import * as Haptics from 'expo-haptics';
 
 const ACCENT_COLORS = [
-  { label: 'Graphite',   value: '#18181B', text: '#FFFFFF' },
-  { label: 'Slate',      value: '#27272A', text: '#FFFFFF' },
-  { label: 'Ash',        value: '#3F3F46', text: '#FFFFFF' },
-  { label: 'Pearl',      value: '#52525B', text: '#FFFFFF' },
-  { label: 'Charcoal',   value: '#18181B', text: '#FFFFFF' },
-  { label: 'Cloud',      value: '#E5E7EB', text: '#18181B' },
+  { label: 'Graphite', value: '#18181B' }, // default — zinc-950
+  { label: 'Slate',    value: '#475569' }, // slate-600 — neutral with blue character
+  { label: 'Indigo',   value: '#4F46E5' }, // indigo-600 — classic indigo
+  { label: 'Ocean',    value: '#1D4ED8' }, // blue-700 — rich blue
+  { label: 'Teal',     value: '#0F766E' }, // teal-700 — deep teal
+  { label: 'Forest',   value: '#15803D' }, // green-700 — forest green
+  { label: 'Dusk',     value: '#6D28D9' }, // violet-700 — deep violet
+  { label: 'Rose',     value: '#BE185D' }, // pink-700 — deep rose
+  { label: 'Ember',    value: '#C2410C' }, // orange-700 — burnt orange
+  { label: 'Cloud',    value: '#E5E7EB' }, // light — reversed feel
 ];
 
 const INCOME_COLORS = [
@@ -28,6 +33,7 @@ const EXPENSE_COLORS = [
 export default function CustomizationScreen() {
   const { theme, overrides, setOverride, resetTheme } = useTheme();
   const colorScheme = useColorScheme();
+  const { top } = useSafeAreaInsets();
 
   const currentAccent  = overrides.tint    ?? theme.tint;
   const currentIncome  = overrides.income  ?? theme.income;
@@ -36,19 +42,12 @@ export default function CustomizationScreen() {
   const handleSelect = (key: 'tint' | 'income' | 'expense', val: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setOverride(key, val);
-    if (key === 'tint') {
-      const match = ACCENT_COLORS.find(c => c.value === val);
-      if (match) {
-        setOverride('tintText', match.text);
-      }
-    }
   };
 
   const applyPreset = (preset: ThemePreset) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setOverride('presetName', preset.name);
     setOverride('tint', '');
-    setOverride('tintText', '');
     setOverride('income', '');
     setOverride('expense', '');
   };
@@ -56,7 +55,7 @@ export default function CustomizationScreen() {
   return (
     <>
     <Stack.Screen options={{ contentStyle: { backgroundColor: theme.background } }} />
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={16}>
@@ -183,7 +182,7 @@ export default function CustomizationScreen() {
               style={[styles.colorSwatch, { backgroundColor: c.value }]}
               activeOpacity={0.8}
             >
-              {currentAccent === c.value && <Ionicons name="checkmark" size={16} color="#FFF" />}
+              {currentAccent === c.value && <Ionicons name="checkmark" size={16} color={getContrastText(c.value)} />}
             </TouchableOpacity>
           ))}
         </View>
@@ -232,13 +231,14 @@ export default function CustomizationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60 },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    height: 36,
   },
   backBtn: {
     width: 40,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 60,
   },
   sectionTitle: {

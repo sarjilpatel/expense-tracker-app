@@ -6,6 +6,7 @@ import {
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Currency } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -24,6 +25,7 @@ export default function AccountDetailScreen() {
   const { theme } = useTheme();
   const { t } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { top } = useSafeAreaInsets();
 
   const [account, setAccount]         = useState<Account | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -80,7 +82,7 @@ export default function AccountDetailScreen() {
 
   if (loading && !account) {
     return (
-      <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <ThemedView style={[styles.container, { paddingTop: top + 8, justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={theme.tint} />
       </ThemedView>
     );
@@ -91,7 +93,7 @@ export default function AccountDetailScreen() {
   const meta = ACCOUNT_TYPE_META[account.type];
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
 
       {/* Header */}
       <View style={styles.header}>
@@ -185,7 +187,7 @@ export default function AccountDetailScreen() {
                 onLongPress={() => {}}
                 isFirst={index === 0}
                 isLast={index === transactions.length - 1}
-                marginHorizontal={12}
+                marginHorizontal={8}
               />
             ))}
           </View>
@@ -198,10 +200,10 @@ export default function AccountDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60 },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 12, marginBottom: 12,
+    paddingHorizontal: 8, marginBottom: 8, height: 36,
   },
   backBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   editBtn: { width: 36, height: 36, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
@@ -209,7 +211,7 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 80 },
 
   accountCard: {
-    marginHorizontal: 12, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: 8, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
     padding: 20, marginBottom: 8,
   },
   accountCardTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
@@ -225,8 +227,8 @@ const styles = StyleSheet.create({
   statDivider:    { width: 1 },
 
   sectionLabel: {
-    fontSize: 10, fontWeight: '800', letterSpacing: 0.5,
-    marginBottom: 12, marginTop: 24, paddingHorizontal: 12,
+    fontSize: 11, fontWeight: '800', letterSpacing: 0.5,
+    marginBottom: 12, marginTop: 24, paddingHorizontal: 8,
   },
 
   txList: {},

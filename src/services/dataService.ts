@@ -76,10 +76,10 @@ export const getCurrentGroup = () =>
     ? localCat.getLocalCategories()
     : remoteGrp.getCurrentGroup();
 
-export const addCategory = (name: string, icon: string, type: 'income' | 'expense' | 'both' = 'expense') =>
+export const addCategory = (name: string, icon: string, type: 'income' | 'expense' | 'both' = 'expense', emoji?: string) =>
   _isGuest
-    ? localCat.addLocalCategory(name, icon, type)
-    : remoteGrp.addCategory(name, icon, type);
+    ? localCat.addLocalCategory(name, icon, type, emoji)
+    : remoteGrp.addCategory(name, icon, type, emoji);
 
 export const removeCategory = (id: string) =>
   _isGuest

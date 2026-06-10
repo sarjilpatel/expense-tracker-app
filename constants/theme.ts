@@ -106,98 +106,43 @@ export interface ThemePreset {
 export const THEME_PRESETS: ThemePreset[] = [
   {
     name: 'Graphite',
-    light: {
-      accent: '#18181B',
-      accentText: '#FFFFFF',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
-    dark: {
-      accent: '#3F3F46',
-      accentText: '#FFFFFF',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
+    light: { accent: '#18181B', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    dark:  { accent: '#3F3F46', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
   },
   {
-    name: 'Slate',
-    light: {
-      accent: '#27272A',
-      accentText: '#FFFFFF',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
-    dark: {
-      accent: '#52525B',
-      accentText: '#FFFFFF',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
+    name: 'Ocean',
+    light: { accent: '#1D4ED8', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    dark:  { accent: '#2563EB', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
   },
   {
-    name: 'Ash',
-    light: {
-      accent: '#3F3F46',
-      accentText: '#FFFFFF',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
-    dark: {
-      accent: '#71717A',
-      accentText: '#FFFFFF',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
+    name: 'Forest',
+    light: { accent: '#15803D', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    dark:  { accent: '#15803D', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+  },
+  {
+    name: 'Dusk',
+    light: { accent: '#6D28D9', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    dark:  { accent: '#7C3AED', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+  },
+  {
+    name: 'Ember',
+    light: { accent: '#C2410C', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    dark:  { accent: '#C2410C', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
   },
   {
     name: 'Pearl',
-    light: {
-      accent: '#52525B',
-      accentText: '#FFFFFF',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
-    dark: {
-      accent: '#A1A1AA',
-      accentText: '#18181B',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
+    light: { accent: '#52525B', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    dark:  { accent: '#A1A1AA', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
   },
   {
-    name: 'Minimal Charcoal',
-    light: {
-      accent: '#18181B',
-      accentText: '#FFFFFF',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
-    dark: {
-      accent: '#F4F4F5',
-      accentText: '#18181B',
-      income: '#5AAEF0',
-      incomeText: '#FFFFFF',
-      expense: '#E07068',
-      expenseText: '#FFFFFF',
-    },
+    name: 'Azure',
+    light: { accent: '#5AAEF0', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    dark:  { accent: '#5AAEF0', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+  },
+  {
+    name: 'Coral',
+    light: { accent: '#E07068', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    dark:  { accent: '#E07068', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
   },
 ];
 
@@ -267,6 +212,17 @@ export function hexToRGBA(hex: string, alpha: number): string {
   const g = parseInt(cleanHex.substring(2, 4), 16);
   const b = parseInt(cleanHex.substring(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Returns '#FFFFFF' for dark backgrounds, '#18181B' for light backgrounds (WCAG luminance)
+export function getContrastText(hex: string): string {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  const toLinear = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+  const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  return lum > 0.179 ? '#18181B' : '#FFFFFF';
 }
 
 export function getCategoryColors(category: string, isDark: boolean) {

@@ -16,8 +16,9 @@ function buildHTML(
   month: number,
   year: number,
   groupName = 'My Group',
+  periodLabel?: string,
 ): string {
-  const monthName    = MONTHS[month - 1];
+  const monthName    = periodLabel ?? MONTHS[month - 1];
   const totalIncome  = analytics?.totalIncome  || 0;
   const totalExpense = analytics?.totalExpense || 0;
   const balance      = totalIncome - totalExpense;
@@ -84,7 +85,7 @@ function buildHTML(
   <div class="header">
     <div class="header-left">
       <h1>Monthly Report</h1>
-      <p>${monthName} ${year} · ${groupName}</p>
+      <p>${periodLabel ? monthName : `${monthName} ${year}`} · ${groupName}</p>
     </div>
     <div class="header-badge">Savings rate: ${savingsRate}%</div>
   </div>
@@ -131,8 +132,9 @@ export async function generateMonthlyPDF(
   month: number,
   year: number,
   groupName?: string,
+  periodLabel?: string,
 ): Promise<void> {
-  const html      = buildHTML(transactions, analytics, month, year, groupName);
+  const html      = buildHTML(transactions, analytics, month, year, groupName, periodLabel);
   const { uri }   = await Print.printToFileAsync({ html });
   const available = await Sharing.isAvailableAsync();
 

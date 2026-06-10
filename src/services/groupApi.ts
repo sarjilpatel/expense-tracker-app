@@ -5,6 +5,7 @@ export interface Category {
   _id: string;
   name: string;
   icon: string;
+  emoji?: string;
   type?: 'income' | 'expense' | 'both';
 }
 
@@ -65,9 +66,9 @@ export const switchGroup = async (groupId: string) => {
   }
 };
 
-export const addCategory = async (name: string, icon: string, type: 'income' | 'expense' | 'both' = 'expense') => {
+export const addCategory = async (name: string, icon: string, type: 'income' | 'expense' | 'both' = 'expense', emoji?: string) => {
   try {
-    const response = await apiClient.post('/group/categories', { name, icon, type });
+    const response = await apiClient.post('/group/categories', { name, icon, type, ...(emoji ? { emoji } : {}) });
     invalidateCachedGroup();
     return response.data;
   } catch (error: any) {

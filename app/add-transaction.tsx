@@ -286,6 +286,7 @@ export default function AddTransactionScreen() {
   };
 
   const accent = type === 'expense' ? theme.expense : type === 'income' ? theme.income : theme.tint;
+  const accentText = type === 'expense' ? theme.expenseText : type === 'income' ? theme.incomeText : theme.tintText;
   const isDark = theme.background === '#0D1117';
 
   return (
@@ -564,7 +565,7 @@ export default function AddTransactionScreen() {
             disabled={loading}
             activeOpacity={0.85}
           >
-            {loading ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.saveTxt}>Save</Text>}
+            {loading ? <ActivityIndicator color={accentText} size="small" /> : <Text style={[styles.saveTxt, { color: accentText }]}>Save</Text>}
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.contBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
@@ -642,20 +643,20 @@ export default function AddTransactionScreen() {
 
 const styles = StyleSheet.create({
   root:   { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12 },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, height: 36, marginBottom: 4 },
+  headerTitle: { fontSize: 17, fontWeight: '800' },
 
   segmentedWrap: {
     flexDirection: 'row', borderRadius: 14, padding: 4,
-    marginHorizontal: 12, marginBottom: 16, borderWidth: 1, height: 48,
+    marginHorizontal: 8, marginBottom: 16, borderWidth: 1, height: 48,
   },
   segmentedBtn:  { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
   segmentedText: { fontSize: 14, fontWeight: '700' },
 
-  scroll: { flex: 1, paddingHorizontal: 12 },
+  scroll: { flex: 1, paddingHorizontal: 8 },
 
   heroCard: {
-    borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 16,
+    borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 16,
     marginBottom: 16, alignItems: 'center', justifyContent: 'center',
   },
   heroLabel:      { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
@@ -664,18 +665,18 @@ const styles = StyleSheet.create({
   heroAmountText: { fontSize: 38, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
   heroEditIcon:   { marginLeft: 8 },
 
-  formCard: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginBottom: 16 },
+  formCard: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginBottom: 16 },
   formRow:  {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     minHeight: 56, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth,
   },
   formRowLeft:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBox:      { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  formLabel:    { fontSize: 14, fontWeight: '600' },
+  iconBox:      { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  formLabel:    { fontSize: 15, fontWeight: '600' },
   formRowRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, flex: 1 },
   dateTimeBtn:  { paddingVertical: 6, paddingHorizontal: 8 },
-  formValue:    { fontSize: 14, fontWeight: '600' },
-  inlineInput:  { flex: 1, fontSize: 14, fontWeight: '600', paddingVertical: 8, textAlign: 'right' },
+  formValue:    { fontSize: 15, fontWeight: '600' },
+  inlineInput:  { flex: 1, fontSize: 15, fontWeight: '600', paddingVertical: 8, textAlign: 'right' },
 
   recurringWrap: { marginBottom: 16 },
 
@@ -685,10 +686,10 @@ const styles = StyleSheet.create({
   descInput:     { flex: 1, fontSize: 14, paddingTop: 4, minHeight: 52, textAlignVertical: 'top' },
   cameraBtn:     { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 
-  bottom:    { flexDirection: 'row', gap: 12, paddingHorizontal: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  saveBtn:   { flex: 2, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  saveTxt:   { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  contBtn:   { flex: 1, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  bottom:    { flexDirection: 'row', gap: 12, paddingHorizontal: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  saveBtn:   { flex: 2, height: 56, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  saveTxt:   { fontSize: 17, fontWeight: '700' },
+  contBtn:   { flex: 1, height: 56, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
   contTxt:   { fontSize: 15, fontWeight: '700' },
 
   iosOverlay:     { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },

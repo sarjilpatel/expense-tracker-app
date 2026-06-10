@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
-  Modal, View, Text, TouchableOpacity,
+  Modal, View, Text, TouchableOpacity, Platform,
   StyleSheet, ActivityIndicator, ScrollView, Switch, Alert, FlatList, TextInput, Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Image } from 'expo-image';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -113,9 +114,12 @@ export default function SettingsScreen() {
   const [incomeCount,  setIncomeCount]  = useState(0);
   const [expenseCount, setExpenseCount] = useState(0);
   const [lastSync,     setLastSync]     = useState<string | null>(null);
-  const [exporting,    setExporting]    = useState(false);
-  const [exportingXlsx, setExportingXlsx] = useState(false);
-  const [exportingPdf,  setExportingPdf]  = useState(false);
+  const [exporting,       setExporting]       = useState(false);
+  const [exportSheetType, setExportSheetType] = useState<'csv' | 'xlsx' | 'pdf' | null>(null);
+  const [exportCustomFrom, setExportCustomFrom] = useState(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; });
+  const [exportCustomTo,   setExportCustomTo]   = useState(() => { const d = new Date(); d.setHours(23,59,59,999); return d; });
+  const [exportShowCustom, setExportShowCustom] = useState(false);
+  const [exportDateTarget, setExportDateTarget] = useState<'from' | 'to' | null>(null);
   const [lockEnabled,   setLockEnabled]  = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime,    setReminderTime]    = useState<{ hour: number; minute: number } | null>(null);
@@ -240,108 +244,132 @@ export default function SettingsScreen() {
     }
   };
 
-  const doExportCsv = async (month?: number, year?: number, label?: string, allTime?: boolean) => {
+  function fmtExportDate(d: Date): string {
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function rangeThisWeek() {
+    const now = new Date();
+    const from = new Date(now); from.setDate(now.getDate() - now.getDay()); from.setHours(0,0,0,0);
+    const to   = new Date(now); to.setHours(23,59,59,999);
+    return { from, to, label: 'this_week' };
+  }
+  function rangeThisMonth() {
+    const now  = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    const to   = new Date(now); to.setHours(23,59,59,999);
+    return { from, to, label: `${now.toLocaleString('default', { month: 'long' })}_${now.getFullYear()}` };
+  }
+  function rangeThisYear() {
+    const now  = new Date();
+    const from = new Date(now.getFullYear(), 0, 1);
+    const to   = new Date(now); to.setHours(23,59,59,999);
+    return { from, to, label: `${now.getFullYear()}` };
+  }
+  function rangeAllTime() {
+    return { from: new Date(0), to: new Date(), label: 'all_time' };
+  }
+
+  async function fetchRangeTxs(from: Date, to: Date): Promise<any[]> {
+    const allTxs = await getTransactions(undefined, undefined) as any[];
+    return (allTxs || []).filter((tx: any) => {
+      const d = new Date(tx.date || tx.createdAt);
+      return d >= from && d <= to;
+    });
+  }
+
+  const openExportDatePicker = (target: 'from' | 'to') => {
+    const current = target === 'from' ? exportCustomFrom : exportCustomTo;
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: current, mode: 'date', maximumDate: new Date(),
+        onChange: (_, d) => { if (d) { target === 'from' ? setExportCustomFrom(d) : setExportCustomTo(d); } },
+      });
+    } else {
+      setExportDateTarget(target);
+    }
+  };
+
+  const runExport = async (range: { from: Date; to: Date; label: string }) => {
+    const type = exportSheetType;
+    if (!type) return;
+    setExportSheetType(null);
+    setExportShowCustom(false);
     setExporting(true);
     try {
-      const now = new Date();
-      // Pass no date params for all-time; getTransactions with no month/year = all records
-      const txs = allTime
-        ? await getTransactions(undefined, undefined) as any[]
-        : await getTransactions(month, year ?? now.getFullYear()) as any[];
+      const txs = await fetchRangeTxs(range.from, range.to);
+      const safeName = range.label.replace(/[^a-z0-9_-]/gi, '_');
 
-      const rows = [
-        ['Date', 'Type', 'Category', 'Amount', 'Currency', 'Note', 'Recurring', 'Private', 'Member'],
-        ...txs.map(tx => [
-          new Date(tx.date || tx.createdAt).toLocaleDateString(),
-          tx.type,
-          tx.category,
-          tx.amount.toString(),
-          tx.currency || 'INR',
-          tx.note ? `"${tx.note.replace(/"/g, '""')}"` : '',
-          tx.isRecurring ? 'Yes' : 'No',
-          tx.isPrivate   ? 'Yes' : 'No',
-          tx.userId?.name || '',
-        ]),
-      ];
-      const csv = rows.map(r => r.join(',')).join('\n');
-      const nameSuffix = allTime ? 'all_time' : (label ?? `${now.toLocaleString('default', { month: 'long' })}_${year ?? now.getFullYear()}`);
-      const name = `transactions_${nameSuffix}.csv`;
-      const path = `${FileSystem.documentDirectory}${name}`;
-      await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Export Transactions' });
+      if (type === 'csv') {
+        const rows = [
+          ['Date','Type','Category','Amount','Currency','Note','Recurring','Private','Member'],
+          ...txs.map(tx => [
+            new Date(tx.date || tx.createdAt).toLocaleDateString(),
+            tx.type, tx.category, tx.amount.toString(),
+            tx.currency || 'INR',
+            tx.note ? `"${(tx.note as string).replace(/"/g, '""')}"` : '',
+            tx.isRecurring ? 'Yes' : 'No',
+            tx.isPrivate   ? 'Yes' : 'No',
+            tx.userId?.name || '',
+          ]),
+        ];
+        const csv  = rows.map(r => r.join(',')).join('\n');
+        const path = `${FileSystem.documentDirectory}transactions_${safeName}.csv`;
+        await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Export CSV' });
+        } else {
+          Alert.alert('Exported', `Saved to: ${path}`);
+        }
+      } else if (type === 'xlsx') {
+        const rows = txs.map(tx => ({
+          Date:      new Date(tx.date || tx.createdAt).toLocaleDateString(),
+          Type:      tx.type,
+          Category:  tx.category,
+          Amount:    tx.amount,
+          Currency:  tx.currency || 'INR',
+          Note:      tx.note || '',
+          Recurring: tx.isRecurring ? 'Yes' : 'No',
+          Private:   tx.isPrivate   ? 'Yes' : 'No',
+          Member:    tx.userId?.name || '',
+        }));
+        // Use empty-sheet guard so xlsx doesn't generate a corrupt file
+        if (rows.length === 0) rows.push({ Date:'', Type:'', Category:'', Amount:0, Currency:'', Note:'', Recurring:'', Private:'', Member:'' });
+        const ws     = XLSX.utils.json_to_sheet(rows);
+        const wb     = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+        const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+        const path   = `${FileSystem.documentDirectory}transactions_${safeName}.xlsx`;
+        await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(path, { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', dialogTitle: 'Export XLSX' });
+        } else {
+          Alert.alert('Exported', `Saved to: ${path}`);
+        }
       } else {
-        Alert.alert('Exported', `Saved to: ${path}`);
+        // PDF — compute analytics from the filtered txs
+        const totalIncome  = txs.filter(tx => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0);
+        const totalExpense = txs.filter(tx => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
+        const catMap: Record<string, number> = {};
+        txs.filter(tx => tx.type === 'expense').forEach(tx => {
+          catMap[tx.category] = (catMap[tx.category] || 0) + tx.amount;
+        });
+        const categoryBreakdown = Object.entries(catMap)
+          .sort((a, b) => b[1] - a[1])
+          .map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: totalExpense > 0 ? ((amount / totalExpense) * 100).toFixed(1) : '0',
+          }));
+        const analytics = { totalIncome, totalExpense, categoryBreakdown };
+        const groupData  = await getCategoryData().catch(() => null);
+        const now        = new Date();
+        await generateMonthlyPDF(txs, analytics, now.getMonth() + 1, now.getFullYear(), (groupData as any)?.name, range.label);
       }
-    } catch {
-      Alert.alert('Error', 'Export failed');
+    } catch (e: any) {
+      Alert.alert('Export failed', e?.message || String(e));
     } finally {
       setExporting(false);
-    }
-  };
-
-  const handleExport = () => {
-    const now = new Date();
-    const monthName = now.toLocaleString('default', { month: 'long' });
-    Alert.alert('Export CSV', 'Choose period', [
-      { text: `This Month (${monthName})`, onPress: () => doExportCsv(now.getMonth() + 1, now.getFullYear()) },
-      { text: `This Year (${now.getFullYear()})`, onPress: () => doExportCsv(undefined, now.getFullYear(), `${now.getFullYear()}`) },
-      { text: 'All Time', onPress: () => doExportCsv(undefined, undefined, undefined, true) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
-
-  const handleExportXlsx = async () => {
-    setExportingXlsx(true);
-    try {
-      const now = new Date();
-      const txs = await getTransactions(now.getMonth() + 1, now.getFullYear()) as any[];
-      const rows = txs.map(tx => ({
-        Date: new Date(tx.date || tx.createdAt).toLocaleDateString(),
-        Type: tx.type,
-        Category: tx.category,
-        Amount: tx.amount,
-        Currency: tx.currency || 'INR',
-        Note: tx.note || '',
-        Recurring: tx.isRecurring ? 'Yes' : 'No',
-        Private: tx.isPrivate ? 'Yes' : 'No',
-        Member: tx.userId?.name || '',
-      }));
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
-      const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-      const name = `transactions_${now.toLocaleString('default', { month: 'long' })}_${now.getFullYear()}.xlsx`;
-      const path = `${FileSystem.documentDirectory}${name}`;
-      await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(path, { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', dialogTitle: 'Export XLSX' });
-      } else {
-        Alert.alert('Exported', `Saved to: ${path}`);
-      }
-    } catch {
-      Alert.alert('Error', 'XLSX export failed');
-    } finally {
-      setExportingXlsx(false);
-    }
-  };
-
-  const handleExportPdf = async () => {
-    setExportingPdf(true);
-    try {
-      const now   = new Date();
-      const month = now.getMonth() + 1;
-      const year  = now.getFullYear();
-      const [txs, analytics, groupData] = await Promise.all([
-        getTransactions(month, year) as Promise<any[]>,
-        getAnalytics(month, year) as Promise<any>,
-        getCategoryData().catch(() => null),
-      ]);
-      await generateMonthlyPDF(txs, analytics, month, year, (groupData as any)?.name);
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'PDF export failed');
-    } finally {
-      setExportingPdf(false);
     }
   };
 
@@ -683,23 +711,21 @@ export default function SettingsScreen() {
           )}
           <Row
             icon="download-outline" iconBg={theme.tint} iconColor={theme.tintText}
-            title="Export CSV" sub="Current month transactions"
-            onPress={handleExport}
+            title="Export CSV" sub="Choose date range"
+            onPress={() => { setExportShowCustom(false); setExportSheetType('csv'); }}
             right={exporting ? <ActivityIndicator size="small" color={theme.tint} /> : undefined}
           />
           <Sep />
           <Row
             icon="document-outline" iconBg={theme.tint} iconColor={theme.tintText}
-            title="Export XLSX" sub="Excel spreadsheet — current month"
-            onPress={handleExportXlsx}
-            right={exportingXlsx ? <ActivityIndicator size="small" color={theme.tint} /> : undefined}
+            title="Export XLSX" sub="Excel — choose date range"
+            onPress={() => { setExportShowCustom(false); setExportSheetType('xlsx'); }}
           />
           <Sep />
           <Row
             icon="document-text-outline" iconBg={theme.tint} iconColor={theme.tintText}
-            title="Export PDF Report" sub="Monthly summary with charts"
-            onPress={handleExportPdf}
-            right={exportingPdf ? <ActivityIndicator size="small" color={theme.tint} /> : undefined}
+            title="Export PDF Report" sub="Summary — choose date range"
+            onPress={() => { setExportShowCustom(false); setExportSheetType('pdf'); }}
           />
           {isGuest && (
             <>
@@ -846,15 +872,129 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+      {/* ── Export Range Sheet ── */}
+      <Modal visible={exportSheetType !== null} transparent animationType="slide" onRequestClose={() => setExportSheetType(null)}>
+        <View style={S.exportOverlay}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setExportSheetType(null)} />
+          <View style={[S.exportSheet, { backgroundColor: theme.card }]}>
+            <View style={S.exportHandle} />
+            <Text style={[S.exportTitle, { color: theme.text }]}>
+              Export {exportSheetType?.toUpperCase()}
+            </Text>
+            <Text style={[S.exportSub, { color: theme.secondaryText }]}>Select a date range</Text>
+
+            {/* Quick range grid */}
+            <View style={S.exportGrid}>
+              {[
+                { label: 'This Week',  icon: 'calendar-outline',       fn: rangeThisWeek  },
+                { label: 'This Month', icon: 'calendar-number-outline', fn: rangeThisMonth },
+                { label: 'This Year',  icon: 'stats-chart-outline',     fn: rangeThisYear  },
+                { label: 'All Time',   icon: 'infinite-outline',        fn: rangeAllTime   },
+              ].map(({ label, icon, fn }) => (
+                <TouchableOpacity
+                  key={label}
+                  style={[S.exportRangeBtn, { backgroundColor: theme.background, borderColor: theme.border }]}
+                  onPress={() => runExport(fn())}
+                  disabled={exporting}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name={icon as any} size={22} color={theme.tint} />
+                  <Text style={[S.exportRangeBtnText, { color: theme.text }]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Custom range toggle */}
+            <TouchableOpacity
+              style={[S.exportCustomToggle, { borderColor: theme.border }]}
+              onPress={() => setExportShowCustom(v => !v)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="options-outline" size={17} color={theme.tint} />
+              <Text style={[S.exportCustomToggleText, { color: theme.tint }]}>Custom Range</Text>
+              <View style={{ flex: 1 }} />
+              <Ionicons name={exportShowCustom ? 'chevron-up' : 'chevron-down'} size={16} color={theme.secondaryText} />
+            </TouchableOpacity>
+
+            {exportShowCustom && (
+              <View style={S.exportCustomSection}>
+                <View style={S.exportDateRow}>
+                  <TouchableOpacity
+                    style={[S.exportDateBtn, { backgroundColor: theme.background, borderColor: theme.border }]}
+                    onPress={() => openExportDatePicker('from')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[S.exportDateLabel, { color: theme.secondaryText }]}>FROM</Text>
+                    <Text style={[S.exportDateValue, { color: theme.text }]}>{fmtExportDate(exportCustomFrom)}</Text>
+                  </TouchableOpacity>
+                  <Ionicons name="arrow-forward" size={16} color={theme.secondaryText} />
+                  <TouchableOpacity
+                    style={[S.exportDateBtn, { backgroundColor: theme.background, borderColor: theme.border }]}
+                    onPress={() => openExportDatePicker('to')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[S.exportDateLabel, { color: theme.secondaryText }]}>TO</Text>
+                    <Text style={[S.exportDateValue, { color: theme.text }]}>{fmtExportDate(exportCustomTo)}</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  style={[S.exportGoBtn, { backgroundColor: theme.tint }]}
+                  onPress={() => runExport({ from: exportCustomFrom, to: exportCustomTo, label: 'custom' })}
+                  disabled={exporting}
+                  activeOpacity={0.85}
+                >
+                  {exporting
+                    ? <ActivityIndicator size="small" color={theme.tintText} />
+                    : <Text style={[S.exportGoBtnText, { color: theme.tintText }]}>Export Selected Range</Text>
+                  }
+                </TouchableOpacity>
+
+                {/* iOS inline date picker */}
+                {Platform.OS === 'ios' && exportDateTarget && (
+                  <View style={[S.iosPickerWrap, { borderTopColor: theme.border }]}>
+                    <View style={[S.iosPickerHeader, { borderBottomColor: theme.border }]}>
+                      <Text style={[S.iosPickerTitle, { color: theme.text }]}>
+                        {exportDateTarget === 'from' ? 'Select Start Date' : 'Select End Date'}
+                      </Text>
+                      <TouchableOpacity onPress={() => setExportDateTarget(null)}>
+                        <Text style={[S.iosPickerDone, { color: theme.tint }]}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={exportDateTarget === 'from' ? exportCustomFrom : exportCustomTo}
+                      mode="date"
+                      display="spinner"
+                      maximumDate={new Date()}
+                      onChange={(_, d) => {
+                        if (d) { exportDateTarget === 'from' ? setExportCustomFrom(d) : setExportCustomTo(d); }
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+            <View style={{ height: 8 }} />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Global loading overlay while exporting (sheet already closed) */}
+      {exporting && (
+        <View style={S.exportLoadingOverlay}>
+          <ActivityIndicator size="large" color={theme.tint} />
+          <Text style={[S.exportLoadingText, { color: theme.text }]}>Exporting…</Text>
+        </View>
+      )}
     </ThemedView>
   );
 }
 
 const S = StyleSheet.create({
   container:   { flex: 1 },
-  header:      { paddingHorizontal: 12, paddingBottom: 16 },
+  header:      { paddingHorizontal: 8, paddingBottom: 16 },
   headerTitle: TYPE_SCALE.screenTitle,
-  scroll:      { paddingHorizontal: 12, paddingBottom: 40 },
+  scroll:      { paddingHorizontal: 8, paddingBottom: 40 },
 
   groupLabel: {
     fontSize: 11, fontWeight: '800', letterSpacing: 0.8,
@@ -948,4 +1088,32 @@ const S = StyleSheet.create({
   deleteConfirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   deleteCancelBtn:   { paddingVertical: 10 },
   deleteCancelText:  { fontSize: 14 },
+
+  // Export sheet
+  exportOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  exportSheet:     { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
+  exportHandle:    { width: 36, height: 4, borderRadius: 2, backgroundColor: '#8E8E93', alignSelf: 'center', marginBottom: 16 },
+  exportTitle:     { fontSize: 17, fontWeight: '800', marginBottom: 2 },
+  exportSub:       { fontSize: 13, marginBottom: 16 },
+  exportGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
+  exportRangeBtn:  { width: '47.5%', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 8 },
+  exportRangeBtnText: { fontSize: 14, fontWeight: '700' },
+  exportCustomToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 12, marginBottom: 4,
+  },
+  exportCustomToggleText: { fontSize: 14, fontWeight: '700' },
+  exportCustomSection: { marginTop: 12, gap: 12 },
+  exportDateRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  exportDateBtn:   { flex: 1, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 12 },
+  exportDateLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 3 },
+  exportDateValue: { fontSize: 13, fontWeight: '700' },
+  exportGoBtn:     { height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  exportGoBtnText: { fontSize: 15, fontWeight: '700' },
+  iosPickerWrap:   { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 8 },
+  iosPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  iosPickerTitle:  { fontSize: 15, fontWeight: '600' },
+  iosPickerDone:   { fontSize: 15, fontWeight: '600' },
+  exportLoadingOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)', gap: 12 },
+  exportLoadingText:    { fontSize: 14, fontWeight: '600' },
 });

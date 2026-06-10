@@ -260,7 +260,7 @@ export default function AccountsScreen() {
               </View>
 
               {/* Tip */}
-              <View style={[styles.tip, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
+              <View style={[styles.tip, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <Ionicons name="information-circle-outline" size={16} color={theme.tint} />
                 <Text style={[styles.tipText, { color: theme.secondaryText }]}>
                   Long-press a transaction on the home screen to link it to an account.
@@ -282,22 +282,22 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 12, marginBottom: 12,
+    paddingHorizontal: 8, height: 36, marginBottom: 8,
   },
-  title:         { fontSize: 22, fontWeight: '800' },
+  title:         { fontSize: 20, fontWeight: '800' },
   headerActions: { flexDirection: 'row', gap: 8 },
-  headerBtn:     { width: 36, height: 36, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  headerBtn:     { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
 
   scroll: { paddingBottom: 120 },
 
   // Net worth
   netCard: {
-    marginHorizontal: 12, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
-    padding: 20, marginBottom: 12,
+    marginHorizontal: 8, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
+    padding: 16, marginBottom: 10,
   },
-  netLabel:      { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
+  netLabel:      { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
   netAmt:        { fontSize: 28, fontWeight: '900', marginBottom: 16 },
-  netDivider:    { height: StyleSheet.hairlineWidth, marginBottom: 16 },
+  netDivider:    { height: StyleSheet.hairlineWidth, marginBottom: 14 },
   netRow:        { flexDirection: 'row' },
   netCol:        { flex: 1 },
   netColLabel:   { fontSize: 11, fontWeight: '600', marginBottom: 3 },
@@ -305,28 +305,28 @@ const styles = StyleSheet.create({
   netColDivider: { width: StyleSheet.hairlineWidth, marginHorizontal: 16 },
 
   trendCard: {
-    marginHorizontal: 12, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
-    padding: 16, marginBottom: 12,
+    marginHorizontal: 8, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
+    padding: 14, marginBottom: 10,
   },
 
   // Section
   sectionLabel: {
-    fontSize: 10, fontWeight: '800', letterSpacing: 0.5,
-    marginBottom: 6, marginTop: 12, paddingHorizontal: 12,
+    fontSize: 11, fontWeight: '800', letterSpacing: 0.5,
+    marginBottom: 6, marginTop: 12, paddingHorizontal: 8,
   },
 
-  // Account rows — full width, no horizontal margin
+  // Account rows
   accountsCard: {
-    marginHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
+    marginHorizontal: 8,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
   accountRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
+    paddingHorizontal: 14, paddingVertical: 13,
   },
-  accIcon:    { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  accIcon:    { width: 42, height: 42, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
   accMid:     { flex: 1, marginLeft: 12 },
   accName:    { fontSize: 15, fontWeight: '600' },
   accType:    { fontSize: 12, marginTop: 2 },
@@ -336,15 +336,16 @@ const styles = StyleSheet.create({
   // Tip
   tip: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    marginHorizontal: 12, marginTop: 12, borderRadius: 14, padding: 14,
+    marginHorizontal: 8, marginTop: 10, borderRadius: 14, padding: 13,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   tipText: { flex: 1, fontSize: 12, lineHeight: 18 },
 
   // Empty state
-  emptyWrap: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40 },
-  emptyIcon: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  emptyTitle:{ fontSize: 18, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  emptyWrap: { alignItems: 'center', paddingTop: 64, paddingHorizontal: 40 },
+  emptyIcon: { width: 72, height: 72, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 18 },
+  emptyTitle:{ fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
   emptyBody: { fontSize: 14, lineHeight: 21, textAlign: 'center', marginBottom: 28 },
-  emptyBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16 },
+  emptyBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 13, borderRadius: 14 },
   emptyBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
 });

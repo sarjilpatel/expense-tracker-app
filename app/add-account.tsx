@@ -15,8 +15,22 @@ import {
   Account, AccountType, ACCOUNT_TYPE_META,
   saveAccount, deleteAccount, getAccounts,
 } from '@/src/services/accountService';
+import { getContrastText } from '@/constants/theme';
 
-const COLORS = ['#18181B', '#27272A', '#3F3F46', '#52525B', '#71717A', '#A1A1AA', '#D4D4D8', '#E5E7EB', '#F4F4F5', '#18181B'];
+const COLORS = [
+  '#18181B', // graphite
+  '#1E3A5F', // navy
+  '#134E4A', // teal
+  '#14532D', // forest
+  '#4C1D95', // plum
+  '#7C2D12', // rust
+  '#92400E', // amber
+  '#881337', // rose
+  '#374151', // slate
+  '#6B7280', // grey
+  '#0F4C75', // deep blue
+  '#3B4F6B', // denim
+];
 
 export default function AddAccountScreen() {
   const { theme } = useTheme();
@@ -116,7 +130,7 @@ export default function AddAccountScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={{ fontSize: 22 }}>{meta.emoji}</Text>
-                  <Text style={[styles.typeLabel, { color: active ? '#FFF' : theme.secondaryText }]}>{meta.label}</Text>
+                  <Text style={[styles.typeLabel, { color: active ? getContrastText(meta.color) : theme.secondaryText }]}>{meta.label}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -159,7 +173,7 @@ export default function AddAccountScreen() {
                 onPress={() => setColor(c)}
                 activeOpacity={0.8}
               >
-                {color === c && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                {color === c && <Ionicons name="checkmark" size={14} color={getContrastText(c)} />}
               </TouchableOpacity>
             ))}
           </View>
@@ -171,8 +185,8 @@ export default function AddAccountScreen() {
             disabled={saving}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark-circle" size={22} color="#FFF" />
-            <Text style={styles.saveBtnText}>{isEdit ? 'Update Account' : 'Add Account'}</Text>
+            <Ionicons name="checkmark-circle" size={22} color={getContrastText(color)} />
+            <Text style={[styles.saveBtnText, { color: getContrastText(color) }]}>{isEdit ? 'Update Account' : 'Add Account'}</Text>
           </TouchableOpacity>
 
         </ScrollView>
@@ -214,5 +228,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     height: 56, borderRadius: 18, marginTop: 32,
   },
-  saveBtnText: { color: '#FFF', fontSize: 17, fontWeight: '800' },
+  saveBtnText: { fontSize: 17, fontWeight: '800' },
 });

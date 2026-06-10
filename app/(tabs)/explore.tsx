@@ -604,7 +604,7 @@ export default function AnalyticsScreen() {
 
 const styles = StyleSheet.create({
   container:    { flex: 1 },
-  header:       { paddingHorizontal: 6, marginBottom: 8, height: 36, flexDirection: 'row', alignItems: 'center' },
+  header:       { paddingHorizontal: 8, marginBottom: 8, height: 36, flexDirection: 'row', alignItems: 'center' },
   monthSelector:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
   title:        { fontSize: 17, lineHeight: 20, fontWeight: '800' },
 
