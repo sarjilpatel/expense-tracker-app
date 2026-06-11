@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Switch,
   StyleSheet, ActivityIndicator, Alert, Platform, Modal, StatusBar,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView, Animated as RNAnimated,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -67,7 +67,8 @@ export default function AddTransactionScreen() {
   const [recentCategories, setRecentCategories] = useState<{ income: string[]; expense: string[] }>({ income: [], expense: [] });
 
   const [successToast, setSuccessToast] = useState(false);
-  const [showKeypad, setShowKeypad]     = useState(false);
+  const [showKeypad, setShowKeypad]     = useState(true);
+  const cursorAnim = useRef(new RNAnimated.Value(1)).current;
   const [showCategory, setShowCategory]           = useState(false);
   const [iosPicker, setIosPicker]                 = useState<{ mode: 'date' | 'time' } | null>(null);
 
@@ -83,6 +84,19 @@ export default function AddTransactionScreen() {
   useEffect(() => {
     animValue.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.cubic) });
   }, []);
+
+  // Blink cursor while keypad is open
+  useEffect(() => {
+    if (!showKeypad) { cursorAnim.setValue(0); return; }
+    const loop = RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(cursorAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+        RNAnimated.timing(cursorAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showKeypad]);
 
   const { prefillDate, prefillAccountId, prefillAmount, prefillType, prefillCategory, prefillNote } =
     useLocalSearchParams<{ prefillDate?: string; prefillAccountId?: string; prefillAmount?: string; prefillType?: string; prefillCategory?: string; prefillNote?: string }>();
@@ -340,7 +354,7 @@ export default function AddTransactionScreen() {
         >
           {/* Hero Amount Display Card */}
           <TouchableOpacity
-            style={[styles.heroCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+            style={[styles.heroCard, { backgroundColor: theme.card, borderColor: showKeypad ? accent : theme.border }]}
             onPress={() => setShowKeypad(true)}
             activeOpacity={0.85}
           >
@@ -348,9 +362,11 @@ export default function AddTransactionScreen() {
             <View style={styles.heroAmountRow}>
               <Text style={[styles.heroCurrency, { color: accent }]}>{Currency.symbol}</Text>
               <Text style={[styles.heroAmountText, { color: amount ? theme.text : theme.secondaryText }]} numberOfLines={1} adjustsFontSizeToFit>
-                {amount || '0.00'}
+                {amount || '0'}
               </Text>
-              <Ionicons name="pencil" size={16} color={accent} style={styles.heroEditIcon} />
+              {showKeypad && (
+                <RNAnimated.View style={[styles.heroCursor, { backgroundColor: accent, opacity: cursorAnim }]} />
+              )}
             </View>
           </TouchableOpacity>
 
@@ -663,7 +679,7 @@ const styles = StyleSheet.create({
   heroAmountRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   heroCurrency:   { fontSize: 24, fontWeight: '700', marginRight: 6 },
   heroAmountText: { fontSize: 38, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
-  heroEditIcon:   { marginLeft: 8 },
+  heroCursor:     { width: 2.5, height: 40, borderRadius: 1.5, marginLeft: 3 },
 
   formCard: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginBottom: 16 },
   formRow:  {

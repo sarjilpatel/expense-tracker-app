@@ -129,6 +129,10 @@ function RootLayoutNav() {
         <Stack.Screen name="manage-group"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="(tabs)"             options={{ headerShown: false, animation: 'fade'              }} />
         <Stack.Screen name="settings/customization" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/security"      options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/money"         options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/data"          options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/help"          options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="add-transaction"     options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="edit-transaction"   options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="budget"             options={{ headerShown: false, animation: 'slide_from_right'  }} />

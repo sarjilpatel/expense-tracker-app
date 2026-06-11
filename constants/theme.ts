@@ -1,13 +1,13 @@
 import { Platform } from 'react-native';
 
 const primaryLight  = '#18181B';
-const primaryDark   = '#3F3F46';
-const successLight  = '#5AAEF0';
-const successDark   = '#5AAEF0';
-const dangerLight   = '#E07068';
-const dangerDark    = '#E07068';
-const warningLight  = '#71717A';
-const warningDark   = '#A1A1AA';
+const primaryDark   = '#E4E4E7';
+const successLight  = '#22C55E';
+const successDark   = '#4ADE80';
+const dangerLight   = '#EF4444';
+const dangerDark    = '#F87171';
+const warningLight  = '#F59E0B';
+const warningDark   = '#FCD34D';
 
 export type ThemeColors = {
   text: string;
@@ -106,43 +106,45 @@ export interface ThemePreset {
 export const THEME_PRESETS: ThemePreset[] = [
   {
     name: 'Graphite',
-    light: { accent: '#18181B', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
-    dark:  { accent: '#3F3F46', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    // Light: deep charcoal accent is bold and readable
+    // Dark: near-white so active tab is clearly highlighted against dark bg
+    light: { accent: '#18181B', accentText: '#FFFFFF', income: '#22C55E', incomeText: '#FFFFFF', expense: '#EF4444', expenseText: '#FFFFFF' },
+    dark:  { accent: '#E4E4E7', accentText: '#18181B', income: '#4ADE80', incomeText: '#052E16', expense: '#F87171', expenseText: '#FFFFFF' },
   },
   {
     name: 'Ocean',
-    light: { accent: '#1D4ED8', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
-    dark:  { accent: '#2563EB', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    light: { accent: '#2563EB', accentText: '#FFFFFF', income: '#10B981', incomeText: '#FFFFFF', expense: '#F43F5E', expenseText: '#FFFFFF' },
+    dark:  { accent: '#3B82F6', accentText: '#FFFFFF', income: '#34D399', incomeText: '#064E3B', expense: '#FB7185', expenseText: '#FFFFFF' },
   },
   {
     name: 'Forest',
-    light: { accent: '#15803D', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
-    dark:  { accent: '#15803D', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    light: { accent: '#16A34A', accentText: '#FFFFFF', income: '#059669', incomeText: '#FFFFFF', expense: '#DC2626', expenseText: '#FFFFFF' },
+    dark:  { accent: '#22C55E', accentText: '#052E16', income: '#4ADE80', incomeText: '#052E16', expense: '#F87171', expenseText: '#FFFFFF' },
   },
   {
     name: 'Dusk',
-    light: { accent: '#6D28D9', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
-    dark:  { accent: '#7C3AED', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    light: { accent: '#7C3AED', accentText: '#FFFFFF', income: '#0EA5E9', incomeText: '#FFFFFF', expense: '#EC4899', expenseText: '#FFFFFF' },
+    dark:  { accent: '#A78BFA', accentText: '#1E1B4B', income: '#38BDF8', incomeText: '#082F49', expense: '#F472B6', expenseText: '#FFFFFF' },
   },
   {
     name: 'Ember',
-    light: { accent: '#C2410C', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
-    dark:  { accent: '#C2410C', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    light: { accent: '#EA580C', accentText: '#FFFFFF', income: '#16A34A', incomeText: '#FFFFFF', expense: '#DC2626', expenseText: '#FFFFFF' },
+    dark:  { accent: '#FB923C', accentText: '#431407', income: '#4ADE80', incomeText: '#052E16', expense: '#F87171', expenseText: '#FFFFFF' },
   },
   {
     name: 'Pearl',
-    light: { accent: '#52525B', accentText: '#FFFFFF', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
-    dark:  { accent: '#A1A1AA', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    light: { accent: '#475569', accentText: '#FFFFFF', income: '#0EA5E9', incomeText: '#FFFFFF', expense: '#F43F5E', expenseText: '#FFFFFF' },
+    dark:  { accent: '#CBD5E1', accentText: '#0F172A', income: '#38BDF8', incomeText: '#082F49', expense: '#FB7185', expenseText: '#FFFFFF' },
   },
   {
     name: 'Azure',
-    light: { accent: '#5AAEF0', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
-    dark:  { accent: '#5AAEF0', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    light: { accent: '#0284C7', accentText: '#FFFFFF', income: '#10B981', incomeText: '#FFFFFF', expense: '#F43F5E', expenseText: '#FFFFFF' },
+    dark:  { accent: '#38BDF8', accentText: '#082F49', income: '#34D399', incomeText: '#064E3B', expense: '#FB7185', expenseText: '#FFFFFF' },
   },
   {
     name: 'Coral',
-    light: { accent: '#E07068', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
-    dark:  { accent: '#E07068', accentText: '#18181B', income: '#5AAEF0', incomeText: '#FFFFFF', expense: '#E07068', expenseText: '#FFFFFF' },
+    light: { accent: '#E11D48', accentText: '#FFFFFF', income: '#0EA5E9', incomeText: '#FFFFFF', expense: '#E11D48', expenseText: '#FFFFFF' },
+    dark:  { accent: '#FB7185', accentText: '#4C0519', income: '#38BDF8', incomeText: '#082F49', expense: '#FB7185', expenseText: '#FFFFFF' },
   },
 ];
 

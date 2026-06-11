@@ -83,7 +83,10 @@ function resolvePositions(items: LabelItem[], lo: number, hi: number) {
 export function ConnectedDonutChart({ slices, centerTitle, centerValue, theme }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const W = Math.min(windowWidth - 16, 420);
-  const H = 255;
+  // Grow height so labels on each side never get squashed.
+  // Worst case: ceil(n/2) labels on the taller side.
+  const sideMax = Math.max(Math.ceil(slices.length / 2), 1);
+  const H = Math.max(260, sideMax * (LABEL_H + LABEL_GAP + 2) + 56);
 
   const chart = useMemo(() => {
     const total = slices.reduce((s, sl) => s + sl.value, 0);

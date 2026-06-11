@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, FlatList,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '@/src/i18n/LanguageContext';
 
@@ -33,9 +33,9 @@ export function MonthYearPicker({
   const { t } = useLanguage();
   const [tempMonth, setTempMonth] = useState(selectedMonth);
   const [tempYear, setTempYear] = useState(selectedYear);
-  const slideAnim = useSharedValue(-100);
+  const opacityVal = useSharedValue(0);
   const slideStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: slideAnim.value }],
+    opacity: opacityVal.value,
   }));
 
   const monthListRef = useRef<FlatList>(null);
@@ -48,7 +48,7 @@ export function MonthYearPicker({
     if (visible) {
       setTempMonth(selectedMonth);
       setTempYear(selectedYear);
-      slideAnim.value = withSpring(0, { damping: 18, stiffness: 180 });
+      opacityVal.value = withTiming(1, { duration: 100 });
 
       setTimeout(() => {
         if (!showYearOnly && monthListRef.current) {
@@ -70,7 +70,7 @@ export function MonthYearPicker({
         }
       }, 80);
     } else {
-      slideAnim.value = withTiming(-100, { duration: 150 });
+      opacityVal.value = withTiming(0, { duration: 80 });
     }
   }, [visible, selectedMonth, selectedYear]);
 

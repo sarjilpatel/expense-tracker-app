@@ -109,7 +109,7 @@ export default function AccountDetailScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.editBtn, { backgroundColor: account.color, marginLeft: 8 }]}
-          onPress={() => router.push({ pathname: '/(tabs)/add', params: { prefillAccountId: account.id } })}
+          onPress={() => router.push({ pathname: '/add-transaction', params: { prefillAccountId: account.id } })}
         >
           <Ionicons name="add" size={20} color="#FFF" />
         </TouchableOpacity>
@@ -168,7 +168,7 @@ export default function AccountDetailScreen() {
             <Text style={[styles.emptyText, { color: theme.secondaryText }]}>No transactions yet</Text>
             <TouchableOpacity
               style={[styles.addFirstBtn, { backgroundColor: account.color }]}
-              onPress={() => router.push({ pathname: '/(tabs)/add', params: { prefillAccountId: account.id } })}
+              onPress={() => router.push({ pathname: '/add-transaction', params: { prefillAccountId: account.id } })}
             >
               <Text style={styles.addFirstText}>Add first transaction</Text>
             </TouchableOpacity>

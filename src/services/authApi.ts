@@ -108,3 +108,12 @@ export const getProfilePhotoUrl = async (): Promise<string | null> => {
     return null;
   }
 };
+
+export const googleAuthLogin = async (idToken: string) => {
+  try {
+    const response = await apiClient.post('/auth/google', { idToken });
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Google sign-in failed';
+  }
+};
