@@ -201,6 +201,29 @@ export default function SettingsScreen() {
           </>
         )}
 
+        {/* ── TripMaster featured card ── */}
+        <TouchableOpacity
+          style={[S.tripCard, { backgroundColor: theme.card, borderColor: theme.border }]}
+          onPress={() => router.push('/trip-master' as any)}
+          activeOpacity={0.8}
+        >
+          <View style={[S.tripIcon, { backgroundColor: '#8B5CF6' }]}>
+            <Ionicons name="people" size={22} color="#FFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={S.tripTitleRow}>
+              <Text style={[S.tripTitle, { color: theme.text }]}>TripMaster</Text>
+              <View style={[S.tripBadge, { backgroundColor: '#8B5CF618' }]}>
+                <Text style={[S.tripBadgeText, { color: '#8B5CF6' }]}>Split bills</Text>
+              </View>
+            </View>
+            <Text style={[S.tripSub, { color: theme.secondaryText }]}>
+              Track who paid what & see who owes whom — works offline
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} />
+        </TouchableOpacity>
+
         {/* ── 2-col tile grid ── */}
         <View style={S.grid}>
           {GRID_TILES.map((tile) => (
@@ -270,6 +293,19 @@ const S = StyleSheet.create({
   // Delete link
   deleteLink:     { alignSelf: 'flex-start', paddingHorizontal: 4, paddingVertical: 4, marginBottom: 12, marginTop: 2 },
   deleteLinkText: { fontSize: 12, textDecorationLine: 'underline' },
+
+  // TripMaster featured card
+  tripCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderRadius: 14, borderWidth: StyleSheet.hairlineWidth,
+    padding: 14, marginTop: 12,
+  },
+  tripIcon:      { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  tripTitleRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tripTitle:     { fontSize: 15, fontWeight: '700' },
+  tripBadge:     { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
+  tripBadgeText: { fontSize: 10, fontWeight: '800' },
+  tripSub:       { fontSize: 12, marginTop: 3 },
 
   // Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15, marginBottom: 16,justifyContent:"center",marginTop:15 },

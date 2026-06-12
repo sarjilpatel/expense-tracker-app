@@ -146,6 +146,8 @@ function RootLayoutNav() {
         <Stack.Screen name="edit-profile"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="goals"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="splits"            options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="trip-master/index" options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="trip-master/[id]"  options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="modal"              options={{ presentation: 'modal', title: 'Modal'              }} />
       </Stack>
       <StatusBar style="auto" />
