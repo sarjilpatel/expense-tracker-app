@@ -98,11 +98,16 @@ export default function ManageGroupScreen() {
     if (!inviteCode.trim()) return Alert.alert('Error', 'Enter an invite code');
     setActionLoading(true);
     try {
-      const g = await joinGroup(inviteCode.trim().toUpperCase());
-      await updateUser({ groupId: g._id });
-      router.back();
+      // Joining is a request the owner has to approve, so there is no group to switch into yet.
+      // This used to write `groupId: g._id` from a response that carries no `_id` — putting
+      // `undefined` into the auth context rather than leaving the user where they were.
+      const result = await joinGroup(inviteCode.trim().toUpperCase());
+      setShowAddGroup(false);
+      setInviteCode('');
+      Alert.alert('Request sent', result?.message || 'Waiting for the group owner to approve you.');
     } catch (err: any) {
       Alert.alert('Error', err.toString());
+    } finally {
       setActionLoading(false);
     }
   };
@@ -156,6 +161,10 @@ export default function ManageGroupScreen() {
   };
 
   const isOwner = group && (group.createdBy === user?._id || group.owner === user?._id);
+  // The active group can be the user's personal one — they land here from settings to reach the
+  // switcher. Nothing about sharing applies to it: there is no join code, no one to invite, and
+  // leaving or deleting your own space is not a thing to offer.
+  const isPersonal = !!group?.isPersonal;
 
   const formatDate = (d?: string) =>
     d ? new Date(d).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
@@ -195,7 +204,9 @@ export default function ManageGroupScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.groupName, { color: theme.text }]}>{group?.name}</Text>
                 <Text style={[styles.groupSubtitle, { color: theme.secondaryText }]}>
-                  {group?.members?.length || 0} member{(group?.members?.length || 0) !== 1 ? 's' : ''}
+                  {isPersonal
+                    ? 'Your own space'
+                    : `${group?.members?.length || 0} member${(group?.members?.length || 0) !== 1 ? 's' : ''}`}
                   {group?.createdAt ? `  ·  Since ${formatDate(group.createdAt)}` : ''}
                 </Text>
               </View>
@@ -206,7 +217,9 @@ export default function ManageGroupScreen() {
                 <Text style={[styles.statValue, { color: theme.expense }]}>
                   ₹{monthlyExpense.toLocaleString('en-IN')}
                 </Text>
-                <Text style={[styles.statLabel, { color: theme.secondaryText }]}>Shared this month</Text>
+                <Text style={[styles.statLabel, { color: theme.secondaryText }]}>
+                  {isPersonal ? 'Spent this month' : 'Shared this month'}
+                </Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: theme.separator }]} />
               <View style={styles.statItem}>
@@ -273,7 +286,8 @@ export default function ManageGroupScreen() {
             )}
           </View>
 
-          {/* ── Invite ── */}
+          {/* ── Invite: a personal group has no join code and no one to invite ── */}
+          {!isPersonal && <>
           <ThemedText style={styles.sectionLabel}>Invite Members</ThemedText>
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.inviteContent}>
@@ -299,6 +313,7 @@ export default function ManageGroupScreen() {
               </View>
             </View>
           </View>
+          </>}
 
           {/* ── My Groups (switch) ── */}
           <ThemedText style={styles.sectionLabel}>My Groups</ThemedText>
@@ -318,14 +333,22 @@ export default function ManageGroupScreen() {
                       styles.groupRowIcon,
                       { backgroundColor: isActive ? theme.tint : theme.card },
                     ]}>
-                      <Ionicons name="people" size={17} color={isActive ? '#FFF' : theme.tint} />
+                      <Ionicons
+                        name={g.isPersonal ? 'person' : 'people'}
+                        size={17}
+                        color={isActive ? '#FFF' : theme.tint}
+                      />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.groupRowName, { color: isActive ? theme.tint : theme.text }]}>
                         {g.name}
                       </Text>
                       <Text style={[styles.groupRowMeta, { color: theme.secondaryText }]}>
-                        {g.members?.length || 0} member{(g.members?.length || 0) !== 1 ? 's' : ''}
+                        {/* Everyone has a personal group — "1 member" would read as a group that
+                            never filled up rather than as your own space. */}
+                        {g.isPersonal
+                          ? 'Just you'
+                          : `${g.members?.length || 0} member${(g.members?.length || 0) !== 1 ? 's' : ''}`}
                       </Text>
                     </View>
                     {isActive
@@ -393,7 +416,8 @@ export default function ManageGroupScreen() {
             )}
           </View>
 
-          {/* ── Danger Zone ── */}
+          {/* ── Danger Zone: nothing here applies to your own space ── */}
+          {!isPersonal && <>
           <ThemedText style={styles.sectionLabel}>Danger Zone</ThemedText>
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             {isOwner ? (
@@ -424,6 +448,7 @@ export default function ManageGroupScreen() {
               </TouchableOpacity>
             )}
           </View>
+          </>}
 
         </ScrollView>
       </KeyboardAvoidingView>

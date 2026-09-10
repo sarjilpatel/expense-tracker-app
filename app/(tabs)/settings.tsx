@@ -11,7 +11,10 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { ThemedView } from '@/components/themed-view';
 import { getProfile, deleteAccount as deleteAccountApi, cancelAccountDeletion } from '@/src/services/authApi';
+import { getCurrentGroup } from '@/src/services/dataService';
+import { getMyGroups } from '@/src/services/groupApi';
 import { getLastSyncTime } from '@/src/services/syncService';
+import { GroupSection } from '@/components/settings/GroupSection';
 import { TYPE_SCALE } from '@/constants/theme';
 
 function formatSyncTime(iso: string | null): string {
@@ -42,6 +45,8 @@ export default function SettingsScreen() {
   const { top }                        = useSafeAreaInsets();
 
   const [user,              setUser]              = useState<any>(null);
+  const [group,             setGroup]             = useState<any>(null);
+  const [myGroups,          setMyGroups]          = useState<any[]>([]);
   const [lastSync,          setLastSync]          = useState<string | null>(null);
   const [loading,           setLoading]           = useState(!isGuest);
   const [showDeleteModal,   setShowDeleteModal]   = useState(false);
@@ -54,8 +59,18 @@ export default function SettingsScreen() {
   const fetchData = useCallback(async () => {
     if (isGuest) { setLoading(false); return; }
     try {
-      const profileData = await getProfile();
+      // The group is what decides whether this screen offers "create or join" or a group card —
+      // a failure there must not cost the screen the profile it is mainly here to show.
+      // The group list, not just the active group, is what decides whether this section offers
+      // create-or-join or a way into manage-group — see GroupSection.
+      const [profileData, groupData, groupList] = await Promise.all([
+        getProfile(),
+        getCurrentGroup().catch(() => null),
+        getMyGroups().catch(() => []),
+      ]);
       setUser(profileData ?? null);
+      setGroup(groupData ?? null);
+      setMyGroups(Array.isArray(groupList) ? groupList : []);
       getLastSyncTime().then(setLastSync).catch(() => {});
     } catch (e) {
       console.error(e);
@@ -200,6 +215,9 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </>
         )}
+
+        {/* ── Group: create/join, or the group you are in ── */}
+        {!isGuest && <GroupSection group={group} groups={myGroups} />}
 
         {/* ── TripMaster featured card ── */}
         <TouchableOpacity

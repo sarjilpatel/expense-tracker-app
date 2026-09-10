@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Category } from '../groupApi';
+import { CATEGORY_PRESETS, findPreset } from '@/constants/categoryPresets';
 
 const KEY = '@local_categories_v1';
 
@@ -36,21 +37,38 @@ async function load(): Promise<Category[]> {
       return updated;
     }
     await AsyncStorage.setItem(KEY, JSON.stringify(DEFAULT_CATEGORIES));
-    return DEFAULT_CATEGORIES;
+    return [...DEFAULT_CATEGORIES];
   } catch {
-    return DEFAULT_CATEGORIES;
+    return [...DEFAULT_CATEGORIES];
   }
 }
+// Both returns copy. Callers push onto what load() hands back, so returning the array itself let
+// an added category mutate DEFAULT_CATEGORIES for the life of the process — after which clearing
+// local data reseeded the "defaults" with someone's custom categories still in them.
 
 export async function getLocalCategories(): Promise<{ categories: Category[] }> {
   const categories = await load();
   return { categories };
 }
 
+/** The bundled catalogue — a guest has no server to ask for it. */
+export async function getLocalPresets() {
+  return CATEGORY_PRESETS.map(({ key, name, description, icon, count }) =>
+    ({ key, name, description, icon, count }));
+}
+
 export async function addLocalCategory(
   name: string, icon: string, type: 'income' | 'expense' | 'both', emoji?: string
 ): Promise<Category[]> {
   const cats = await load();
+
+  // The server refuses a duplicate name — transactions reference categories by name, so two of
+  // them make the group's category check ambiguous. The guest side has to agree, or the same tap
+  // succeeds before signing in and fails after.
+  if (cats.some(c => c.name.trim().toLowerCase() === name.trim().toLowerCase())) {
+    throw new Error('That category already exists');
+  }
+
   const cat: Category = {
     _id: Date.now().toString(36) + Math.random().toString(36).slice(2),
     name, icon, type,
@@ -59,6 +77,27 @@ export async function addLocalCategory(
   cats.push(cat);
   await AsyncStorage.setItem(KEY, JSON.stringify(cats));
   return cats;
+}
+
+/**
+ * Adds a named pack in one go. Matched on name case-insensitively, so applying the same preset
+ * twice — or two packs that overlap — adds nothing already present, exactly as the server does.
+ */
+export async function applyLocalPreset(key: string): Promise<{ categories: Category[]; added: number }> {
+  const preset = findPreset(key);
+  if (!preset) throw new Error('Unknown category preset');
+
+  const cats  = await load();
+  const have  = new Set(cats.map(c => c.name.trim().toLowerCase()));
+  const added = preset.categories
+    .filter(c => !have.has(c.name.toLowerCase()))
+    .map(c => ({ ...c, _id: Date.now().toString(36) + Math.random().toString(36).slice(2) }));
+
+  if (added.length) {
+    cats.push(...added);
+    await AsyncStorage.setItem(KEY, JSON.stringify(cats));
+  }
+  return { categories: cats, added: added.length };
 }
 
 export async function removeLocalCategory(id: string): Promise<Category[]> {

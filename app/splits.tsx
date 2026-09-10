@@ -94,6 +94,8 @@ export default function SplitsScreen() {
 
   const [splits,    setSplits]    = useState<Split[]>([]);
   const [members,   setMembers]   = useState<SplitMember[]>([]);
+  // Everyone has a personal group now, so "in a group" no longer means "has people to split with".
+  const [sharedGroup, setSharedGroup] = useState(true);
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -113,6 +115,7 @@ export default function SplitsScreen() {
     try {
       const [splitsData, groupData] = await Promise.all([getSplits(), getCurrentGroup()]);
       setSplits(splitsData);
+      setSharedGroup(!groupData?.isPersonal);
       const mems: SplitMember[] = (groupData?.members || []).map((m: any) => ({
         _id:          m._id,
         name:         m.name,
@@ -247,6 +250,29 @@ export default function SplitsScreen() {
   };
 
   const balances = computeNetBalances(splits, myId);
+
+  // Without this the split form opens against a group of one and fails with "Select at least 2
+  // members", which says nothing about what is actually missing.
+  if (!isGuest && !sharedGroup) {
+    return (
+      <ThemedView style={[S.container, { paddingTop: top + 8 }]}>
+        <View style={S.header}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+            <Ionicons name="chevron-back" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <ThemedText type="title" style={S.headerTitle}>Expense Splits</ThemedText>
+          <View style={{ width: 32 }} />
+        </View>
+        <View style={S.empty}>
+          <Ionicons name="people-outline" size={64} color={theme.icon} />
+          <ThemedText style={S.emptyTitle}>You need a shared group</ThemedText>
+          <ThemedText style={S.emptyBody}>
+            Splits divide an expense between members. Create or join a group to start one.
+          </ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
 
   if (isGuest) {
     return (

@@ -86,6 +86,34 @@ export const removeCategory = async (categoryId: string) => {
   }
 };
 
+export interface CategoryPresetSummary {
+  key:         string;
+  name:        string;
+  description: string;
+  icon:        string;
+  count:       number;
+}
+
+/** The server is the source of truth for which packs exist — see `constants/categoryPresets.ts`. */
+export const getCategoryPresets = async (): Promise<CategoryPresetSummary[]> => {
+  try {
+    const response = await apiClient.get('/group/categories/presets');
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to fetch category presets';
+  }
+};
+
+export const applyCategoryPreset = async (key: string) => {
+  try {
+    const response = await apiClient.post(`/group/categories/presets/${key}`);
+    invalidateCachedGroup();
+    return response.data as { categories: Category[]; added: number };
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to apply category preset';
+  }
+};
+
 export const importCategories = async (fromGroupId: string, type?: string) => {
   try {
     const response = await apiClient.post('/group/categories/import', { fromGroupId, type });

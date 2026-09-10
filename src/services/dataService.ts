@@ -106,6 +106,19 @@ export const removeCategory = (id: string) =>
     ? localCat.removeLocalCategory(id)
     : remoteGrp.removeCategory(id);
 
+// Category presets — named packs, so a wedding or a trip is one tap instead of typing twelve
+// categories in. A guest applies them against the bundled catalogue; signed in, the server holds
+// the list and does the merge.
+export const getCategoryPresets = () =>
+  _isGuest
+    ? localCat.getLocalPresets()
+    : remoteGrp.getCategoryPresets();
+
+export const applyCategoryPreset = (key: string) =>
+  _isGuest
+    ? localCat.applyLocalPreset(key)
+    : remoteGrp.applyCategoryPreset(key);
+
 // ── Carry-forward ─────────────────────────────────────────────────────────────
 
 /**

@@ -9,7 +9,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "node --import ./tests/register.mjs --no-warnings --test \"tests/**/*.test.mjs\""
+    "test": "node --experimental-strip-types --import ./tests/register.mjs --no-warnings --test \"tests/**/*.test.mjs\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

@@ -40,11 +40,16 @@ export default function GroupSetupScreen() {
     if (!inviteCode.trim()) return Alert.alert('Error', 'Please enter an invite code');
     setLoading(true);
     try {
-      const group = await joinGroup(inviteCode.trim().toUpperCase());
-      if (group?._id) {
-        await updateUser({ groupId: group._id });
-        router.back();
-      }
+      // Joining is a request now, not an instant join: the owner has to approve it, so there is no
+      // group to switch into yet and nothing to write to `updateUser`. This used to check for an
+      // `_id` that the endpoint has not returned since approval was introduced, so the button
+      // appeared to do nothing at all — no error, no confirmation, no navigation.
+      const result = await joinGroup(inviteCode.trim().toUpperCase());
+      Alert.alert(
+        'Request sent',
+        result?.message || 'Waiting for the group owner to approve you.',
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
     } catch (error: any) {
       Alert.alert('Error', error.toString() || 'Invalid code');
     } finally {

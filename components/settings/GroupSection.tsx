@@ -6,13 +6,28 @@ import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/src/context/ThemeContext';
 
 interface Props {
+  /** The group the user is currently active in — may be their personal one. */
   group: any;
+  /** Every group they belong to. Decides prompt-vs-card; without it a shared group they are not
+   *  currently active in becomes unreachable. */
+  groups?: any[];
 }
 
-export function GroupSection({ group }: Props) {
+export function GroupSection({ group, groups = [] }: Props) {
   const { theme } = useTheme();
 
-  if (!group) {
+  // Every account owns a personal group — it is where their categories live — so "has a group" is
+  // no longer the same question as "shares expenses with anyone".
+  //
+  // The question that decides what this section shows is whether they belong to *any* shared group,
+  // not whether the active one is shared. Asking it of the active group alone stranded people:
+  // create a group, switch back to Personal from `manage-group`, and this section fell back to the
+  // create-or-join prompt — which is the only route into `manage-group`, so the group they had just
+  // made could not be reached again.
+  const shared = groups.filter((g: any) => g && !g.isPersonal);
+  const hasShared = shared.length > 0 || (group && !group.isPersonal);
+
+  if (!hasShared) {
     return (
       <View style={styles.section}>
         <ThemedText style={styles.sectionLabel}>Group</ThemedText>
@@ -49,12 +64,16 @@ export function GroupSection({ group }: Props) {
       >
         <View style={styles.row}>
           <View style={[styles.iconBox, { backgroundColor: theme.tint }]}>
-            <Ionicons name="people" size={20} color="#FFF" />
+            <Ionicons name={group?.isPersonal ? 'person' : 'people'} size={20} color="#FFF" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.groupName, { color: theme.text }]}>{group.name}</Text>
+            <Text style={[styles.groupName, { color: theme.text }]}>{group?.name}</Text>
             <Text style={[styles.groupMeta, { color: theme.secondaryText }]}>
-              {group.members?.length || 0} member{(group.members?.length || 0) !== 1 ? 's' : ''} · Tap to manage
+              {group?.isPersonal
+                // Active in their own space while still belonging to a shared group: the meta has
+                // to say the switcher is in there, or this reads as a dead end.
+                ? `Just you · Tap to switch to ${shared.length === 1 ? shared[0].name : 'a group'}`
+                : `${group?.members?.length || 0} member${(group?.members?.length || 0) !== 1 ? 's' : ''} · Tap to manage`}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.icon} />

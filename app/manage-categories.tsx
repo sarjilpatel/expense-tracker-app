@@ -11,8 +11,12 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useTheme } from '@/src/context/ThemeContext';
-import { getCurrentGroup, addCategory, removeCategory, getBudgets, setBudget, deleteBudget } from '@/src/services/dataService';
+import {
+  getCurrentGroup, addCategory, removeCategory, getBudgets, setBudget, deleteBudget,
+  getCategoryPresets, applyCategoryPreset,
+} from '@/src/services/dataService';
 import type { Category } from '@/src/services/dataService';
+import type { CategoryPresetSummary } from '@/src/services/groupApi';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useLanguage } from '@/src/i18n/LanguageContext';
@@ -40,6 +44,10 @@ export default function ManageCategoriesScreen() {
   const [isAdding, setIsAdding]         = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  const [presets, setPresets]                 = useState<CategoryPresetSummary[]>([]);
+  const [presetModalVisible, setPresetModalVisible] = useState(false);
+  const [applyingPreset, setApplyingPreset]   = useState<string | null>(null);
+
   const [budgetModalVisible, setBudgetModalVisible] = useState(false);
   const [budgetCategory, setBudgetCategory]   = useState<string | null>(null);
   const [budgetAmount, setBudgetAmount]         = useState('');
@@ -49,11 +57,14 @@ export default function ManageCategoriesScreen() {
   const fetchCategories = useCallback(async () => {
     try {
       const now = new Date();
-      const [group, budgets] = await Promise.all([
+      // The preset list is decoration — a failure there must not cost the screen its categories.
+      const [group, budgets, packs] = await Promise.all([
         getCurrentGroup(),
         getBudgets(now.getMonth() + 1, now.getFullYear()),
+        getCategoryPresets().catch(() => []),
       ]);
       setCategories(group.categories || []);
+      setPresets(packs);
       const budgetMap: Record<string, any> = {};
       (budgets || []).forEach((b: any) => { if (b.category) budgetMap[b.category] = b; });
       setCategoryBudgets(budgetMap);
@@ -77,9 +88,32 @@ export default function ManageCategoriesScreen() {
       setNewCategoryName('');
       setNewCategoryEmoji('');
     } catch (error) {
-      Alert.alert('Error', 'Failed to add category');
+      // groupApi rejects with the server's own message — "That category already exists" is far
+      // more use than a generic failure, and it is the one a user actually hits.
+      Alert.alert('Error', typeof error === 'string' ? error : 'Failed to add category');
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleApplyPreset = async (preset: CategoryPresetSummary) => {
+    setApplyingPreset(preset.key);
+    try {
+      const { categories: updated, added } = await applyCategoryPreset(preset.key);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+      setCategories(updated);
+      setPresetModalVisible(false);
+      // Applying a pack twice is allowed and adds nothing — say so rather than looking like a no-op.
+      Alert.alert(
+        preset.name,
+        added > 0
+          ? `Added ${added} ${added === 1 ? 'category' : 'categories'}.`
+          : 'You already have every category in this preset.',
+      );
+    } catch {
+      Alert.alert('Error', 'Failed to apply preset');
+    } finally {
+      setApplyingPreset(null);
     }
   };
 
@@ -225,6 +259,26 @@ export default function ManageCategoriesScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Presets — twelve categories in one tap instead of twelve trips through the row above */}
+        {presets.length > 0 && (
+          <TouchableOpacity
+            style={[styles.presetTrigger, { backgroundColor: theme.card, borderColor: theme.border }]}
+            onPress={() => setPresetModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.presetTriggerIcon, { backgroundColor: theme.tint }]}>
+              <Ionicons name="sparkles" size={17} color={theme.tintText} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.presetTriggerTitle, { color: theme.text }]}>Start from a preset</Text>
+              <Text style={[styles.presetTriggerSub, { color: theme.secondaryText }]}>
+                Wedding, travel, household and more
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.secondaryText} />
+          </TouchableOpacity>
+        )}
+
         {/* Category List */}
         <View style={styles.listHeader}>
           <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>
@@ -307,6 +361,57 @@ export default function ManageCategoriesScreen() {
       />
 
       {/* ── Budget Modal ── */}
+      <Modal visible={presetModalVisible} transparent animationType="slide" onRequestClose={() => setPresetModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.presetSheet, { backgroundColor: theme.card }]}>
+            <View style={styles.presetSheetHeader}>
+              <View style={{ flex: 1 }}>
+                <ThemedText type="subtitle">Category presets</ThemedText>
+                <Text style={{ color: theme.secondaryText, fontSize: 13, marginTop: 2 }}>
+                  Anything you already have is skipped
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setPresetModalVisible(false)} hitSlop={12}>
+                <Ionicons name="close" size={22} color={theme.secondaryText} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {presets.map((preset, index) => (
+                <TouchableOpacity
+                  key={preset.key}
+                  style={[styles.presetRow, {
+                    borderBottomColor: theme.border,
+                    borderBottomWidth: index === presets.length - 1 ? 0 : StyleSheet.hairlineWidth,
+                  }]}
+                  onPress={() => handleApplyPreset(preset)}
+                  disabled={applyingPreset !== null}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.presetIcon, { backgroundColor: theme.tint }]}>
+                    <Ionicons name={(preset.icon as any) || 'apps'} size={19} color={theme.tintText} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.presetName, { color: theme.text }]}>{preset.name}</Text>
+                    <Text style={[styles.presetDesc, { color: theme.secondaryText }]} numberOfLines={2}>
+                      {preset.description}
+                    </Text>
+                  </View>
+                  {applyingPreset === preset.key
+                    ? <ActivityIndicator color={theme.tint} size="small" />
+                    : (
+                      <View style={[styles.countBadge, { backgroundColor: theme.tint }]}>
+                        <Text style={{ color: theme.tintText, fontSize: 11, fontWeight: '800' }}>{preset.count}</Text>
+                      </View>
+                    )
+                  }
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={budgetModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.budgetSheet, { backgroundColor: theme.card }]}>
@@ -425,6 +530,21 @@ const styles = StyleSheet.create({
 
   // Budget modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  presetTrigger: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 24,
+  },
+  presetTriggerIcon:  { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  presetTriggerTitle: { fontSize: 15, fontWeight: '700' },
+  presetTriggerSub:   { fontSize: 12, marginTop: 1 },
+  presetSheet: {
+    padding: 24, borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: '80%',
+  },
+  presetSheetHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
+  presetRow:  { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
+  presetIcon: { width: 38, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  presetName: { fontSize: 15, fontWeight: '600' },
+  presetDesc: { fontSize: 12, marginTop: 2, lineHeight: 16 },
   budgetSheet: { padding: 28, borderTopLeftRadius: 32, borderTopRightRadius: 32 },
   budgetInputWrapper: {
     flexDirection: 'row', alignItems: 'center',
