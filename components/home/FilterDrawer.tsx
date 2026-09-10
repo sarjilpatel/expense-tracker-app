@@ -3,7 +3,7 @@ import {
   Modal, View, Text, TouchableOpacity, TextInput,
   ScrollView, StyleSheet, Dimensions, Keyboard,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/src/context/ThemeContext';
 
@@ -45,9 +45,9 @@ export function FilterDrawer({ visible, onClose, onApply, availableCategories, c
 
   useEffect(() => {
     if (visible) {
-      slideY.value = withSpring(0, { damping: 20, stiffness: 180 });
+      slideY.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
     } else {
-      slideY.value = withTiming(DRAWER_H, { duration: 220 });
+      slideY.value = withTiming(DRAWER_H, { duration: 200, easing: Easing.in(Easing.cubic) });
     }
   }, [visible]);
 

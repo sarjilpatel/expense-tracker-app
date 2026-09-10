@@ -42,12 +42,21 @@ function RootLayoutNav() {
 
   const [showSync, setShowSync] = useState(false);
   const [locked, setLocked]     = useState(false);
+  const [lockChecked, setLockChecked] = useState(false);
   const prevIsGuest = useRef<boolean | null>(null);
 
   // Inject logout into apiClient for 401 handling
   useEffect(() => {
     apiClient.injectLogout(logout);
   }, [logout]);
+
+  // Cold-start lock check
+  useEffect(() => {
+    shouldLock().then(lock => {
+      if (lock) setLocked(true);
+      setLockChecked(true);
+    });
+  }, []);
 
   // AppState-based lock
   useEffect(() => {
@@ -87,7 +96,7 @@ function RootLayoutNav() {
     SplashScreen.hideAsync();
   }, [user, loading, segments, router]);
 
-  if (loading) {
+  if (loading || !lockChecked) {
     const bg = colorScheme === 'dark' ? Colors.dark.background : Colors.light.background;
     return (
       <View style={[loadingStyles.container, { backgroundColor: bg }]}>
@@ -120,6 +129,10 @@ function RootLayoutNav() {
         <Stack.Screen name="manage-group"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="(tabs)"             options={{ headerShown: false, animation: 'fade'              }} />
         <Stack.Screen name="settings/customization" options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/security"      options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/money"         options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/data"          options={{ headerShown: false, animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/help"          options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="add-transaction"     options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="edit-transaction"   options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="budget"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
@@ -133,6 +146,8 @@ function RootLayoutNav() {
         <Stack.Screen name="edit-profile"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="goals"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="splits"            options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="trip-master/index" options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="trip-master/[id]"  options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="modal"              options={{ presentation: 'modal', title: 'Modal'              }} />
       </Stack>
       <StatusBar style="auto" />

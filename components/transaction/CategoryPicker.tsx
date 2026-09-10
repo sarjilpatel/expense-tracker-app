@@ -13,6 +13,7 @@ interface Category {
   _id?: string;
   name: string;
   icon?: string;
+  emoji?: string;
   type?: 'income' | 'expense' | 'both';
 }
 
@@ -182,7 +183,10 @@ export function CategoryPicker({
                         style={[styles.gridCell, { borderColor: theme.border, backgroundColor: theme.background }, sel && { backgroundColor: activeColor + '12', borderColor: activeColor }]}
                         onPress={() => handleSelect(item.name)} activeOpacity={0.7}
                       >
-                        <Ionicons name={(item.icon || 'grid-outline') as any} size={22} color={sel ? activeColor : theme.secondaryText} />
+                        {item.emoji
+                          ? <Text style={styles.gridEmoji}>{item.emoji}</Text>
+                          : <Ionicons name={(item.icon || 'grid-outline') as any} size={22} color={sel ? activeColor : theme.secondaryText} />
+                        }
                         <Text numberOfLines={2} style={[styles.gridLabel, { color: sel ? activeColor : theme.text }]}>{item.name}</Text>
                       </TouchableOpacity>
                     );
@@ -229,5 +233,6 @@ const styles = StyleSheet.create({
 
   grid:      { padding: 8 },
   gridCell:  { flex: 1, margin: 4, minHeight: 76, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', padding: 6 },
+  gridEmoji: { fontSize: 24 },
   gridLabel: { fontSize: 12, fontWeight: '600', marginTop: 6, textAlign: 'center' },
 });

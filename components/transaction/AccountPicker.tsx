@@ -120,8 +120,8 @@ export function AccountPicker({ accounts, selectedId, onChange, theme }: Props) 
 }
 
 const styles = StyleSheet.create({
-  rowValue:  { flex: 1 },
-  valueText: { fontSize: 14, fontWeight: '600' },
+  rowValue:  { flex: 1, alignItems: 'flex-end' },
+  valueText: { fontSize: 14, fontWeight: '600', textAlign: 'right' },
 
   overlay:   { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet:     { borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '75%', paddingBottom: 24 },

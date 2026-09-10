@@ -116,7 +116,7 @@ export function DataSection() {
                   </Text>
                 </View>
               </View>
-              <View style={[styles.syncDot, { backgroundColor: lastSync ? '#34C759' : theme.secondaryText }]} />
+              <View style={[styles.syncDot, { backgroundColor: lastSync ? theme.tint : theme.secondaryText }]} />
             </View>
             <View style={[styles.sep, { backgroundColor: theme.separator }]} />
           </>
@@ -136,13 +136,13 @@ export function DataSection() {
 
         <TouchableOpacity style={styles.row} onPress={handleExport} disabled={exporting} activeOpacity={0.7}>
           <View style={styles.rowLeft}>
-            <View style={[styles.iconBox, { backgroundColor: theme.income }]}>
+            <View style={[styles.iconBox, { backgroundColor: theme.tint }]}>
               <Ionicons name="download-outline" size={20} color="#FFF" />
             </View>
             <Text style={[styles.rowTitle, { color: theme.text }]}>Export This Month (CSV)</Text>
           </View>
           {exporting
-            ? <ActivityIndicator size="small" color={theme.income} />
+            ? <ActivityIndicator size="small" color={theme.tint} />
             : <Ionicons name="chevron-forward" size={18} color={theme.icon} />
           }
         </TouchableOpacity>

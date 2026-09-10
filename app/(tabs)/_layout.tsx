@@ -1,7 +1,6 @@
 import { Tabs, router, usePathname } from 'expo-router';
-import React, { useState } from 'react';
-import { Platform, StyleSheet, View, TouchableOpacity, Dimensions } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import React from 'react';
+import { Platform, StyleSheet, View, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -9,40 +8,18 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
 const TabBarBackground = ({ theme }: { theme: any }) => {
-  const [width, setWidth] = useState(Dimensions.get('window').width);
-
   return (
     <View
-      style={StyleSheet.absoluteFill}
-      onLayout={(e) => {
-        setWidth(e.nativeEvent.layout.width);
-      }}
+      style={[
+        StyleSheet.absoluteFill,
+        {
+          backgroundColor: theme.card,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: theme.border,
+        }
+      ]}
     >
-      <Svg width={width} height={Platform.OS === 'ios' ? 98 : 78} viewBox={`0 0 ${width} ${Platform.OS === 'ios' ? 98 : 78}`}>
-        {/* Filled background with a wide, sweeping U-shaped wave */}
-        <Path
-          d={`M 0,0 
-              L ${width / 2 - 60},0 
-              C ${width / 2 - 40},0 ${width / 2 - 32},44 ${width / 2},44 
-              C ${width / 2 + 32},44 ${width / 2 + 40},0 ${width / 2 + 60},0 
-              L ${width},0 
-              L ${width},98 
-              L 0,98 
-              Z`}
-          fill={theme.card}
-        />
-        {/* Thin top border matching the smooth curve */}
-        <Path
-          d={`M 0,0 
-              L ${width / 2 - 60},0 
-              C ${width / 2 - 40},0 ${width / 2 - 32},44 ${width / 2},44 
-              C ${width / 2 + 32},44 ${width / 2 + 40},0 ${width / 2 + 60},0 
-              L ${width},0`}
-          fill="none"
-          stroke={theme.border}
-          strokeWidth={StyleSheet.hairlineWidth}
-        />
-      </Svg>
+      <View style={{ flex: 1, backgroundColor: theme.card }} />
     </View>
   );
 };
@@ -83,9 +60,9 @@ export default function TabLayout() {
             right: 0,
             borderTopWidth: 0,
             elevation: 0,
-            height: Platform.OS === 'ios' ? 88 : 68,
-            paddingBottom: Platform.OS === 'ios' ? 28 : 8,
-            paddingTop: 8,
+            height: Platform.OS === 'ios' ? 82 : 70,
+            paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+            paddingTop: 6,
           },
           tabBarBackground: () => <TabBarBackground theme={theme} />,
           tabBarLabelStyle: {

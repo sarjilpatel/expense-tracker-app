@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -10,7 +10,7 @@ import Animated, {
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, Currency } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
-import { Ionicons } from '@expo/vector-icons';
+import { CATEGORY_EMOJIS } from '@/constants/maps';
 
 interface Props {
   category: string;
@@ -18,24 +18,10 @@ interface Props {
   percentage: number;
   color: string;
   rank: number;
+  onPress?: () => void;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  'Food': 'restaurant',
-  'Transport': 'car',
-  'Shopping': 'cart',
-  'Health': 'heart',
-  'Entertainment': 'game-controller',
-  'Bills': 'receipt',
-  'Rent': 'home',
-  'Education': 'book',
-  'Salary': 'cash',
-  'Business': 'briefcase',
-  'Investment': 'trending-up',
-  'Other': 'ellipsis-horizontal',
-};
-
-export function CategoryBar({ category, amount, percentage, color, rank }: Props) {
+export function CategoryBar({ category, amount, percentage, color, rank, onPress }: Props) {
   const scheme = useColorScheme() || 'light';
   const theme = Colors[scheme];
   const pct = Math.min(Number(percentage) || 0, 100);
@@ -49,26 +35,31 @@ export function CategoryBar({ category, amount, percentage, color, rank }: Props
     width: `${barW.value * 100}%` as any,
   }));
 
-  const isDark = scheme === 'dark';
-  const iconName = CATEGORY_ICONS[category] || 'ellipsis-horizontal';
-
   return (
-    <Animated.View entering={FadeInDown.delay(rank * 60).duration(300)} style={styles.item}>
-      <View style={styles.top}>
-        <View style={styles.left}>
-          <View style={styles.iconChip}>
-            <Ionicons name={iconName as any} size={12} color={color} />
+    <Animated.View entering={FadeInDown.delay(rank * 60).duration(300)}>
+      <TouchableOpacity
+        style={styles.item}
+        onPress={onPress}
+        activeOpacity={onPress ? 0.6 : 1}
+        disabled={!onPress}
+      >
+        <View style={styles.top}>
+          <View style={styles.left}>
+            <View style={styles.iconChip}>
+              <Text style={styles.emoji}>{CATEGORY_EMOJIS[category] || '🏷️'}</Text>
+            </View>
+            <ThemedText style={styles.name}>{category}</ThemedText>
           </View>
-          <ThemedText style={styles.name}>{category}</ThemedText>
+          <View style={styles.right}>
+            <Text style={[styles.pct, { color }]}>{Math.round(pct)}%</Text>
+            <ThemedText style={styles.amt}>{Currency.format(amount)}</ThemedText>
+            {onPress && <Text style={[styles.chevron, { color: theme.tabIconDefault }]}>›</Text>}
+          </View>
         </View>
-        <View style={styles.right}>
-          <Text style={[styles.pct, { color }]}>{Math.round(pct)}%</Text>
-          <ThemedText style={styles.amt}>{Currency.format(amount)}</ThemedText>
+        <View style={[styles.track, { backgroundColor: `${color}20` }]}>
+          <Animated.View style={[styles.fill, { backgroundColor: color }, barStyle]} />
         </View>
-      </View>
-      <View style={[styles.track, { backgroundColor: `${color}20` }]}>
-        <Animated.View style={[styles.fill, { backgroundColor: color }, barStyle]} />
-      </View>
+      </TouchableOpacity>
     </Animated.View>
   );
 }
@@ -77,11 +68,13 @@ const styles = StyleSheet.create({
   item: { gap: 6 },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   left: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  iconChip: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  iconChip: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  emoji: { fontSize: 16, lineHeight: 20, textAlign: 'center' },
   name: { fontSize: 14, fontWeight: '600', flex: 1 },
-  right: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pct: { fontSize: 12, fontWeight: '800' },
-  amt: { fontSize: 13, fontWeight: '700', minWidth: 80, textAlign: 'right' },
+  amt: { fontSize: 13, fontWeight: '700', minWidth: 72, textAlign: 'right' },
+  chevron: { fontSize: 20, fontWeight: '300', lineHeight: 22 },
   track: { height: 7, borderRadius: 4, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 4 },
 });

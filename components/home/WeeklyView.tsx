@@ -1,158 +1,160 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { BarChart } from 'react-native-gifted-charts';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { useTheme } from '@/src/context/ThemeContext';
+import { View, Text, StyleSheet } from 'react-native';
 import { usePreferences } from '@/src/context/PreferencesContext';
 
 interface Props {
   transactions: any[];
+  month: number;
+  year: number;
+  theme: any;
 }
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const SCREEN_W = Dimensions.get('window').width;
+const pad = (value: number) => String(value).padStart(2, '0');
 
-export function WeeklyView({ transactions }: Props) {
-  const { theme } = useTheme();
+function formatRange(start: Date, end: Date) {
+  return `${pad(start.getDate())}.${pad(start.getMonth() + 1)} — ${pad(end.getDate())}.${pad(end.getMonth() + 1)}`;
+}
+
+export function WeeklyView({ transactions, month, year, theme }: Props) {
   const { formatAmount } = usePreferences();
 
-  const { weekTx, weekStart, weekEnd, totals, barData } = useMemo(() => {
-    const now = new Date();
-    // Monday-start ISO week
-    const dow = now.getDay(); // 0=Sun
-    const diff = (dow === 0 ? -6 : 1 - dow);
-    const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diff);
-    const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6, 23, 59, 59);
-
-    const weekTx = transactions.filter(tx => {
-      const d = new Date(tx.date || tx.createdAt);
-      return d >= mon && d <= sun;
+  const { monthTx, weeks, totals } = useMemo(() => {
+    const monthTx = transactions.filter(tx => {
+      const date = new Date(tx.date || tx.createdAt);
+      return date.getFullYear() === year && date.getMonth() + 1 === month;
     });
 
-    const dailyIncome  = Array(7).fill(0);
-    const dailyExpense = Array(7).fill(0);
+    const weeks: Array<{ start: Date; end: Date; income: number; expense: number; balance: number }> = [];
+    const lastDay = new Date(year, month, 0).getDate();
+    for (let day = 1; day <= lastDay; day += 7) {
+      const start = new Date(year, month - 1, day);
+      const end = new Date(year, month - 1, Math.min(day + 6, lastDay));
+      let income = 0;
+      let expense = 0;
+      monthTx.forEach(tx => {
+        const date = new Date(tx.date || tx.createdAt);
+        if (date >= start && date <= new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999)) {
+          if (tx.type === 'income') income += tx.amount;
+          else expense += tx.amount;
+        }
+      });
+      weeks.push({ start, end, income, expense, balance: income - expense });
+    }
 
-    weekTx.forEach(tx => {
-      const d = new Date(tx.date || tx.createdAt);
-      const dow = d.getDay(); // 0=Sun
-      const idx = dow === 0 ? 6 : dow - 1; // Mon=0 … Sun=6
-      if (tx.type === 'income')  dailyIncome[idx]  += tx.amount;
-      else                       dailyExpense[idx] += tx.amount;
-    });
+    const income = monthTx.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
+    const expense = monthTx.filter(tx => tx.type === 'expense').reduce((sum, tx) => sum + tx.amount, 0);
 
-    const pairs = DAY_LABELS.flatMap((label, i) => [
-      {
-        value: dailyIncome[i],
-        label,
-        frontColor: theme.income,
-        spacing: 2,
-        labelTextStyle: { color: theme.secondaryText, fontSize: 10 },
-      },
-      {
-        value: dailyExpense[i],
-        frontColor: theme.expense,
-        spacing: 14,
-      },
-    ]);
+    return { monthTx, weeks, totals: { income, expense, balance: income - expense } };
+  }, [transactions, month, year]);
 
-    const income  = weekTx.filter(tx => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0);
-    const expense = weekTx.filter(tx => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0);
-
-    return {
-      weekTx,
-      weekStart: mon,
-      weekEnd: sun,
-      totals: { income, expense, balance: income - expense },
-      barData: pairs,
-    };
-  }, [transactions, theme]);
-
-  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   return (
     <View style={styles.wrap}>
-      {/* Period label */}
-      <Text style={[styles.period, { color: theme.secondaryText }]}>
-        {fmt(weekStart)} — {fmt(weekEnd)}
-      </Text>
-
-      {/* Totals strip */}
-      <View style={[styles.strip, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <View style={styles.stripCol}>
-          <Text style={[styles.stripLabel, { color: theme.secondaryText }]}>Income</Text>
-          <Text style={[styles.stripVal, { color: theme.income }]}>{formatAmount(totals.income)}</Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={[styles.title, { color: theme.text }]}>Weekly breakdown</Text>
+          <Text style={[styles.subtitle, { color: theme.secondaryText }]}>{monthLabel}</Text>
         </View>
-        <View style={[styles.stripDivider, { backgroundColor: theme.border }]} />
-        <View style={styles.stripCol}>
-          <Text style={[styles.stripLabel, { color: theme.secondaryText }]}>Expense</Text>
-          <Text style={[styles.stripVal, { color: theme.expense }]}>{formatAmount(totals.expense)}</Text>
-        </View>
-        <View style={[styles.stripDivider, { backgroundColor: theme.border }]} />
-        <View style={styles.stripCol}>
-          <Text style={[styles.stripLabel, { color: theme.secondaryText }]}>Balance</Text>
-          <Text style={[styles.stripVal, { color: totals.balance >= 0 ? theme.income : theme.expense }]}>
+        <View style={[styles.totalPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.totalLabel, { color: theme.secondaryText }]}>Net</Text>
+          <Text style={[styles.totalValue, { color: totals.balance >= 0 ? theme.income : theme.expense }]}>
             {formatAmount(totals.balance)}
           </Text>
         </View>
       </View>
 
-      {/* Bar chart */}
-      <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        {weekTx.length === 0 ? (
-          <Text style={[styles.empty, { color: theme.secondaryText }]}>No transactions this week</Text>
-        ) : (
-          <ErrorBoundary fallback={<Text style={[styles.empty, { color: theme.secondaryText }]}>Chart unavailable</Text>}>
-            <BarChart
-              data={barData}
-              width={SCREEN_W - 80}
-              height={160}
-              barWidth={14}
-              spacing={2}
-              noOfSections={3}
-              barBorderRadius={5}
-              yAxisThickness={0}
-              xAxisThickness={0}
-              hideRules
-              yAxisTextStyle={{ color: theme.secondaryText, fontSize: 9 }}
-              xAxisLabelTextStyle={{ color: theme.secondaryText, fontSize: 10 }}
-            />
-          </ErrorBoundary>
-        )}
+      <View style={styles.summaryRow}>
+        <View style={[styles.summaryCard, { backgroundColor: theme.income + '0F' }]}>
+          <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>Income</Text>
+          <Text style={[styles.summaryValue, { color: theme.income }]}>{formatAmount(totals.income)}</Text>
+        </View>
+        <View style={[styles.summaryCard, { backgroundColor: theme.expense + '0F' }]}>
+          <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>Expense</Text>
+          <Text style={[styles.summaryValue, { color: theme.expense }]}>{formatAmount(totals.expense)}</Text>
+        </View>
       </View>
 
-      {/* Legend */}
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: theme.income }]} />
-          <Text style={[styles.legendText, { color: theme.secondaryText }]}>Income</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: theme.expense }]} />
-          <Text style={[styles.legendText, { color: theme.secondaryText }]}>Expense</Text>
-        </View>
+      <View style={styles.list}>
+        {weeks.map((week, index) => {
+          const hasData = week.income > 0 || week.expense > 0;
+          return (
+            <View key={`${week.start.toISOString()}-${index}`} style={[styles.weekCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <View style={styles.weekTop}>
+                <Text style={[styles.weekLabel, { color: theme.text }]}>Week {index + 1}</Text>
+                <Text style={[styles.weekRange, { color: theme.secondaryText }]}>{formatRange(week.start, week.end)}</Text>
+              </View>
+              <View style={styles.weekAmounts}>
+                <View>
+                  <Text style={[styles.weekAmtLabel, { color: theme.secondaryText }]}>Income</Text>
+                  <Text style={[styles.weekAmt, { color: theme.income }]}>{formatAmount(week.income)}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View>
+                  <Text style={[styles.weekAmtLabel, { color: theme.secondaryText }]}>Expense</Text>
+                  <Text style={[styles.weekAmt, { color: theme.expense }]}>{formatAmount(week.expense)}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View>
+                  <Text style={[styles.weekAmtLabel, { color: theme.secondaryText }]}>Balance</Text>
+                  <Text style={[styles.weekAmt, { color: week.balance >= 0 ? theme.income : theme.expense }]}>
+                    {formatAmount(week.balance)}
+                  </Text>
+                </View>
+              </View>
+              {!hasData && <Text style={[styles.emptyText, { color: theme.secondaryText }]}>No transactions in this week</Text>}
+            </View>
+          );
+        })}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap:        { flex: 1, paddingHorizontal: 12 },
-  period:      { fontSize: 12, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
-  strip: {
-    flexDirection: 'row', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden', marginBottom: 16,
+  wrap: { paddingHorizontal: 8, paddingTop: 4, paddingBottom: 12, gap: 12 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  title: { fontSize: 18, fontWeight: '800' },
+  subtitle: { fontSize: 12, marginTop: 4 },
+  totalPill: {
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'flex-end',
+    minWidth: 104,
   },
-  stripCol:     { flex: 1, paddingVertical: 14, alignItems: 'center' },
-  stripLabel:   { fontSize: 11, fontWeight: '600', marginBottom: 4 },
-  stripVal:     { fontSize: 15, fontWeight: '800' },
-  stripDivider: { width: StyleSheet.hairlineWidth },
-  chartCard: {
-    borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
-    padding: 16, alignItems: 'center',
+  totalLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  totalValue: { fontSize: 15, fontWeight: '800', marginTop: 2 },
+  summaryRow: { flexDirection: 'row', gap: 8 },
+  summaryCard: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
   },
-  empty:   { fontSize: 13, paddingVertical: 40, textAlign: 'center' },
-  legend:  { flexDirection: 'row', justifyContent: 'center', gap: 20, marginTop: 12 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot:  { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 12 },
+  summaryLabel: { fontSize: 11, fontWeight: '600' },
+  summaryValue: { fontSize: 15, fontWeight: '800', marginTop: 2 },
+  list: { gap: 10 },
+  weekCard: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 13,
+  },
+  weekTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
+  weekLabel: { fontSize: 14, fontWeight: '800' },
+  weekRange: { fontSize: 11, fontWeight: '600' },
+  weekAmounts: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  divider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: 'rgba(127,127,127,0.2)' },
+  weekAmtLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  weekAmt: { fontSize: 14, fontWeight: '800', marginTop: 4 },
+  emptyText: { fontSize: 12, marginTop: 10 },
 });

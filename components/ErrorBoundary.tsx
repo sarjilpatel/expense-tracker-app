@@ -51,7 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
@@ -69,13 +69,13 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 14,
-    color: '#64748B',
+    color: '#71717A',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,
   },
   button: {
-    backgroundColor: '#6366F1',
+    backgroundColor: '#18181B',
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 16,

@@ -20,7 +20,7 @@ interface Props {
 export function BudgetBar({ budget, spent, progress, cardColor, borderColor, secondaryText, expenseColor, warningText, exceededText }: Props) {
   if (!budget) return null;
 
-  const barColor = progress >= 100 ? expenseColor : progress >= 80 ? '#F59E0B' : '#34D399';
+  const barColor = progress >= 100 ? expenseColor : secondaryText;
 
   return (
     <>
@@ -42,8 +42,8 @@ export function BudgetBar({ budget, spent, progress, cardColor, borderColor, sec
           style={[
             styles.alert,
             {
-              backgroundColor: progress >= 100 ? `${expenseColor}15` : '#F59E0B15',
-              borderColor: progress >= 100 ? expenseColor : '#F59E0B',
+              backgroundColor: progress >= 100 ? `${expenseColor}15` : `${secondaryText}15`,
+              borderColor: progress >= 100 ? expenseColor : secondaryText,
               borderWidth: 1,
             }
           ]}
@@ -51,9 +51,9 @@ export function BudgetBar({ budget, spent, progress, cardColor, borderColor, sec
           <Ionicons
             name={progress >= 100 ? 'warning' : 'alert-circle-outline'}
             size={14}
-            color={progress >= 100 ? expenseColor : '#D97706'}
+            color={progress >= 100 ? expenseColor : secondaryText}
           />
-          <ThemedText style={[styles.alertText, { color: progress >= 100 ? expenseColor : '#D97706' }]}>
+          <ThemedText style={[styles.alertText, { color: progress >= 100 ? expenseColor : secondaryText }]}>
             {progress >= 100 ? exceededText : warningText}
           </ThemedText>
         </Animated.View>

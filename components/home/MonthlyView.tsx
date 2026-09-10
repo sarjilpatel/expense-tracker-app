@@ -87,7 +87,7 @@ export function MonthlyView({ transactions, year, theme }: Props) {
   const div = theme.border;
 
   return (
-    <View>
+    <View style={styles.wrap}>
       {monthIndices.map(mIdx => {
         const { income, expense } = monthlyData[mIdx];
         const balance  = income - expense;
@@ -205,12 +205,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
 
+  wrap: {
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+
   // Month header
   row: {
     flexDirection:     'row',
     alignItems:        'center',
-    paddingHorizontal: 20,
-    paddingVertical:   16,
+    paddingHorizontal: 16,
+    paddingVertical:   14,
   },
   colLeft: {
     flex: 2.5,
@@ -248,9 +254,9 @@ const styles = StyleSheet.create({
   weekRow: {
     flexDirection:     'row',
     alignItems:        'center',
-    paddingHorizontal: 20,
-    paddingVertical:   12,
-    paddingLeft:       24,
+    paddingHorizontal: 16,
+    paddingVertical:   11,
+    paddingLeft:       20,
   },
   curWeekBg: {
     backgroundColor: '#2d1a1c',

@@ -151,6 +151,7 @@ export default function EditTransactionScreen() {
   };
 
   const accent = type === 'expense' ? theme.expense : theme.income;
+  const accentText = type === 'expense' ? theme.expenseText : theme.incomeText;
 
   if (fetching) {
     return (
@@ -340,7 +341,7 @@ export default function EditTransactionScreen() {
           disabled={loading}
           activeOpacity={0.85}
         >
-          {loading ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.saveTxt}>Save</Text>}
+          {loading ? <ActivityIndicator color={accentText} size="small" /> : <Text style={[styles.saveTxt, { color: accentText }]}>Save</Text>}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.cancelBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
@@ -387,14 +388,14 @@ export default function EditTransactionScreen() {
 
 const styles = StyleSheet.create({
   root:   { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 12 },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, height: 36, marginBottom: 4 },
+  headerTitle: { fontSize: 17, fontWeight: '800' },
 
   segmentedWrap: {
     flexDirection: 'row',
     borderRadius: 14,
     padding: 4,
-    marginHorizontal: 12,
+    marginHorizontal: 8,
     marginBottom: 16,
     borderWidth: 1,
     height: 48,
@@ -411,10 +412,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  scroll:  { flex: 1, paddingHorizontal: 12 },
+  scroll:  { flex: 1, paddingHorizontal: 8 },
 
   heroCard: {
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     marginBottom: 16,
@@ -448,7 +449,7 @@ const styles = StyleSheet.create({
   },
 
   formCard: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
     marginBottom: 16,
@@ -467,14 +468,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   iconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   formLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   formRowRight: {
@@ -489,21 +490,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   formValue: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   inlineInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     paddingVertical: 8,
     textAlign: 'right',
   },
 
-  bottom:    { flexDirection: 'row', gap: 12, paddingHorizontal: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  saveBtn:   { flex: 2, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  saveTxt:   { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  cancelBtn: { flex: 1, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
+  bottom:    { flexDirection: 'row', gap: 12, paddingHorizontal: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  saveBtn:   { flex: 2, height: 56, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  saveTxt:   { fontSize: 17, fontWeight: '700' },
+  cancelBtn: { flex: 1, height: 56, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
   cancelTxt: { fontSize: 15, fontWeight: '700' },
 
   iosOverlay:     { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },

@@ -17,9 +17,9 @@ function scorePassword(pw: string) {
   if (/[A-Z]/.test(pw)) s++;
   if (/[0-9]/.test(pw)) s++;
   if (/[^A-Za-z0-9]/.test(pw)) s++;
-  const colors = ['#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#34C759'];
+  const colors = ['#F55345', '#71717A', '#A1A1AA', '#1999FC', '#1999FC'];
   const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
-  return { score: s, color: colors[s] ?? '#FF3B30', label: labels[s] ?? 'Very weak' };
+  return { score: s, color: colors[s] ?? '#F55345', label: labels[s] ?? 'Very weak' };
 }
 
 export default function ResetPasswordScreen() {
@@ -54,7 +54,7 @@ export default function ResetPasswordScreen() {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.iconWrap}>
-          <Ionicons name="checkmark-circle" size={56} color="#34C759" />
+          <Ionicons name="checkmark-circle" size={56} color="#1999FC" />
         </View>
         <ThemedText type="title" style={styles.title}>Password reset!</ThemedText>
         <ThemedText style={[styles.sub, { color: theme.secondaryText }]}>
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   strengthRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
   strengthSeg:  { flex: 1, height: 4, borderRadius: 2 },
   strengthLabel:{ fontSize: 12, fontWeight: '600', marginLeft: 4 },
-  errorText:    { color: '#FF3B30', fontSize: 13, marginTop: 8 },
+  errorText:    { color: '#F55345', fontSize: 13, marginTop: 8 },
   btn:          { height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   btnText:      { fontSize: 16, fontWeight: '700' },
 });

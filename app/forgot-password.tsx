@@ -48,8 +48,8 @@ export default function ForgotPasswordScreen() {
         </ThemedText>
 
         {sent ? (
-          <View style={[styles.successBox, { backgroundColor: theme.card, borderColor: '#34C759' }]}>
-            <Ionicons name="checkmark-circle" size={24} color="#34C759" />
+          <View style={[styles.successBox, { backgroundColor: theme.card, borderColor: theme.tint }]}>
+            <Ionicons name="checkmark-circle" size={24} color={theme.tint} />
             <Text style={[styles.successText, { color: theme.text }]}>
               Check your inbox — a reset link is on its way. It expires in 1 hour.
             </Text>
@@ -57,7 +57,7 @@ export default function ForgotPasswordScreen() {
         ) : (
           <>
             <TextInput
-              style={[styles.input, { color: theme.text, borderColor: error ? '#FF3B30' : theme.border }]}
+              style={[styles.input, { color: theme.text, borderColor: error ? '#F55345' : theme.border }]}
               placeholder="email@example.com"
               placeholderTextColor="#A0A0A0"
               value={email}
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   title:     { fontSize: 26, fontWeight: '800', marginBottom: 10 },
   sub:       { fontSize: 15, lineHeight: 22, marginBottom: 28 },
   input:     { height: 56, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, marginBottom: 8 },
-  errorText: { color: '#FF3B30', fontSize: 13, marginBottom: 12 },
+  errorText: { color: '#F55345', fontSize: 13, marginBottom: 12 },
   btn:       { height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
   btnText:   { fontSize: 16, fontWeight: '700' },
   successBox:{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 8 },
