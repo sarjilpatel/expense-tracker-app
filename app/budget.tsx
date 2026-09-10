@@ -5,10 +5,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
-import { getBudgets, deleteBudget, getTransactions, getPrevMonthCarryForward } from '@/src/services/dataService';
+import { getBudgets, deleteBudget, getAllTransactions, getPrevMonthCarryForward } from '@/src/services/dataService';
 import { getPeriodRange, getCalendarMonthsForPeriod, filterByPeriod } from '@/src/utils/dateUtils';
 import { CATEGORY_EMOJIS } from '@/constants/maps';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
@@ -35,12 +35,12 @@ export default function BudgetScreen() {
 
       if (monthlyStart > 1) {
         const months = getCalendarMonthsForPeriod(month, year, monthlyStart);
-        const results = await Promise.all(months.map(m => getTransactions(m.month, m.year)));
+        const results = await Promise.all(months.map(m => getAllTransactions(m.month, m.year)));
         const combined = (results as any[][]).flat();
         const { start, end } = getPeriodRange(month, year, monthlyStart);
         txData = filterByPeriod(combined, start, end);
       } else {
-        txData = await getTransactions(month, year);
+        txData = await getAllTransactions(month, year);
       }
 
       const [budgetData, cf] = await Promise.all([

@@ -4,7 +4,7 @@ import {
   Text, StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -14,7 +14,6 @@ export default function ForgotPasswordScreen() {
   const { theme } = useTheme();
   const [email, setEmail]       = useState('');
   const [loading, setLoading]   = useState(false);
-  const [sent, setSent]         = useState(false);
   const [error, setError]       = useState('');
 
   const handleSubmit = async () => {
@@ -22,8 +21,11 @@ export default function ForgotPasswordScreen() {
     setError('');
     setLoading(true);
     try {
-      await forgotPassword(email.trim().toLowerCase());
-      setSent(true);
+      const address = email.trim().toLowerCase();
+      await forgotPassword(address);
+      // The reply is the same whether or not the address is registered, so this always advances —
+      // an unknown address simply never receives a code.
+      router.push({ pathname: '/reset-password', params: { email: address } });
     } catch (e: any) {
       setError(typeof e === 'string' ? e : 'Something went wrong.');
     } finally {
@@ -44,42 +46,31 @@ export default function ForgotPasswordScreen() {
 
         <ThemedText type="title" style={styles.title}>Forgot password?</ThemedText>
         <ThemedText style={[styles.sub, { color: theme.secondaryText }]}>
-          Enter the email address linked to your account and we'll send you a reset link.
+          Enter the email address linked to your account and we&apos;ll send you a 6-digit code.
         </ThemedText>
 
-        {sent ? (
-          <View style={[styles.successBox, { backgroundColor: theme.card, borderColor: theme.tint }]}>
-            <Ionicons name="checkmark-circle" size={24} color={theme.tint} />
-            <Text style={[styles.successText, { color: theme.text }]}>
-              Check your inbox — a reset link is on its way. It expires in 1 hour.
-            </Text>
-          </View>
-        ) : (
-          <>
-            <TextInput
-              style={[styles.input, { color: theme.text, borderColor: error ? '#F55345' : theme.border }]}
-              placeholder="email@example.com"
-              placeholderTextColor="#A0A0A0"
-              value={email}
-              onChangeText={t => { setEmail(t); setError(''); }}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoFocus
-            />
-            {!!error && <Text style={styles.errorText}>{error}</Text>}
+        <TextInput
+          style={[styles.input, { color: theme.text, borderColor: error ? '#F55345' : theme.border }]}
+          placeholder="email@example.com"
+          placeholderTextColor="#A0A0A0"
+          value={email}
+          onChangeText={t => { setEmail(t); setError(''); }}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoFocus
+        />
+        {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-            <TouchableOpacity
-              style={[styles.btn, { backgroundColor: theme.tint }, loading && { opacity: 0.7 }]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading
-                ? <ActivityIndicator color={theme.tintText} />
-                : <Text style={[styles.btnText, { color: theme.tintText }]}>Send Reset Link</Text>
-              }
-            </TouchableOpacity>
-          </>
-        )}
+        <TouchableOpacity
+          style={[styles.btn, { backgroundColor: theme.tint }, loading && { opacity: 0.7 }]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading
+            ? <ActivityIndicator color={theme.tintText} />
+            : <Text style={[styles.btnText, { color: theme.tintText }]}>Send Code</Text>
+          }
+        </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
           <Text style={[styles.backLinkText, { color: theme.tint }]}>Back to login</Text>
@@ -99,8 +90,6 @@ const styles = StyleSheet.create({
   errorText: { color: '#F55345', fontSize: 13, marginBottom: 12 },
   btn:       { height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 8 },
   btnText:   { fontSize: 16, fontWeight: '700' },
-  successBox:{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 8 },
-  successText:{ flex: 1, fontSize: 14, lineHeight: 20 },
   backLink:  { alignItems: 'center', marginTop: 28 },
   backLinkText: { fontSize: 15, fontWeight: '600' },
 });

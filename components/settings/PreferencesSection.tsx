@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, Switch, Modal,
   StyleSheet, FlatList, Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';

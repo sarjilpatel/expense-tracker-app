@@ -3,14 +3,14 @@ import {
   View, Text, TouchableOpacity, Modal, FlatList,
   StyleSheet, ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as XLSX from 'xlsx';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { Currency } from '@/constants/theme';
-import { getTransactions } from '@/src/services/transactionApi';
+import { getAllTransactions } from '@/src/services/dataService';
 
 interface Props {
   transactions: any[];
@@ -99,9 +99,9 @@ export function TotalView({ transactions, summary, budget, month, year, theme }:
       // Fetch the right transactions for this range
       let txList: any[];
       if (range.fetchYear === undefined) {
-        txList = await getTransactions(undefined, undefined);
+        txList = await getAllTransactions();
       } else {
-        txList = await getTransactions(range.fetchMonth, range.fetchYear);
+        txList = await getAllTransactions(range.fetchMonth, range.fetchYear);
       }
 
       // Filter by exact date range if needed

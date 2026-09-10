@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Category } from '../groupApi';
+import type { Category } from '../groupApi';
 
 const KEY = '@local_categories_v1';
 
@@ -74,4 +74,17 @@ export async function getAllLocalCategories(): Promise<Category[]> {
 
 export async function clearLocalCategories(): Promise<void> {
   await AsyncStorage.removeItem(KEY);
+}
+
+/**
+ * Keeps the built-in defaults plus the given custom ids — used by sync to hold on to
+ * whatever failed to upload. Clearing the key outright would restore defaults on next
+ * load and silently drop the custom categories that never made it to the server.
+ */
+export async function retainLocalCategories(ids: string[]): Promise<void> {
+  const keep = new Set(ids);
+  if (keep.size === 0) return clearLocalCategories();
+  const all = await load();
+  const kept = all.filter(c => c._id.startsWith('dc_') || keep.has(c._id));
+  await AsyncStorage.setItem(KEY, JSON.stringify(kept));
 }

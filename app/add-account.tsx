@@ -4,17 +4,15 @@ import {
   StyleSheet, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import {
-  Account, AccountType, ACCOUNT_TYPE_META,
-  saveAccount, deleteAccount, getAccounts,
-} from '@/src/services/accountService';
+import { AccountType, ACCOUNT_TYPE_META } from '@/src/services/accountService';
+import { saveAccount, deleteAccount, getAccounts } from '@/src/services/dataService';
 import { getContrastText } from '@/constants/theme';
 
 const COLORS = [

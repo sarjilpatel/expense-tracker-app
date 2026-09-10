@@ -11,16 +11,16 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { Currency } from '@/constants/theme';
 import { useLanguage } from '@/src/i18n/LanguageContext';
-import { addTransaction, getCurrentGroup, getTransactions } from '@/src/services/dataService';
+import { addTransaction, getCurrentGroup, getTransactions, getAccounts, setTxAccount } from '@/src/services/dataService';
 import type { Category } from '@/src/services/dataService';
 import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
-import { getAccounts, Account, setTxAccount } from '@/src/services/accountService';
+import type { Account } from '@/src/services/accountService';
 import { saveReceipt } from '@/src/services/receiptService';
 import { CategoryPicker } from '@/components/transaction/CategoryPicker';
 import { AccountPicker } from '@/components/transaction/AccountPicker';
@@ -128,6 +128,8 @@ export default function AddTransactionScreen() {
       const [g, accs, txs] = await Promise.all([
         getCurrentGroup(),
         getAccounts(),
+        // Newest 50 is deliberate here — this only feeds the 6 most-recent category chips,
+        // so paging the whole history would be wasted work.
         (getTransactions() as Promise<any[]>).catch(() => []),
       ]);
       setCategories(g.categories || []);

@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { LONG_TIMEOUT_MS } from './apiClient';
 
 /**
  * Add a new transaction
@@ -28,6 +28,51 @@ export const getTransactions = async (
     const data = response.data;
     if (data && data.transactions) return data.transactions;
     return data; // fallback for old server
+  } catch (error: any) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/** Server clamps `limit` to 100 (`Math.min(100, ...)`), so this is the largest useful page. */
+const MAX_PAGE_SIZE = 100;
+
+/**
+ * Safety valve. 50 pages is 5000 transactions; the global limiter is 60 req/min, so a run that
+ * needs more pages than this would be throttled anyway. Better to stop than to hammer the API.
+ */
+const MAX_PAGES = 50;
+
+/**
+ * Every matching transaction, not just the first page.
+ *
+ * `getTransactions` sends no `page`/`limit`, so the server's default of 50 applies and the caller
+ * silently gets the newest 50 rows. That is fine for a list view but wrong for exports, backups
+ * and balance sums. Use this wherever a partial answer would be incorrect rather than merely
+ * short.
+ */
+export const getAllTransactions = async (
+  month?: number, year?: number, search?: string
+): Promise<any[]> => {
+  try {
+    const params: any = { limit: MAX_PAGE_SIZE };
+    if (month && year) { params.month = month; params.year = year; }
+    if (search && search.trim()) params.search = search.trim();
+
+    const all: any[] = [];
+    let page = 1;
+    let pages = 1;
+
+    do {
+      const { data } = await apiClient.get('/transactions', { params: { ...params, page } });
+      // Old servers returned a bare array with no pagination envelope.
+      if (Array.isArray(data)) return data;
+
+      all.push(...(data?.transactions ?? []));
+      pages = data?.pagination?.pages ?? 1;
+      page += 1;
+    } while (page <= pages && page <= MAX_PAGES);
+
+    return all;
   } catch (error: any) {
     throw error.response?.data || error.message;
   }
@@ -92,7 +137,10 @@ export const getInsights = async (month: number, year: number): Promise<{
   noData?: boolean;
 }> => {
   try {
-    const response = await apiClient.get('/transactions/insights', { params: { month, year } });
+    const response = await apiClient.get('/transactions/insights', {
+      params: { month, year },
+      timeout: LONG_TIMEOUT_MS,
+    });
     return response.data;
   } catch (error: any) {
     throw error.response?.data || error.message;

@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { useTheme } from '@/src/context/ThemeContext';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 const TabBarBackground = ({ theme }: { theme: any }) => {
   return (

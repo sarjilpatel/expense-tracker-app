@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { ActivityIndicator, View, StyleSheet, AppState, Appearance } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as SystemUI from 'expo-system-ui';
 
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
@@ -124,7 +124,8 @@ function RootLayoutNav() {
         <Stack.Screen name="login"              options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="signup"             options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="reset-password/[token]" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="verify-email"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="reset-password"     options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="group-setup"        options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="manage-group"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="(tabs)"             options={{ headerShown: false, animation: 'fade'              }} />

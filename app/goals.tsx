@@ -9,7 +9,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
@@ -19,7 +19,7 @@ import { Currency } from '@/constants/theme';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
 import {
   getGoals, createGoal, updateGoal, deleteGoal, Goal,
-} from '@/src/services/goalService';
+} from '@/src/services/dataService';
 
 const ICONS = [
   'flag-outline', 'home-outline', 'airplane-outline', 'car-outline',

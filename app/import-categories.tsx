@@ -11,7 +11,7 @@ import {
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { getMyGroups, importCategories } from '@/src/services/groupApi';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useRouter, useLocalSearchParams } from 'expo-router';

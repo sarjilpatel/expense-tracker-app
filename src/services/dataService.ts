@@ -8,8 +8,18 @@ import * as remoteGrp  from './groupApi';
 import * as localCat   from './local/localCategoryService';
 import * as remoteBudg from './budgetApi';
 import * as localBudg  from './local/localBudgetService';
+import * as remoteAcct from './accountApi';
+import type { Account }    from './accountService';
+import * as localAcct  from './local/localAccountService';
+import * as remoteGoal from './goalApi';
+import type { Goal }    from './goalApi';
+import * as remoteSplit from './splitApi';
+import type { Split }   from './splitApi';
 
 export type { Category } from './groupApi';
+export type { Account, AccountType } from './accountService';
+export type { Goal } from './goalApi';
+export type { Split, SplitEntry, SplitMember } from './splitApi';
 
 let _isGuest = true;
 
@@ -27,6 +37,16 @@ export const getTransactions = (month?: number, year?: number, search?: string) 
   _isGuest
     ? localTx.getLocalTransactions(month, year, search)
     : remoteTx.getTransactions(month, year, search);
+
+/**
+ * Every matching transaction, paging past the server's 50-row default.
+ * Use for exports, backups and balance sums — anywhere a truncated list is a wrong answer.
+ * Guest mode already returns everything, so the local branch is the same call.
+ */
+export const getAllTransactions = (month?: number, year?: number, search?: string) =>
+  _isGuest
+    ? localTx.getLocalTransactions(month, year, search)
+    : remoteTx.getAllTransactions(month, year, search);
 
 /** Search across ALL time periods — no month/year filter. */
 export const searchAllTransactions = (query: string) =>
@@ -134,3 +154,105 @@ export const deleteBudget = (id: string) =>
   _isGuest
     ? localBudg.deleteLocalBudget(id)
     : remoteBudg.deleteBudget(id);
+
+// ── Accounts ──────────────────────────────────────────────────────────────────
+// Accounts were local-only until now, so a signed-in user lost every one of them on reinstall or
+// on a second device. Both sides are AsyncStorage-shaped: an account has an `id`, and the
+// transaction→account links are a `{ [txId]: accountId }` map.
+
+export const getAccounts = () =>
+  _isGuest
+    ? localAcct.getLocalAccounts()
+    : remoteAcct.getAccounts();
+
+export const saveAccount = (data: Omit<Account, 'id' | 'createdAt'> & { id?: string }) =>
+  _isGuest
+    ? localAcct.saveLocalAccount(data)
+    : remoteAcct.saveAccount(data);
+
+export const deleteAccount = (id: string) =>
+  _isGuest
+    ? localAcct.deleteLocalAccount(id)
+    : remoteAcct.deleteAccount(id);
+
+export const getTxAccountMap = () =>
+  _isGuest
+    ? localAcct.getLocalTxAccountMap()
+    : remoteAcct.getTxAccountMap();
+
+export const setTxAccount = (txId: string, accountId: string) =>
+  _isGuest
+    ? localAcct.setLocalTxAccount(txId, accountId)
+    : remoteAcct.setTxAccount(txId, accountId);
+
+export const removeTxAccount = (txId: string) =>
+  _isGuest
+    ? localAcct.removeLocalTxAccount(txId)
+    : remoteAcct.removeTxAccount(txId);
+
+
+// ── Goals and splits (account required) ──────────────────────────────────────
+// Neither has a local implementation and neither should have one: a split is a debt between
+// members of a group, and goals are group-scoped server-side. There is nothing coherent to store
+// for a guest, who has no group and no one to owe.
+//
+// They route through here anyway, rather than being imported straight from `goalApi`/`splitApi`,
+// so that "a guest reaches the network" is impossible by construction instead of depending on
+// every screen remembering its own `isGuest` check. Reads answer empty — a guest genuinely has
+// none. Writes reject, because silently swallowing a write the user asked for is worse than a
+// visible failure. Screens still show a sign-in prompt instead of the feature; this is the
+// backstop for the day one forgets.
+
+export class GuestUnsupportedError extends Error {
+  constructor(feature: string) {
+    super(`${feature} require an account.`);
+    this.name = 'GuestUnsupportedError';
+  }
+}
+
+const guestReject = (feature: string) => Promise.reject(new GuestUnsupportedError(feature));
+
+export const getGoals = () =>
+  _isGuest
+    ? Promise.resolve([] as Goal[])
+    : remoteGoal.getGoals();
+
+export const createGoal = (data: Parameters<typeof remoteGoal.createGoal>[0]) =>
+  _isGuest
+    ? guestReject('Savings goals')
+    : remoteGoal.createGoal(data);
+
+export const updateGoal = (id: string, data: Parameters<typeof remoteGoal.updateGoal>[1]) =>
+  _isGuest
+    ? guestReject('Savings goals')
+    : remoteGoal.updateGoal(id, data);
+
+export const deleteGoal = (id: string) =>
+  _isGuest
+    ? guestReject('Savings goals')
+    : remoteGoal.deleteGoal(id);
+
+export const getSplits = () =>
+  _isGuest
+    ? Promise.resolve([] as Split[])
+    : remoteSplit.getSplits();
+
+export const createSplit = (data: Parameters<typeof remoteSplit.createSplit>[0]) =>
+  _isGuest
+    ? guestReject('Split expenses')
+    : remoteSplit.createSplit(data);
+
+export const settleSplit = (splitId: string, userId: string) =>
+  _isGuest
+    ? guestReject('Split expenses')
+    : remoteSplit.settleSplit(splitId, userId);
+
+export const unsettleSplit = (splitId: string, userId: string) =>
+  _isGuest
+    ? guestReject('Split expenses')
+    : remoteSplit.unsettleSplit(splitId, userId);
+
+export const deleteSplit = (splitId: string) =>
+  _isGuest
+    ? guestReject('Split expenses')
+    : remoteSplit.deleteSplit(splitId);

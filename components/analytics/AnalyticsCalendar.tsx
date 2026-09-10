@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Currency } from '@/constants/theme';
 import { MONTHS, CAL_DAY_LABELS } from '@/constants/maps';
 

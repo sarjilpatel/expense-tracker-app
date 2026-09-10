@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
@@ -191,7 +191,7 @@ export default function TripMasterListScreen() {
             </View>
             <Text style={[S.modalTitle, { color: theme.text }]}>New Trip</Text>
             <Text style={[S.modalSub, { color: theme.secondaryText }]}>
-              Give it a name — like "Goa Trip" or "Flat Groceries".
+              Give it a name — like &quot;Goa Trip&quot; or &quot;Flat Groceries&quot;.
             </Text>
             <TextInput
               style={[S.input, { backgroundColor: theme.cardAlt, color: theme.text, borderColor: theme.border }]}

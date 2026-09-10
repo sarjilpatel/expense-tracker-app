@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { Currency } from '@/constants/theme';
 

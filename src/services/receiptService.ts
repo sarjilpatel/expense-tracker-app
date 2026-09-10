@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+// expo-file-system 19 moved the whole function API (documentDirectory, writeAsStringAsync,
+// EncodingType, ...) behind /legacy; the main entry now exports only Paths/File/Directory.
+import * as FileSystem from 'expo-file-system/legacy';
 
 const RECEIPT_MAP_KEY = '@receipt_map';
 const RECEIPT_DIR = `${FileSystem.documentDirectory}receipts/`;

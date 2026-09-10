@@ -12,8 +12,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme } from '@/src/context/ThemeContext';
-import { getAnalytics, getTrend, getTransactions, getBudgets } from '@/src/services/dataService';
-import { Ionicons } from '@expo/vector-icons';
+import { getAnalytics, getTrend, getAllTransactions, getBudgets } from '@/src/services/dataService';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -140,7 +140,7 @@ export default function AnalyticsScreen() {
   const openCategoryModal = useCallback(async (category: string, color: string) => {
     setCategoryModal({ category, color });
     try {
-      const raw = await getTransactions(currentMonth, currentYear);
+      const raw = await getAllTransactions(currentMonth, currentYear);
       const all: any[] = Array.isArray(raw) ? raw : [];
       setCategoryTxs(all.filter(tx => tx.category === category)
         .sort((a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()));

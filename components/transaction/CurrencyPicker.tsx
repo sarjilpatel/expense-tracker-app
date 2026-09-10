@@ -4,7 +4,7 @@ import {
   StyleSheet, Pressable,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
 import { useTheme } from '@/src/context/ThemeContext';

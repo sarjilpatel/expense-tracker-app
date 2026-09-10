@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -447,7 +447,7 @@ export default function TripDetailScreen() {
               >
                 <Ionicons name="checkmark-circle" size={22} color={theme.income} />
                 <Text style={[S.allSettledText, { color: theme.income }]}>
-                  All settled — everyone's even!
+                  All settled — everyone&apos;s even!
                 </Text>
               </LinearGradient>
             ) : (

@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, FlatList,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLanguage } from '@/src/i18n/LanguageContext';
 
 interface MonthYearPickerProps {

@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTheme } from '@/src/context/ThemeContext';
@@ -21,8 +21,10 @@ import { usePreferences } from '@/src/context/PreferencesContext';
 import { getPeriodRange, getPeriodLabel, filterByPeriod, getCalendarMonthsForPeriod } from '@/src/utils/dateUtils';
 import socketService from '@/src/services/socketService';
 import { sendLocalNotification, getLargeTransactionThreshold } from '@/src/services/notificationService';
-import { getTransactions, deleteTransaction, restoreTransaction, getBudgets } from '@/src/services/dataService';
-import { getAccounts, getTxAccountMap } from '@/src/services/accountService';
+import {
+  getAllTransactions, deleteTransaction, restoreTransaction, getBudgets,
+  getAccounts, getTxAccountMap,
+} from '@/src/services/dataService';
 import { getReceiptMap } from '@/src/services/receiptService';
 import {
   getCachedTransactions, setCachedTransactions,
@@ -203,14 +205,14 @@ export default function HomeScreen() {
       if (!isMonthlyView && monthlyStart > 1) {
         // Fetch both months that the custom period spans
         const months = getCalendarMonthsForPeriod(currentMonth, currentYear, monthlyStart);
-        const results = await Promise.all(months.map(m => getTransactions(m.month, m.year)));
+        const results = await Promise.all(months.map(m => getAllTransactions(m.month, m.year)));
         const combined = (results as any[][]).flat();
         const { start, end } = getPeriodRange(currentMonth, currentYear, monthlyStart);
         txData = filterByPeriod(combined, start, end);
         // Cache first month only (standard cache key)
         await setCachedTransactions(combined, currentMonth, currentYear);
       } else {
-        const raw = await getTransactions(monthParam, currentYear);
+        const raw = await getAllTransactions(monthParam, currentYear);
         txData = Array.isArray(raw) ? raw : [];
         await setCachedTransactions(txData, monthParam, currentYear);
       }
@@ -462,6 +464,8 @@ export default function HomeScreen() {
         note:      item.note ?? '',
         date:      item.date ?? item.createdAt ?? new Date().toISOString(),
         isPrivate: String(!!item.isPrivate),
+        isRecurring: String(!!item.isRecurring),
+        recurrenceFrequency: item.recurrenceFrequency ?? '',
       },
     });
   }, []);

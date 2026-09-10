@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter, Stack } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/src/context/AuthContext';
@@ -19,7 +19,7 @@ import {
   leaveGroup,
   deleteGroup,
 } from '@/src/services/groupApi';
-import { getTransactions } from '@/src/services/dataService';
+import { getAllTransactions } from '@/src/services/dataService';
 
 export default function ManageGroupScreen() {
   const { user, updateUser } = useAuth();
@@ -43,7 +43,7 @@ export default function ManageGroupScreen() {
       setGroup(grpDetail);
       setMyGroups(grpList);
       const now = new Date();
-      const txs = (await getTransactions(now.getMonth() + 1, now.getFullYear())) as any[];
+      const txs = (await getAllTransactions(now.getMonth() + 1, now.getFullYear())) as any[];
       const total = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
       setMonthlyExpense(total);
     } catch (e) {

@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Currency } from '@/constants/theme';
 import { CURRENCY_META } from '@/src/services/preferencesService';
 import { CATEGORY_EMOJIS } from '@/constants/maps';

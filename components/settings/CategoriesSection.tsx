@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/src/context/ThemeContext';
 import { getCurrentGroup } from '@/src/services/dataService';
+import type { Category } from '@/src/services/groupApi';
 
 export function CategoriesSection() {
   const { theme } = useTheme();
@@ -13,8 +14,9 @@ export function CategoriesSection() {
 
   useEffect(() => {
     getCurrentGroup()
-      .then(({ categories }) => {
+      .then(({ categories }: { categories: Category[] }) => {
         setIncomeCount(categories.filter(c => c.type === 'income').length);
+        // A category with no type predates the income/expense split and is an expense.
         setExpenseCount(categories.filter(c => c.type === 'expense' || !c.type).length);
       })
       .catch(() => {});

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/src/context/ThemeContext';

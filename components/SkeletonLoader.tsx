@@ -6,6 +6,7 @@ import Animated, {
   withRepeat,
   withTiming,
   Easing,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -15,7 +16,7 @@ interface SkeletonBarProps {
   height?: number;
   borderRadius?: number;
   style?: ViewStyle;
-  shimmerX: Animated.SharedValue<number>;
+  shimmerX: SharedValue<number>;
 }
 
 function SkeletonBar({ width = '100%', height = 16, borderRadius = 8, style, shimmerX }: SkeletonBarProps) {

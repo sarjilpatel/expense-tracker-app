@@ -3,7 +3,7 @@ import {
   Modal, View, Text, TouchableOpacity, FlatList, TextInput,
   StyleSheet, Platform, KeyboardAvoidingView, Pressable, Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 const CATEGORIES: { id: string; icon: string; label: string; emojis: string[] }[] = [
   {

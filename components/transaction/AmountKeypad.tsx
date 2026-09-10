@@ -4,7 +4,7 @@ import {
   StyleSheet, Dimensions,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 
 const { height: SCREEN_H } = Dimensions.get('window');

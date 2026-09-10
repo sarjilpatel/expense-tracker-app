@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/src/context/ThemeContext';
@@ -132,6 +132,8 @@ export default function SearchScreen() {
         note:      item.note   ?? '',
         date:      item.date   ?? item.createdAt ?? new Date().toISOString(),
         isPrivate: String(!!item.isPrivate),
+        isRecurring: String(!!item.isRecurring),
+        recurrenceFrequency: item.recurrenceFrequency ?? '',
       },
     });
   };
@@ -241,7 +243,7 @@ export default function SearchScreen() {
         <Ionicons name="search-circle-outline" size={48} color={theme.secondaryText} style={{ marginBottom: 12 }} />
         <Text style={[styles.hintTitle, { color: theme.text }]}>No results</Text>
         <Text style={[styles.hintSub, { color: theme.secondaryText }]}>
-          {`Nothing matched "${query}" — try a different word`}
+          {`Nothing matched "${query}" — try a whole word from a note, or a category`}
         </Text>
       </View>
     );

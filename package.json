@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "node --import ./tests/register.mjs --no-warnings --test \"tests/**/*.test.mjs\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -42,7 +43,6 @@
     "expo-sharing": "~14.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
-    "expo-symbols": "~1.0.8",
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.10",
     "react": "19.1.0",

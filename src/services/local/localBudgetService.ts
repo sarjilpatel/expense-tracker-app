@@ -77,3 +77,11 @@ export async function getAllLocalBudgets(): Promise<LocalBudget[]> {
 export async function clearLocalBudgets(): Promise<void> {
   await AsyncStorage.removeItem(KEY);
 }
+
+/** Keeps only the given ids — used by sync to hold on to whatever failed to upload. */
+export async function retainLocalBudgets(ids: string[]): Promise<void> {
+  const keep = new Set(ids);
+  if (keep.size === 0) return clearLocalBudgets();
+  const all = await load();
+  await persist(all.filter(b => keep.has(b._id)));
+}

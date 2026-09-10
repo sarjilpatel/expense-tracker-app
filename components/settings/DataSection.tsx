@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
-import { Ionicons } from '@expo/vector-icons';
+// expo-file-system 19 moved the whole function API (documentDirectory, writeAsStringAsync,
+// EncodingType, ...) behind /legacy; the main entry now exports only Paths/File/Directory.
+import * as FileSystem from 'expo-file-system/legacy';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
-import { getTransactions } from '@/src/services/dataService';
+import { getAllTransactions } from '@/src/services/dataService';
 import { discardLocalData, getLastSyncTime } from '@/src/services/syncService';
 import { router } from 'expo-router';
 
@@ -43,7 +45,7 @@ export function DataSection() {
     setExporting(true);
     try {
       const now = new Date();
-      const transactions = await getTransactions(now.getMonth() + 1, now.getFullYear());
+      const transactions = await getAllTransactions(now.getMonth() + 1, now.getFullYear());
       const rows = [
         ['Date', 'Type', 'Category', 'Amount', 'Note'],
         ...(transactions as any[]).map((tx: any) => [
@@ -56,8 +58,8 @@ export function DataSection() {
       ];
       const csv = rows.map(r => r.join(',')).join('\n');
       const fileName = `transactions_${now.toLocaleString('default', { month: 'long' })}_${now.getFullYear()}.csv`;
-      const filePath = `${(FileSystem as any).documentDirectory}${fileName}`;
-      await (FileSystem as any).writeAsStringAsync(filePath, csv, { encoding: 'utf8' });
+      const filePath = `${FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(filePath, csv, { encoding: FileSystem.EncodingType.UTF8 });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(filePath, { mimeType: 'text/csv', dialogTitle: 'Export Transactions' });

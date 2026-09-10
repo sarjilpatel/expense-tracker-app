@@ -19,7 +19,7 @@ import { getProfile, updateProfile } from '@/src/services/authApi';
 import { router, Stack } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLanguage } from '@/src/i18n/LanguageContext';
 import { useAuth } from '@/src/context/AuthContext';
 

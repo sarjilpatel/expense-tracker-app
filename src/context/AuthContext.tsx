@@ -5,6 +5,7 @@ import socketService from '../services/socketService';
 import { requestNotificationPermissions } from '../services/notificationService';
 import { setMode as setDataMode } from '../services/dataService';
 import { clearAllUserCaches } from '../cache/transactionCache';
+import { logoutUser, syncDeviceTimezone } from '../services/authApi';
 
 export interface User {
   _id: string;
@@ -60,6 +61,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loadStorageData();
   }, []);
 
+  // Device time zone (W1-30). `User.timezone` tells the server which calendar to fire this user's
+  // recurring transactions in, and was written once at signup — a user who moved kept firing on
+  // their old day with nothing in the app able to correct it. Keyed on the user id so it runs once
+  // per signed-in session: on a start with stored credentials, and again on a fresh login. The
+  // local copy is updated too, so the next start has nothing to send.
+  useEffect(() => {
+    if (!user || !token || isGuest) return;
+    syncDeviceTimezone(user.timezone).then(zone => { if (zone) updateUser({ timezone: zone }); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id, token, isGuest]);
+
   // Socket lifecycle — only for logged-in users
   useEffect(() => {
     if (user && token && !isGuest) {
@@ -88,6 +100,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
+    // Revoke server-side first, while the token is still in SecureStore for apiClient to send.
+    // Best-effort: a failure here must not strand the user in a logged-in UI, so the local
+    // teardown below runs either way. apiClient also calls this on a failed refresh, where the
+    // request is expected to fail.
+    try {
+      await logoutUser();
+    } catch {
+      // offline, or the token was already invalid — nothing more to revoke
+    }
     try {
       await SecureStore.deleteItemAsync('token');
       await SecureStore.deleteItemAsync('refreshToken');

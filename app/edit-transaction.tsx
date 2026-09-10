@@ -9,17 +9,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/src/context/ThemeContext';
-import { updateTransaction, getCurrentGroup } from '@/src/services/dataService';
+import { updateTransaction, getCurrentGroup, getAccounts, setTxAccount, removeTxAccount, getTxAccountMap } from '@/src/services/dataService';
 import type { Category } from '@/src/services/dataService';
 import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
-import { getAccounts, Account, setTxAccount, getTxAccountMap } from '@/src/services/accountService';
+import type { Account } from '@/src/services/accountService';
 
 import { CategoryPicker } from '@/components/transaction/CategoryPicker';
 import { AccountPicker } from '@/components/transaction/AccountPicker';
 import { AmountKeypad } from '@/components/transaction/AmountKeypad';
+import { RecurringToggle } from '@/components/transaction/RecurringToggle';
 
 function fmtDate(d: Date) {
   const dd   = String(d.getDate()).padStart(2, '0');
@@ -46,6 +47,8 @@ export default function EditTransactionScreen() {
   const initialNote     = Array.isArray(params.note)       ? params.note[0]       : params.note;
   const initialDate      = Array.isArray(params.date)       ? params.date[0]       : params.date;
   const initialIsPrivate = Array.isArray(params.isPrivate)  ? params.isPrivate[0]  : params.isPrivate;
+  const initialIsRecurring = Array.isArray(params.isRecurring)         ? params.isRecurring[0]         : params.isRecurring;
+  const initialFrequency   = Array.isArray(params.recurrenceFrequency) ? params.recurrenceFrequency[0] : params.recurrenceFrequency;
 
   const [type, setType]         = useState<'income' | 'expense'>((initialType as any) || 'expense');
   const [amount, setAmount]     = useState(initialAmount || '');
@@ -53,11 +56,23 @@ export default function EditTransactionScreen() {
   const [note, setNote]         = useState(initialNote || '');
   const [date, setDate]         = useState(initialDate ? new Date(initialDate) : new Date());
   const [isPrivate, setIsPrivate] = useState(initialIsPrivate === 'true');
+  const [isRecurring, setIsRecurring] = useState(initialIsRecurring === 'true');
+  // Server rejects a recurring transaction with no frequency, so keep a valid default even when
+  // the row being edited was never recurring.
+  const [recurrenceFrequency, setRecurrenceFrequency] =
+    useState<'daily' | 'weekly' | 'monthly'>(
+      (initialFrequency as any) === 'daily' || (initialFrequency as any) === 'weekly'
+        ? (initialFrequency as any)
+        : 'monthly'
+    );
   const [loading, setLoading]   = useState(false);
   const [fetching, setFetching] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts]     = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  // What the transaction was filed under when the screen opened, so save can tell "unchanged"
+  // from "cleared" and only issue a write when it actually changed.
+  const [initialAccountId, setInitialAccountId]   = useState<string | null>(null);
 
   const [showKeypad, setShowKeypad]     = useState(false);
   const [showCategory, setShowCategory] = useState(false);
@@ -82,7 +97,10 @@ export default function EditTransactionScreen() {
         const [g, accs, map] = await Promise.all([getCurrentGroup(), getAccounts(), getTxAccountMap()]);
         setCategories(g.categories || []);
         setAccounts(accs);
-        if (txId && map[txId as string]) setSelectedAccountId(map[txId as string]);
+        if (txId && map[txId as string]) {
+          setSelectedAccountId(map[txId as string]);
+          setInitialAccountId(map[txId as string]);
+        }
       } catch {}
       finally { setFetching(false); }
     })();
@@ -139,8 +157,17 @@ export default function EditTransactionScreen() {
     if (!category) { Alert.alert('Select Category', 'Please select a category.'); return; }
     setLoading(true);
     try {
-      await updateTransaction(txId as string, { amount: parsed, type, category, note, date: date.toISOString(), isPrivate });
-      if (txId && selectedAccountId) await setTxAccount(txId as string, selectedAccountId);
+      await updateTransaction(txId as string, {
+        amount: parsed, type, category, note, date: date.toISOString(), isPrivate,
+        isRecurring,
+        recurrenceFrequency: isRecurring ? recurrenceFrequency : null,
+      });
+      // Clearing the account used to be silently ignored — only assignment was ever written, so
+      // the old link survived the edit.
+      if (txId && selectedAccountId !== initialAccountId) {
+        if (selectedAccountId) await setTxAccount(txId as string, selectedAccountId);
+        else                   await removeTxAccount(txId as string);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await invalidateAllTransactionCache();
       router.back();
@@ -310,6 +337,24 @@ export default function EditTransactionScreen() {
             </View>
           </View>
 
+          {/* Repeat Row */}
+          <View style={[styles.formRow, { borderBottomColor: theme.border }]}>
+            <View style={styles.formRowLeft}>
+              <View style={[styles.iconBox, { backgroundColor: accent + '18' }]}>
+                <Ionicons name="repeat" size={18} color={accent} />
+              </View>
+              <Text style={[styles.formLabel, { color: theme.text }]}>Repeat</Text>
+            </View>
+            <View style={styles.formRowRight}>
+              <Switch
+                value={isRecurring}
+                onValueChange={v => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIsRecurring(v); }}
+                trackColor={{ false: theme.border, true: accent + '60' }}
+                thumbColor={isRecurring ? accent : '#f4f3f4'}
+              />
+            </View>
+          </View>
+
           {/* Private Toggle Row */}
           <View style={[styles.formRow, { borderBottomColor: 'transparent' }]}>
             <View style={styles.formRowLeft}>
@@ -329,6 +374,21 @@ export default function EditTransactionScreen() {
           </View>
 
         </View>
+
+        {/* Recurring Settings */}
+        {isRecurring && (
+          <View style={styles.recurringWrap}>
+            <RecurringToggle
+              enabled={isRecurring}
+              frequency={recurrenceFrequency}
+              onToggle={() => setIsRecurring(v => !v)}
+              onFrequencyChange={setRecurrenceFrequency}
+              tintColor={accent}
+              textColor={theme.text}
+              borderColor={theme.border}
+            />
+          </View>
+        )}
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -448,6 +508,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
+  recurringWrap: { marginBottom: 16 },
   formCard: {
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,

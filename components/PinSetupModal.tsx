@@ -3,7 +3,7 @@ import {
   Modal, View, Text, TouchableOpacity, StyleSheet, Vibration,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { setPin } from '@/src/services/lockService';
 
@@ -93,7 +93,7 @@ export function PinSetupModal({ visible, onClose, onSuccess }: Props) {
         </Text>
 
         {error && (
-          <Text style={styles.errText}>PINs don't match — try again</Text>
+          <Text style={styles.errText}>PINs don&apos;t match — try again</Text>
         )}
 
         <Animated.View style={[styles.dotsRow, shakeStyle]}>

@@ -4,15 +4,15 @@ import {
   ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { DateTimeField } from '@/components/transaction/DateTimeField';
-import { addTransaction } from '@/src/services/dataService';
-import { getAccounts, setTxAccount, Account } from '@/src/services/accountService';
+import { addTransaction, getAccounts, setTxAccount } from '@/src/services/dataService';
+import type { Account } from '@/src/services/accountService';
 import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
 
 export default function AddTransferScreen() {

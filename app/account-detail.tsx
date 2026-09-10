@@ -4,7 +4,7 @@ import {
   RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,11 +14,8 @@ import { useLanguage } from '@/src/i18n/LanguageContext';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { TransactionRow } from '@/components/home/TransactionRow';
-import {
-  Account, ACCOUNT_TYPE_META,
-  getAccounts, getTxAccountMap, computeAccountBalance,
-} from '@/src/services/accountService';
-import { getTransactions } from '@/src/services/dataService';
+import { Account, ACCOUNT_TYPE_META, computeAccountBalance } from '@/src/services/accountService';
+import { getAllTransactions, getAccounts, getTxAccountMap } from '@/src/services/dataService';
 import { getCachedTransactions, setCachedTransactions } from '@/src/cache/transactionCache';
 
 export default function AccountDetailScreen() {
@@ -46,11 +43,11 @@ export default function AccountDetailScreen() {
 
       // Try cache first
       const cached = await getCachedTransactions();
-      const rawTx = cached ?? await getTransactions();
+      const rawTx = cached ?? await getAllTransactions();
       const allTx: any[] = Array.isArray(rawTx) ? rawTx : [];
       if (!cached) await setCachedTransactions(allTx);
       else {
-        getTransactions().then(raw => {
+        getAllTransactions().then(raw => {
           const fresh: any[] = Array.isArray(raw) ? raw : [];
           setCachedTransactions(fresh);
           setTransactions(fresh.filter((tx: any) => map[tx._id] === id)

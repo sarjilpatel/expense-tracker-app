@@ -30,6 +30,25 @@ async function persist(data: LocalTransaction[]): Promise<void> {
   await AsyncStorage.setItem(KEY, JSON.stringify(data));
 }
 
+/**
+ * Splits a note the same way the server's blind index does (W1-28), so a query returns the same
+ * rows before and after signing in.
+ *
+ * The server cannot substring-match a note: it stores AES-GCM ciphertext and searches a keyed
+ * hash of each word instead. Guest data is plaintext on the device and *could* be substring
+ * matched — but then "cof" would find the coffee row as a guest and silently stop finding it the
+ * day the user creates an account, with no way to tell which behaviour is the real one. Matching
+ * the narrower rule in both places is the only version that is explainable. Category is untouched:
+ * it is not encrypted, and the server still matches it as a substring.
+ */
+function noteWords(text?: string | null): string[] {
+  return String(text ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
 export async function getLocalTransactions(
   month?: number, year?: number, search?: string
 ): Promise<LocalTransaction[]> {
@@ -42,9 +61,11 @@ export async function getLocalTransactions(
     });
   }
   if (search?.trim()) {
-    const q = search.trim().toLowerCase();
+    const q    = search.trim().toLowerCase();
+    const term = noteWords(search)[0];
     all = all.filter(tx =>
-      tx.category?.toLowerCase().includes(q) || tx.note?.toLowerCase().includes(q)
+      tx.category?.toLowerCase().includes(q) ||
+      (!!term && noteWords(tx.note).includes(term))
     );
   }
   return all.sort(
@@ -170,4 +191,12 @@ export async function getAllLocalTransactions(): Promise<LocalTransaction[]> {
 
 export async function clearAllLocalTransactions(): Promise<void> {
   await AsyncStorage.removeItem(KEY);
+}
+
+/** Keeps only the given ids — used by sync to hold on to whatever failed to upload. */
+export async function retainLocalTransactions(ids: string[]): Promise<void> {
+  const keep = new Set(ids);
+  if (keep.size === 0) return clearAllLocalTransactions();
+  const all = await load();
+  await persist(all.filter(t => keep.has(t._id)));
 }

@@ -7,7 +7,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 
 import { useTheme } from '@/src/context/ThemeContext';
@@ -16,11 +16,10 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Currency } from '@/constants/theme';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
-import { getCurrentGroup } from '@/src/services/groupApi';
 import {
-  getSplits, createSplit, settleSplit, deleteSplit,
+  getSplits, createSplit, settleSplit, unsettleSplit, deleteSplit, getCurrentGroup,
   Split, SplitMember,
-} from '@/src/services/splitService';
+} from '@/src/services/dataService';
 
 // ── Net balance helpers ───────────────────────────────────────────────────────
 
@@ -206,6 +205,30 @@ export default function SplitsScreen() {
     }
   };
 
+  // The payer is the only one who can mark a share paid, so they have to be the one who can take
+  // it back — before this there was no undo at all, and fixing a mis-tap meant deleting the whole
+  // split and re-entering everyone. Confirmed rather than instant: it puts a debt back on someone.
+  const handleUnsettle = (split: Split, userId: string, name: string, amount: number) => {
+    Alert.alert(
+      'Mark as unpaid?',
+      `${name} will owe ${Currency.format(amount)} again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Mark Unpaid', style: 'destructive',
+          onPress: async () => {
+            try {
+              const updated = await unsettleSplit(split._id, userId);
+              setSplits(s => s.map(x => x._id === updated._id ? updated : x));
+            } catch (e: any) {
+              Alert.alert('Error', e?.msg || 'Could not undo.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleDelete = (split: Split) => {
     Alert.alert('Delete Split', `Delete "${split.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -347,6 +370,9 @@ export default function SplitsScreen() {
                         const isMe = entry.userId._id === myId;
                         const isPayer = entry.userId._id === split.paidBy._id;
                         const canSettle = !entry.settled && !isPayer && split.paidBy._id === myId;
+                        // The payer's own share is settled at creation and the server refuses to
+                        // reopen it, so it stays a plain badge.
+                        const canUndo   = entry.settled  && !isPayer && split.paidBy._id === myId;
                         return (
                           <View key={j} style={S.entryRow}>
                             <Avatar user={entry.userId} size={28} color={theme.tint} />
@@ -359,10 +385,17 @@ export default function SplitsScreen() {
                               </Text>
                             </View>
                             {entry.settled ? (
-                              <View style={[S.settledBadge, { backgroundColor: theme.income + '22' }]}>
+                              <TouchableOpacity
+                                style={[S.settledBadge, { backgroundColor: theme.income + '22' }]}
+                                disabled={!canUndo}
+                                onPress={() => handleUnsettle(split, entry.userId._id, isMe ? 'You' : entry.userId.name, entry.amount)}
+                                accessibilityLabel={canUndo ? `Mark ${entry.userId.name} unpaid` : undefined}
+                                hitSlop={8}
+                              >
                                 <Ionicons name="checkmark" size={12} color={theme.income} />
                                 <Text style={[S.settledTxt, { color: theme.income }]}>Paid</Text>
-                              </View>
+                                {canUndo && <Ionicons name="close-circle" size={12} color={theme.income} />}
+                              </TouchableOpacity>
                             ) : canSettle ? (
                               <TouchableOpacity
                                 style={[S.settleBtn, { backgroundColor: theme.tint }]}
@@ -382,9 +415,13 @@ export default function SplitsScreen() {
                         <Text style={[S.dateText, { color: theme.secondaryText }]}>
                           {new Date(split.createdAt).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
                         </Text>
-                        <TouchableOpacity onPress={() => handleDelete(split)}>
-                          <Ionicons name="trash-outline" size={16} color={theme.secondaryText} />
-                        </TouchableOpacity>
+                        {/* The server now rejects a delete from anyone but the payer, so don't
+                            offer the button to the rest of the group. */}
+                        {split.paidBy._id === myId && (
+                          <TouchableOpacity onPress={() => handleDelete(split)}>
+                            <Ionicons name="trash-outline" size={16} color={theme.secondaryText} />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                   )}

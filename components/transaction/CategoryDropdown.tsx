@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ActivityIndicator, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface DropdownItem {
   label: string;

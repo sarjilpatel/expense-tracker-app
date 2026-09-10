@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';

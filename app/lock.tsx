@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, Vibration,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { verifyPin, getBiometricEnabled, authenticateWithBiometric } from '@/src/services/lockService';
 import { LinearGradient } from 'expo-linear-gradient';

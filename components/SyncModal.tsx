@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { getSyncSummary, syncLocalToServer, discardLocalData, SyncSummary } from '@/src/services/syncService';
 
@@ -13,7 +13,7 @@ interface Props {
   onDone: () => void;
 }
 
-type Step = 'confirm' | 'syncing' | 'done' | 'error';
+type Step = 'confirm' | 'syncing' | 'done' | 'partial' | 'error';
 
 export function SyncModal({ visible, onDone }: Props) {
   const { theme } = useTheme();
@@ -21,6 +21,7 @@ export function SyncModal({ visible, onDone }: Props) {
   const [step,      setStep]      = useState<Step>('confirm');
   const [progress,  setProgress]  = useState({ label: '', done: 0, total: 0 });
   const [errorMsg,  setErrorMsg]  = useState('');
+  const [outcome,   setOutcome]   = useState({ synced: 0, failed: 0 });
   const progressAnim = useSharedValue(0);
   const progressStyle = useAnimatedStyle(() => ({
     width: `${progressAnim.value * 100}%` as any,
@@ -47,8 +48,14 @@ export function SyncModal({ visible, onDone }: Props) {
     const result = await syncLocalToServer((label, done, total) => {
       setProgress({ label, done, total });
     });
+    setOutcome({ synced: result.synced, failed: Math.max(0, result.failed) });
     if (result.success) {
       setStep('done');
+    } else if (result.failed > 0 && result.synced > 0) {
+      // Some of it landed. Whatever did not is still on the device — say so rather than
+      // presenting this as a clean failure.
+      setErrorMsg(result.error || 'Some items could not be uploaded.');
+      setStep('partial');
     } else {
       setErrorMsg(result.error || 'Something went wrong');
       setStep('error');
@@ -83,6 +90,9 @@ export function SyncModal({ visible, onDone }: Props) {
                   )}
                   {summary.categories > 0 && (
                     <SummaryRow icon="grid-outline" label="Custom categories" count={summary.categories} color={theme.income} />
+                  )}
+                  {summary.accounts > 0 && (
+                    <SummaryRow icon="card-outline" label="Accounts" count={summary.accounts} color={theme.expense} />
                   )}
                   {summary.budgets > 0 && (
                     <SummaryRow icon="wallet-outline" label="Budgets" count={summary.budgets} color={theme.warning} />
@@ -136,13 +146,34 @@ export function SyncModal({ visible, onDone }: Props) {
             </>
           )}
 
+          {step === 'partial' && (
+            <>
+              <View style={[styles.iconWrap, { backgroundColor: theme.warning }]}>
+                <Ionicons name="cloud-offline-outline" size={32} color={theme.tintText} />
+              </View>
+              <Text style={[styles.title, { color: theme.text }]}>Partly Synced</Text>
+              <Text style={[styles.sub, { color: theme.secondaryText }]}>
+                {outcome.synced} item{outcome.synced === 1 ? '' : 's'} uploaded.{'\n'}
+                {outcome.failed} still on this device — nothing was lost. Retry to finish.
+              </Text>
+              <TouchableOpacity style={[styles.btn, { backgroundColor: theme.tint }]} onPress={handleSync}>
+                <Text style={[styles.btnText, { color: theme.tintText }]}>Retry Remaining</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btnSecondary, { borderColor: theme.border }]} onPress={onDone}>
+                <Text style={[styles.btnSecondaryText, { color: theme.secondaryText }]}>Later</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
           {step === 'error' && (
             <>
               <View style={[styles.iconWrap, { backgroundColor: theme.tint }]}>
                 <Ionicons name="alert-circle-outline" size={32} color={theme.tintText} />
               </View>
               <Text style={[styles.title, { color: theme.text }]}>Sync Failed</Text>
-              <Text style={[styles.sub, { color: theme.secondaryText }]}>{errorMsg}</Text>
+              <Text style={[styles.sub, { color: theme.secondaryText }]}>
+                {errorMsg}{'\n'}Your local data is still on this device.
+              </Text>
               <TouchableOpacity style={[styles.btn, { backgroundColor: theme.tint }]} onPress={handleSync}>
                 <Text style={[styles.btnText, { color: theme.tintText }]}>Retry</Text>
               </TouchableOpacity>

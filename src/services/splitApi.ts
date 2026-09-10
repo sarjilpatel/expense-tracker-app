@@ -56,6 +56,16 @@ export const settleSplit = async (splitId: string, userId: string): Promise<Spli
   }
 };
 
+/** Undoes a settle. Same rules as settling it: payer only, and never the payer's own share. */
+export const unsettleSplit = async (splitId: string, userId: string): Promise<Split> => {
+  try {
+    const response = await apiClient.delete(`/splits/${splitId}/settle/${userId}`);
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data || error.message;
+  }
+};
+
 export const deleteSplit = async (splitId: string): Promise<void> => {
   try {
     await apiClient.delete(`/splits/${splitId}`);

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useTheme } from '@/src/context/ThemeContext';
@@ -13,11 +13,8 @@ import { usePreferences } from '@/src/context/PreferencesContext';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
-import {
-  Account, ACCOUNT_TYPE_META,
-  getAccounts, getTxAccountMap, computeAccountBalance,
-} from '@/src/services/accountService';
-import { getTransactions } from '@/src/services/dataService';
+import { Account, ACCOUNT_TYPE_META, computeAccountBalance } from '@/src/services/accountService';
+import { getAllTransactions, getAccounts, getTxAccountMap } from '@/src/services/dataService';
 import { getCachedTransactions, setCachedTransactions } from '@/src/cache/transactionCache';
 
 export default function AccountsScreen() {
@@ -44,7 +41,7 @@ export default function AccountsScreen() {
       if (!forceRefresh && cached) {
         setAllTransactions(cached);
       } else {
-        const raw = await getTransactions();
+        const raw = await getAllTransactions();
         const fresh: any[] = Array.isArray(raw) ? raw : [];
         await setCachedTransactions(fresh);
         setAllTransactions(fresh);

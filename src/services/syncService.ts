@@ -1,12 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAllLocalTransactions, clearAllLocalTransactions } from './local/localTransactionService';
-import { getAllLocalCategories, clearLocalCategories } from './local/localCategoryService';
-import { getAllLocalBudgets, clearLocalBudgets } from './local/localBudgetService';
-import * as remoteTx   from './transactionApi';
+import { getAllLocalTransactions, retainLocalTransactions, clearAllLocalTransactions } from './local/localTransactionService';
+import { getAllLocalCategories, retainLocalCategories, clearLocalCategories } from './local/localCategoryService';
+import { getAllLocalBudgets, retainLocalBudgets, clearLocalBudgets } from './local/localBudgetService';
+import {
+  getLocalAccounts, getLocalTxAccountMap, setLocalTxAccountMap,
+  retainLocalAccounts, clearLocalAccounts, clearLocalTxAccountMap,
+} from './local/localAccountService';
+import apiClient, { LONG_TIMEOUT_MS } from './apiClient';
 import * as remoteBudg from './budgetApi';
 import * as remoteGrp  from './groupApi';
+import * as remoteAcct from './accountApi';
 
 const LAST_SYNC_KEY = '@last_sync_at';
+
+/** Server caps /transactions/import-json at 500 rows per call. */
+const IMPORT_CHUNK = 250;
 
 export async function getLastSyncTime(): Promise<string | null> {
   try { return await AsyncStorage.getItem(LAST_SYNC_KEY); }
@@ -21,21 +29,33 @@ export interface SyncSummary {
   transactions: number;
   categories: number;
   budgets: number;
+  accounts: number;
   total: number;
 }
 
+export interface SyncResult {
+  /** True only when every single item was accepted by the server. */
+  success: boolean;
+  synced: number;
+  /** Items still held locally because they failed — never silently discarded. */
+  failed: number;
+  error?: string;
+}
+
 export async function getSyncSummary(): Promise<SyncSummary> {
-  const [txs, cats, budgets] = await Promise.all([
+  const [txs, cats, budgets, accounts] = await Promise.all([
     getAllLocalTransactions(),
     getAllLocalCategories(),
     getAllLocalBudgets(),
+    getLocalAccounts(),
   ]);
   const customCats = cats.filter(c => !c._id.startsWith('dc_'));
   return {
     transactions: txs.length,
     categories:   customCats.length,
     budgets:      budgets.length,
-    total:        txs.length + customCats.length + budgets.length,
+    accounts:     accounts.length,
+    total:        txs.length + customCats.length + budgets.length + accounts.length,
   };
 }
 
@@ -44,44 +64,171 @@ export async function hasPendingLocalData(): Promise<boolean> {
   return total > 0;
 }
 
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/**
+ * Pushes guest data to the server, then clears ONLY what the server accepted.
+ *
+ * Anything that fails stays on the device and is reported back, so a dropped connection or a
+ * rejected row can be retried instead of vanishing. Transactions go through the bulk import
+ * endpoint in chunks rather than one request each — the API is rate limited to 60 req/min, and
+ * the old per-item loop blew straight through it and lost everything past the limit.
+ */
 export async function syncLocalToServer(
   onProgress?: (step: string, done: number, total: number) => void
-): Promise<{ success: boolean; synced: number; error?: string }> {
+): Promise<SyncResult> {
   try {
-    const [txs, cats, budgets] = await Promise.all([
+    const [txs, cats, budgets, accounts, txAccountMap] = await Promise.all([
       getAllLocalTransactions(),
       getAllLocalCategories(),
       getAllLocalBudgets(),
+      getLocalAccounts(),
+      getLocalTxAccountMap(),
     ]);
     const customCats = cats.filter(c => !c._id.startsWith('dc_'));
-    const totalItems = txs.length + customCats.length + budgets.length;
-    let done = 0;
+    const totalItems = txs.length + customCats.length + budgets.length + accounts.length;
 
+    if (totalItems === 0) {
+      await setLastSyncTime();
+      return { success: true, synced: 0, failed: 0 };
+    }
+
+    const failedCatIds:     string[] = [];
+    const failedTxIds:      string[] = [];
+    const failedBudgetIds:  string[] = [];
+    const failedAccountIds: string[] = [];
+    let   firstError: string | undefined;
+    let   done = 0;
+
+    const note = (err: any) => {
+      if (!firstError) {
+        firstError = err?.msg || err?.message || (typeof err === 'string' ? err : 'Upload failed');
+      }
+    };
+
+    // Categories first — transactions reference them by name, and the server rejects a
+    // transaction whose category is not in the group.
     for (const cat of customCats) {
-      try { await remoteGrp.addCategory(cat.name, cat.icon, (cat.type as any) || 'expense'); } catch {}
+      try {
+        await remoteGrp.addCategory(cat.name, cat.icon, (cat.type as any) || 'expense');
+      } catch (err) {
+        failedCatIds.push(cat._id);
+        note(err);
+      }
       done++;
       onProgress?.('categories', done, totalItems);
     }
 
-    for (const tx of txs) {
-      const { _id, createdAt, ...data } = tx;
-      try { await remoteTx.addTransaction(data); } catch {}
-      done++;
+    // Accounts before transactions: the server hands back a guest-id → server-id map, and the
+    // transaction import below uses it to preserve which account each transaction was filed under.
+    // Without this the accounts would arrive but every transaction would land unassigned.
+    let accountIdMap: Record<string, string> = {};
+    if (accounts.length > 0) {
+      try {
+        const result = await remoteAcct.importAccounts(accounts);
+        accountIdMap = result.idMap || {};
+        // Anything the server didn't map stays on the device rather than vanishing.
+        for (const acc of accounts) {
+          if (!accountIdMap[acc.id]) failedAccountIds.push(acc.id);
+        }
+        if (failedAccountIds.length > 0) {
+          note({ msg: `Server accepted ${result.imported} of ${accounts.length} accounts` });
+        }
+
+        // Rewrite the stored map to server ids straight away. If the transaction upload below
+        // fails, the rows stay on the device and are retried later — by which point the guest
+        // account ids no longer exist anywhere, so a map still holding them would be dead weight
+        // and every retried transaction would land unassigned.
+        const remapped: Record<string, string> = {};
+        for (const [txId, accId] of Object.entries(txAccountMap)) {
+          const mapped = accountIdMap[accId];
+          if (mapped) { remapped[txId] = mapped; txAccountMap[txId] = mapped; }
+          else if (accId) remapped[txId] = accId;
+        }
+        await setLocalTxAccountMap(remapped);
+      } catch (err) {
+        failedAccountIds.push(...accounts.map(a => a.id));
+        note(err);
+      }
+      done += accounts.length;
+      onProgress?.('accounts', done, totalItems);
+    }
+
+    // Transactions in bulk. A chunk is all-or-nothing from the client's point of view, so a
+    // failed chunk keeps every row in it.
+    for (const batch of chunk(txs, IMPORT_CHUNK)) {
+      try {
+        const payload = batch.map(({ _id, createdAt, ...data }) => {
+          // txAccountMap was rewritten to server ids above. The server drops any id that isn't
+          // one of the caller's accounts, so a stale value is harmless.
+          const accountId = txAccountMap[_id];
+          return accountId ? { ...data, accountId } : data;
+        });
+        const { data: result } = await apiClient.post('/transactions/import-json',
+          { transactions: payload }, { timeout: LONG_TIMEOUT_MS });
+
+        // The server skips rows it considers invalid (non-positive amounts). If it took fewer
+        // than we sent, hold the whole chunk rather than guess which rows were dropped.
+        if (typeof result?.imported === 'number' && result.imported < batch.length) {
+          failedTxIds.push(...batch.map(t => t._id));
+          note({ msg: `Server accepted ${result.imported} of ${batch.length} transactions` });
+        }
+      } catch (err) {
+        failedTxIds.push(...batch.map(t => t._id));
+        note(err);
+      }
+      done += batch.length;
       onProgress?.('transactions', done, totalItems);
     }
 
     for (const budget of budgets) {
-      const { _id, createdAt, ...data } = budget;
-      try { await remoteBudg.setBudget(data); } catch {}
+      try {
+        const { _id, createdAt, ...data } = budget;
+        await remoteBudg.setBudget(data);
+      } catch (err) {
+        failedBudgetIds.push(budget._id);
+        note(err);
+      }
       done++;
       onProgress?.('budgets', done, totalItems);
     }
 
-    await discardLocalData();
-    await setLastSyncTime();
-    return { success: true, synced: totalItems };
+    // Keep exactly what did not land; drop the rest.
+    await Promise.all([
+      retainLocalCategories(failedCatIds),
+      retainLocalTransactions(failedTxIds),
+      retainLocalBudgets(failedBudgetIds),
+      retainLocalAccounts(failedAccountIds),
+    ]);
+
+    // The map is only safe to drop once nothing is left waiting to reference it.
+    if (failedAccountIds.length === 0 && failedTxIds.length === 0) await clearLocalTxAccountMap();
+
+    const failed = failedCatIds.length + failedTxIds.length + failedBudgetIds.length + failedAccountIds.length;
+    const synced = totalItems - failed;
+
+    if (failed === 0) await setLastSyncTime();
+
+    return {
+      success: failed === 0,
+      synced,
+      failed,
+      error: failed > 0
+        ? `${failed} item${failed === 1 ? '' : 's'} could not be uploaded and are still on this device. ${firstError ?? ''}`.trim()
+        : undefined,
+    };
   } catch (error: any) {
-    return { success: false, synced: 0, error: error?.message || 'Sync failed' };
+    // Nothing was cleared — the local copy is intact and the user can retry.
+    return {
+      success: false,
+      synced: 0,
+      failed: -1,
+      error: error?.message || 'Sync failed',
+    };
   }
 }
 
@@ -90,5 +237,6 @@ export async function discardLocalData(): Promise<void> {
     clearAllLocalTransactions(),
     clearLocalCategories(),
     clearLocalBudgets(),
+    clearLocalAccounts(),
   ]);
 }

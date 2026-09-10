@@ -3,11 +3,13 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   ScrollView, Alert, Modal, ActivityIndicator, Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import * as FileSystem from 'expo-file-system';
+// expo-file-system 19 moved the whole function API (documentDirectory, writeAsStringAsync,
+// EncodingType, ...) behind /legacy; the main entry now exports only Paths/File/Directory.
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
 import * as DocumentPicker from 'expo-document-picker';
@@ -15,7 +17,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { ThemedView } from '@/components/themed-view';
-import { getTransactions, getCurrentGroup as getCategoryData } from '@/src/services/dataService';
+import { getAllTransactions, getCurrentGroup as getCategoryData } from '@/src/services/dataService';
 import { getLastSyncTime } from '@/src/services/syncService';
 import apiClient from '@/src/services/apiClient';
 import { generateMonthlyPDF } from '@/src/services/reportService';
@@ -127,7 +129,7 @@ export default function DataScreen() {
   }
 
   async function fetchRangeTxs(from: Date, to: Date): Promise<any[]> {
-    const allTxs = await getTransactions(undefined, undefined) as any[];
+    const allTxs = await getAllTransactions() as any[];
     return (allTxs || []).filter((tx: any) => {
       const d = new Date(tx.date || tx.createdAt);
       return d >= from && d <= to;
@@ -230,7 +232,7 @@ export default function DataScreen() {
   const backupToDevice = async () => {
     try {
       setWorking(true);
-      const txs = await getTransactions(undefined, undefined) as any[];
+      const txs = await getAllTransactions() as any[];
       const payload = { version: '1.0', exportedAt: new Date().toISOString(), transactions: txs };
       const json = JSON.stringify(payload, null, 2);
       const path = `${FileSystem.documentDirectory}expense_backup_${Date.now()}.json`;
@@ -245,7 +247,7 @@ export default function DataScreen() {
   const sendBackupViaEmail = async () => {
     try {
       setWorking(true);
-      const txs = await getTransactions(undefined, undefined) as any[];
+      const txs = await getAllTransactions() as any[];
       const payload = { version: '1.0', exportedAt: new Date().toISOString(), transactions: txs };
       const json = JSON.stringify(payload, null, 2);
       const path = `${FileSystem.documentDirectory}expense_backup_${Date.now()}.json`;

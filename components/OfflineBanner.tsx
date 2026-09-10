@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export function OfflineBanner() {
   const [offline, setOffline] = useState(false);
@@ -18,7 +18,7 @@ export function OfflineBanner() {
   return (
     <View style={styles.banner}>
       <Ionicons name="cloud-offline-outline" size={16} color="#FFF" />
-      <Text style={styles.text}>You're offline — changes will sync when reconnected</Text>
+      <Text style={styles.text}>You&apos;re offline — changes will sync when reconnected</Text>
     </View>
   );
 }
