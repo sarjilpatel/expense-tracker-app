@@ -8,6 +8,7 @@ import { router, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { getContrastText } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { ThemedView } from '@/components/themed-view';
@@ -180,7 +181,7 @@ export default function AccountsScreen() {
                       >
                         {/* Left: icon */}
                         <View style={[styles.accIcon, { backgroundColor: acc.color }]}>
-                          <Ionicons name={meta.icon as any} size={22} color='#FFF' />
+                          <Ionicons name={meta.icon as any} size={22} color={getContrastText(acc.color)} />
                         </View>
 
                         {/* Middle: name + type + tx count */}
@@ -287,5 +288,5 @@ const styles = StyleSheet.create({
   emptyTitle:{ fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
   emptyBody: { fontSize: 14, lineHeight: 21, textAlign: 'center', marginBottom: 28 },
   emptyBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 13, borderRadius: 14 },
-  emptyBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  emptyBtnText: { fontWeight: '700', fontSize: 15 },
 });

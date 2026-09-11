@@ -14,7 +14,7 @@ interface Props {
   incomeColor: string;
   expenseColor: string;
   style?: any;
-  totalColor?: string;
+  totalColor: string;
   periodLabel?: string;
   formatAmount?: (n: number) => string;
 }
@@ -30,7 +30,7 @@ export function SummaryStrip({
   secondaryText,
   incomeColor,
   expenseColor,
-  totalColor = '#FFF',
+  totalColor,
   style,
   periodLabel,
   formatAmount,

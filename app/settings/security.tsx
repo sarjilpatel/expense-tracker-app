@@ -6,6 +6,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getContrastText } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { ThemedView } from '@/components/themed-view';
 import { isLockEnabled, disableLock, isBiometricAvailable, getBiometricEnabled, setBiometricEnabled } from '@/src/services/lockService';
@@ -13,9 +14,9 @@ import { requestNotificationPermissions, scheduleDailyReminder, cancelDailyRemin
 import { PinSetupModal } from '@/components/PinSetupModal';
 
 function Row({
-  icon, iconBg, iconColor, title, sub, right, onPress, danger,
+  icon, iconBg, iconColor = getContrastText(iconBg), title, sub, right, onPress, danger,
 }: {
-  icon: string; iconBg: string; iconColor: string;
+  icon: string; iconBg: string; iconColor?: string;
   title: string; sub?: string;
   right?: React.ReactNode; onPress?: () => void; danger?: boolean;
 }) {
@@ -137,7 +138,7 @@ export default function SecurityScreen() {
           {/* PIN Lock */}
           <View style={S.row}>
             <View style={[S.iconBox, { backgroundColor: '#3B82F6' }]}>
-              <Ionicons name="lock-closed-outline" size={18} color="#FFF" />
+              <Ionicons name="lock-closed-outline" size={18} color={getContrastText('#3B82F6')} />
             </View>
             <View style={S.rowMid}>
               <Text style={[S.rowTitle, { color: theme.text }]}>PIN Lock</Text>
@@ -158,7 +159,7 @@ export default function SecurityScreen() {
               <Sep />
               <View style={S.row}>
                 <View style={[S.iconBox, { backgroundColor: '#6366F1' }]}>
-                  <Ionicons name="finger-print" size={18} color="#FFF" />
+                  <Ionicons name="finger-print" size={18} color={getContrastText('#6366F1')} />
                 </View>
                 <View style={S.rowMid}>
                   <Text style={[S.rowTitle, { color: theme.text }]}>Biometric Unlock</Text>
@@ -181,7 +182,7 @@ export default function SecurityScreen() {
         <Card>
           <View style={S.row}>
             <View style={[S.iconBox, { backgroundColor: theme.warning ?? '#F59E0B' }]}>
-              <Ionicons name="alarm-outline" size={18} color="#FFF" />
+              <Ionicons name="alarm-outline" size={18} color={theme.warningText} />
             </View>
             <View style={S.rowMid}>
               <Text style={[S.rowTitle, { color: theme.text }]}>Daily Reminder</Text>

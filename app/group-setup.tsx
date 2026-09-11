@@ -69,7 +69,7 @@ export default function GroupSetupScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <ThemedView style={styles.header}>
             <View style={[styles.logo, { backgroundColor: theme.tint }]}>
-              <ThemedText style={styles.logoText}>₹</ThemedText>
+              <ThemedText style={[styles.logoText, { color: theme.tintText }]}>₹</ThemedText>
             </View>
             <ThemedText type="title" style={styles.title}>Group Setup</ThemedText>
             <ThemedText style={styles.subtitle}>Collaborate with your family or team to track shared expenses</ThemedText>
@@ -80,13 +80,13 @@ export default function GroupSetupScreen() {
               style={[styles.tab, mode === 'create' && { backgroundColor: theme.tint }]}
               onPress={() => setMode('create')}
             >
-              <ThemedText style={[styles.tabText, mode === 'create' && styles.activeTabText]}>Create</ThemedText>
+              <ThemedText style={[styles.tabText, mode === 'create' && { color: theme.tintText }]}>Create</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.tab, mode === 'join' && { backgroundColor: theme.tint }]}
               onPress={() => setMode('join')}
             >
-              <ThemedText style={[styles.tabText, mode === 'join' && styles.activeTabText]}>Join</ThemedText>
+              <ThemedText style={[styles.tabText, mode === 'join' && { color: theme.tintText }]}>Join</ThemedText>
             </TouchableOpacity>
           </View>
 
@@ -109,8 +109,8 @@ export default function GroupSetupScreen() {
                   disabled={loading}
                 >
                   {loading
-                    ? <ActivityIndicator color="#FFF" />
-                    : <ThemedText style={styles.buttonText}>Create Group</ThemedText>
+                    ? <ActivityIndicator color={theme.tintText} />
+                    : <ThemedText style={[styles.buttonText, { color: theme.tintText }]}>Create Group</ThemedText>
                   }
                 </TouchableOpacity>
               </View>
@@ -133,8 +133,8 @@ export default function GroupSetupScreen() {
                   disabled={loading}
                 >
                   {loading
-                    ? <ActivityIndicator color="#FFF" />
-                    : <ThemedText style={styles.buttonText}>Join Group</ThemedText>
+                    ? <ActivityIndicator color={theme.tintText} />
+                    : <ThemedText style={[styles.buttonText, { color: theme.tintText }]}>Join Group</ThemedText>
                   }
                 </TouchableOpacity>
               </View>
@@ -150,14 +150,13 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 24, gap: 0 },
   logo: { width: 56, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  logoText: { color: '#FFF', fontSize: 24, fontWeight: '800' },
+  logoText: { fontSize: 24, fontWeight: '800' },
   header: { marginBottom: 32, alignItems: 'center' },
   title: { fontSize: 26, fontWeight: '800', marginBottom: 8 },
   subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 22 },
   tabContainer: { flexDirection: 'row', marginBottom: 24, borderRadius: 14, padding: 6 },
   tab: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   tabText: { fontWeight: '700', fontSize: 14 },
-  activeTabText: { color: '#FFF' },
   card: { padding: 20, backgroundColor: 'transparent', borderRadius: 24, borderWidth: 1 },
   form: { gap: 20 },
   inputWrapper: { gap: 8 },
@@ -171,5 +170,5 @@ const styles = StyleSheet.create({
     shadowColor: '#5856D6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  buttonText: { fontSize: 18, fontWeight: '800' },
 });

@@ -13,13 +13,13 @@ import type { Account }    from './accountService';
 import * as localAcct  from './local/localAccountService';
 import * as remoteGoal from './goalApi';
 import type { Goal }    from './goalApi';
-import * as remoteSplit from './splitApi';
-import type { Split }   from './splitApi';
+import * as remoteTrip from './tripApi';
+import * as localTrip  from './local/localTripService';
 
 export type { Category } from './groupApi';
 export type { Account, AccountType } from './accountService';
 export type { Goal } from './goalApi';
-export type { Split, SplitEntry, SplitMember } from './splitApi';
+export type { Trip, TripMember, TripExpense, TripSettlement } from './tripService';
 
 let _isGuest = true;
 
@@ -204,17 +204,22 @@ export const removeTxAccount = (txId: string) =>
     : remoteAcct.removeTxAccount(txId);
 
 
-// ── Goals and splits (account required) ──────────────────────────────────────
-// Neither has a local implementation and neither should have one: a split is a debt between
-// members of a group, and goals are group-scoped server-side. There is nothing coherent to store
-// for a guest, who has no group and no one to owe.
+// ── Goals (account required) ─────────────────────────────────────────────────
+// Goals have no local implementation and should not have one: they are group-scoped server-side,
+// and there is nothing coherent to store for a guest who has no group.
 //
-// They route through here anyway, rather than being imported straight from `goalApi`/`splitApi`,
-// so that "a guest reaches the network" is impossible by construction instead of depending on
-// every screen remembering its own `isGuest` check. Reads answer empty — a guest genuinely has
-// none. Writes reject, because silently swallowing a write the user asked for is worse than a
-// visible failure. Screens still show a sign-in prompt instead of the feature; this is the
-// backstop for the day one forgets.
+// They route through here anyway, rather than being imported straight from `goalApi`, so that
+// "a guest reaches the network" is impossible by construction instead of depending on every screen
+// remembering its own `isGuest` check. Reads answer empty — a guest genuinely has none. Writes
+// reject, because silently swallowing a write the user asked for is worse than a visible failure.
+// Screens still show a sign-in prompt instead of the feature; this is the backstop for the day one
+// forgets.
+//
+// Splits used to be listed here for the same reason and are not any more. That argument was right
+// about splits and wrong about the need: a shared bill does not actually require a group, it
+// requires people, and W2-28 replaced splits with trips, whose members are names that may or may
+// not have accounts behind them. A guest can keep a whole trip on their device, and `syncService`
+// hands it to the server when they sign in — which is the one thing splits could never do.
 
 export class GuestUnsupportedError extends Error {
   constructor(feature: string) {
@@ -245,27 +250,74 @@ export const deleteGoal = (id: string) =>
     ? guestReject('Savings goals')
     : remoteGoal.deleteGoal(id);
 
-export const getSplits = () =>
-  _isGuest
-    ? Promise.resolve([] as Split[])
-    : remoteSplit.getSplits();
+// ── Trips (works either way) ────────────────────────────────────────────────
 
-export const createSplit = (data: Parameters<typeof remoteSplit.createSplit>[0]) =>
+export const getTrips = () =>
   _isGuest
-    ? guestReject('Split expenses')
-    : remoteSplit.createSplit(data);
+    ? localTrip.getTrips()
+    : remoteTrip.getTrips();
 
-export const settleSplit = (splitId: string, userId: string) =>
+export const getTrip = (id: string) =>
   _isGuest
-    ? guestReject('Split expenses')
-    : remoteSplit.settleSplit(splitId, userId);
+    ? localTrip.getTrip(id)
+    : remoteTrip.getTrip(id);
 
-export const unsettleSplit = (splitId: string, userId: string) =>
+export const createTrip = (data: Parameters<typeof remoteTrip.createTrip>[0]) =>
   _isGuest
-    ? guestReject('Split expenses')
-    : remoteSplit.unsettleSplit(splitId, userId);
+    ? localTrip.createTrip(data)
+    : remoteTrip.createTrip(data);
 
-export const deleteSplit = (splitId: string) =>
+export const renameTrip = (id: string, name: string) =>
   _isGuest
-    ? guestReject('Split expenses')
-    : remoteSplit.deleteSplit(splitId);
+    ? localTrip.renameTrip(id, name)
+    : remoteTrip.renameTrip(id, name);
+
+export const deleteTrip = (id: string) =>
+  _isGuest
+    ? localTrip.deleteTrip(id)
+    : remoteTrip.deleteTrip(id);
+
+// `userId` links the member to a real account, which is what makes a payment confirmable by the
+// person who received it. A guest has no accounts to link to, so the local branch ignores it.
+export const addTripMember = (tripId: string, name: string, userId?: string | null) =>
+  _isGuest
+    ? localTrip.addMember(tripId, name)
+    : remoteTrip.addMember(tripId, name, userId);
+
+export const renameTripMember = (tripId: string, memberId: string, name: string) =>
+  _isGuest
+    ? localTrip.renameMember(tripId, memberId, name)
+    : remoteTrip.renameMember(tripId, memberId, name);
+
+export const removeTripMember = (tripId: string, memberId: string) =>
+  _isGuest
+    ? localTrip.removeMember(tripId, memberId)
+    : remoteTrip.removeMember(tripId, memberId);
+
+export const addTripExpense = (tripId: string, data: remoteTrip.ExpenseInput) =>
+  _isGuest
+    ? localTrip.addExpense(tripId, data)
+    : remoteTrip.addExpense(tripId, data);
+
+export const updateTripExpense = (tripId: string, expenseId: string, data: remoteTrip.ExpenseInput) =>
+  _isGuest
+    ? localTrip.updateExpense(tripId, expenseId, data)
+    : remoteTrip.updateExpense(tripId, expenseId, data);
+
+export const deleteTripExpense = (tripId: string, expenseId: string) =>
+  _isGuest
+    ? localTrip.deleteExpense(tripId, expenseId)
+    : remoteTrip.deleteExpense(tripId, expenseId);
+
+export const recordTripSettlement = (
+  tripId: string,
+  data: { fromId: string; toId: string; amountMinor: number },
+) =>
+  _isGuest
+    ? localTrip.recordSettlement(tripId, data)
+    : remoteTrip.recordSettlement(tripId, data);
+
+export const deleteTripSettlement = (tripId: string, settlementId: string) =>
+  _isGuest
+    ? localTrip.deleteSettlement(tripId, settlementId)
+    : remoteTrip.deleteSettlement(tripId, settlementId);

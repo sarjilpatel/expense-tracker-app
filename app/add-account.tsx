@@ -167,7 +167,7 @@ export default function AddAccountScreen() {
             {COLORS.map(c => (
               <TouchableOpacity
                 key={c}
-                style={[styles.colorDot, { backgroundColor: c }, color === c && styles.colorDotActive]}
+                style={[styles.colorDot, { backgroundColor: c }, color === c && [styles.colorDotActive, { borderColor: theme.text }]]}
                 onPress={() => setColor(c)}
                 activeOpacity={0.8}
               >
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
 
   colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   colorDot: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
-  colorDotActive: { borderWidth: 3, borderColor: '#FFF' },
+  colorDotActive: { borderWidth: 3 },
 
   saveBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,

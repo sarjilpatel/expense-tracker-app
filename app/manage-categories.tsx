@@ -435,7 +435,7 @@ export default function ManageCategoriesScreen() {
                   style={[styles.modalBtn, { backgroundColor: theme.danger }]}
                   onPress={() => { handleRemoveCategoryBudget(budgetCategory!); setBudgetModalVisible(false); }}
                 >
-                  <Text style={{ color: '#FFF', fontWeight: '700' }}>Remove</Text>
+                  <Text style={{ color: theme.expenseText, fontWeight: '700' }}>Remove</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity

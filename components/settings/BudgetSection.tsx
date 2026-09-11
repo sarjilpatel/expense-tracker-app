@@ -81,8 +81,8 @@ export function BudgetSection({ currentBudget, theme, onUpdated }: Props) {
             onPress={handleSave}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color="#FFF" size="small" /> : (
-              <Text style={styles.saveBtnText}>{t('save')}</Text>
+            {loading ? <ActivityIndicator color={theme.tintText} size="small" /> : (
+              <Text style={[styles.saveBtnText, { color: theme.tintText }]}>{t('save')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -100,5 +100,5 @@ const styles = StyleSheet.create({
   inputWrap: { flex: 1, height: 52, borderRadius: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   input:     { flex: 1, fontSize: 16, fontWeight: '700' },
   saveBtn:   { paddingHorizontal: 20, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  saveBtnText: { color: '#FFF', fontWeight: '800' },
+  saveBtnText: { fontWeight: '800' },
 });

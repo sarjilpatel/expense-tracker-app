@@ -47,7 +47,7 @@ export function PreferencesSection() {
         <TouchableOpacity style={styles.row} onPress={() => setActiveModal('currency')} activeOpacity={0.7}>
           <View style={styles.rowLeft}>
             <View style={[styles.iconBox, { backgroundColor: theme.tint }]}>
-              <Text style={{ fontSize: 18, color: '#FFF' }}>{currencyMeta.symbol}</Text>
+              <Text style={{ fontSize: 18, color: theme.tintText }}>{currencyMeta.symbol}</Text>
             </View>
             <View>
               <Text style={[styles.rowTitle, { color: theme.text }]}>Currency</Text>
@@ -66,7 +66,7 @@ export function PreferencesSection() {
         <TouchableOpacity style={styles.row} onPress={() => setActiveModal('monthlyStart')} activeOpacity={0.7}>
           <View style={styles.rowLeft}>
             <View style={[styles.iconBox, { backgroundColor: theme.tint }]}>
-              <Ionicons name="calendar-outline" size={20} color="#FFF" />
+              <Ionicons name="calendar-outline" size={20} color={theme.tintText} />
             </View>
             <View>
               <Text style={[styles.rowTitle, { color: theme.text }]}>Monthly Start Date</Text>
@@ -85,7 +85,7 @@ export function PreferencesSection() {
         <View style={styles.row}>
           <View style={styles.rowLeft}>
             <View style={[styles.iconBox, { backgroundColor: theme.tint }]}>
-              <Ionicons name="today-outline" size={20} color="#FFF" />
+              <Ionicons name="today-outline" size={20} color={theme.tintText} />
             </View>
             <View>
               <Text style={[styles.rowTitle, { color: theme.text }]}>Week Starts On</Text>
@@ -99,7 +99,7 @@ export function PreferencesSection() {
                 style={[styles.weekBtn, prefs.weekStart === day && { backgroundColor: theme.tint }]}
                 onPress={() => update({ weekStart: day })}
               >
-                <Text style={[styles.weekBtnText, { color: prefs.weekStart === day ? '#FFF' : theme.secondaryText }]}>
+                <Text style={[styles.weekBtnText, { color: prefs.weekStart === day ? theme.tintText : theme.secondaryText }]}>
                   {day}
                 </Text>
               </TouchableOpacity>
@@ -113,7 +113,7 @@ export function PreferencesSection() {
         <View style={styles.row}>
           <View style={styles.rowLeft}>
             <View style={[styles.iconBox, { backgroundColor: theme.warning }]}>
-              <Ionicons name="notifications-outline" size={20} color="#FFF" />
+              <Ionicons name="notifications-outline" size={20} color={theme.warningText} />
             </View>
             <View>
               <Text style={[styles.rowTitle, { color: theme.text }]}>Notifications</Text>
@@ -146,7 +146,7 @@ export function PreferencesSection() {
                     onPress={() => { update({ currency: code }); setActiveModal(null); }}
                   >
                     <View style={[styles.symbolBox, { backgroundColor: theme.tint }]}>
-                      <Text style={[styles.symbolText, { color: '#FFF' }]}>{meta.symbol}</Text>
+                      <Text style={[styles.symbolText, { color: theme.tintText }]}>{meta.symbol}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.currencyCode, { color: theme.text }]}>{code}</Text>
@@ -186,7 +186,7 @@ export function PreferencesSection() {
                     ]}
                     onPress={() => { update({ monthlyStart: day }); setActiveModal(null); }}
                   >
-                    <Text style={[styles.dayBtnText, { color: isSelected ? '#FFF' : theme.text }]}>
+                    <Text style={[styles.dayBtnText, { color: isSelected ? theme.tintText : theme.text }]}>
                       {day}
                     </Text>
                   </TouchableOpacity>

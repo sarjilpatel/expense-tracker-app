@@ -28,7 +28,7 @@ export function AppearanceSection({ theme }: Props) {
         >
           <View style={styles.rowLeft}>
             <View style={[styles.iconBox, { backgroundColor: currentAccent }]}>
-              <Ionicons name="color-palette-outline" size={20} color="#FFF" />
+              <Ionicons name="color-palette-outline" size={20} color={theme.tintText} />
             </View>
             <View>
               <ThemedText style={styles.rowTitle}>Theme & Colors</ThemedText>

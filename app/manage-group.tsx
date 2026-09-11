@@ -199,7 +199,7 @@ export default function ManageGroupScreen() {
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
             <View style={styles.groupHeader}>
               <View style={[styles.groupAvatar, { backgroundColor: theme.tint }]}>
-                <Text style={styles.groupAvatarText}>{getInitials(group?.name)}</Text>
+                <Text style={[styles.groupAvatarText, { color: theme.tintText }]}>{getInitials(group?.name)}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.groupName, { color: theme.text }]}>{group?.name}</Text>
@@ -255,7 +255,7 @@ export default function ManageGroupScreen() {
                       ]}>
                         <Text style={[
                           styles.memberAvatarText,
-                          { color: isGroupOwner ? '#FFF' : theme.secondaryText },
+                          { color: isGroupOwner ? theme.tintText : theme.secondaryText },
                         ]}>
                           {getInitials(memberName)}
                         </Text>
@@ -274,7 +274,7 @@ export default function ManageGroupScreen() {
                       ]}>
                         <Text style={[
                           styles.roleText,
-                          { color: isGroupOwner ? '#FFF' : theme.secondaryText },
+                          { color: isGroupOwner ? theme.tintText : theme.secondaryText },
                         ]}>
                           {isGroupOwner ? 'Owner' : 'Member'}
                         </Text>
@@ -336,7 +336,7 @@ export default function ManageGroupScreen() {
                       <Ionicons
                         name={g.isPersonal ? 'person' : 'people'}
                         size={17}
-                        color={isActive ? '#FFF' : theme.tint}
+                        color={isActive ? theme.tintText : theme.tint}
                       />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -354,7 +354,7 @@ export default function ManageGroupScreen() {
                     {isActive
                       ? (
                         <View style={[styles.activeCheck, { backgroundColor: theme.tint }]}>
-                          <Ionicons name="checkmark" size={13} color="#FFF" />
+                          <Ionicons name="checkmark" size={13} color={theme.tintText} />
                         </View>
                       )
                       : <Ionicons name="chevron-forward" size={16} color={theme.icon} />
@@ -386,7 +386,7 @@ export default function ManageGroupScreen() {
                       style={[styles.addModeTab, addMode === m && { backgroundColor: theme.tint }]}
                       onPress={() => setAddMode(m)}
                     >
-                      <Text style={[styles.addModeTabText, { color: addMode === m ? '#FFF' : theme.secondaryText }]}>
+                      <Text style={[styles.addModeTabText, { color: addMode === m ? theme.tintText : theme.secondaryText }]}>
                         {m === 'create' ? 'Create New' : 'Join with Code'}
                       </Text>
                     </TouchableOpacity>
@@ -408,8 +408,8 @@ export default function ManageGroupScreen() {
                   activeOpacity={0.85}
                 >
                   {actionLoading
-                    ? <ActivityIndicator color="#FFF" size="small" />
-                    : <Text style={styles.addBtnText}>{addMode === 'create' ? 'Create Group' : 'Join Group'}</Text>
+                    ? <ActivityIndicator color={theme.tintText} size="small" />
+                    : <Text style={[styles.addBtnText, { color: theme.tintText }]}>{addMode === 'create' ? 'Create Group' : 'Join Group'}</Text>
                   }
                 </TouchableOpacity>
               </View>
@@ -423,7 +423,7 @@ export default function ManageGroupScreen() {
             {isOwner ? (
               <TouchableOpacity style={styles.dangerRow} onPress={handleDelete} activeOpacity={0.7}>
                 <View style={[styles.dangerIcon, { backgroundColor: theme.danger }]}>
-                  <Ionicons name="trash-outline" size={20} color='#FFF' />
+                  <Ionicons name="trash-outline" size={20} color={theme.expenseText} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.dangerTitle, { color: theme.danger }]}>Delete Group</Text>
@@ -436,7 +436,7 @@ export default function ManageGroupScreen() {
             ) : (
               <TouchableOpacity style={styles.dangerRow} onPress={handleLeave} activeOpacity={0.7}>
                 <View style={[styles.dangerIcon, { backgroundColor: theme.danger }]}>
-                  <Ionicons name="exit-outline" size={20} color='#FFF' />
+                  <Ionicons name="exit-outline" size={20} color={theme.expenseText} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.dangerTitle, { color: theme.danger }]}>Leave Group</Text>
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
     width: 52, height: 52, borderRadius: 16,
     justifyContent: 'center', alignItems: 'center',
   },
-  groupAvatarText: { color: '#FFF', fontSize: 22, fontWeight: '800' },
+  groupAvatarText: { fontSize: 22, fontWeight: '800' },
   groupName:     { fontSize: 18, fontWeight: '800' },
   groupSubtitle: { fontSize: 12, marginTop: 3 },
 
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
     height: 48, borderRadius: 12,
     justifyContent: 'center', alignItems: 'center',
   },
-  addBtnText: { color: '#FFF', fontWeight: '800', fontSize: 15 },
+  addBtnText: { fontWeight: '800', fontSize: 15 },
 
   // Danger zone
   dangerRow: {

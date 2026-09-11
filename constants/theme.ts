@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 const primaryLight  = '#18181B';
 const primaryDark   = '#E4E4E7';
 const successLight  = '#22C55E';
@@ -9,7 +7,11 @@ const dangerDark    = '#F87171';
 const warningLight  = '#F59E0B';
 const warningDark   = '#FCD34D';
 
-export type ThemeColors = {
+/**
+ * The palette as it is written down: surfaces, accents and semantic colours only.
+ * Foregrounds are deliberately absent — see `ThemeColors` below.
+ */
+export type BaseColors = {
   text: string;
   secondaryText: string;
   background: string;
@@ -20,14 +22,11 @@ export type ThemeColors = {
   surface: string;
   inputBg: string;
   tint: string;
-  tintText: string;
   icon: string;
   tabIconDefault: string;
   tabIconSelected: string;
   income: string;
-  incomeText: string;
   expense: string;
-  expenseText: string;
   primary: string;
   success: string;
   danger: string;
@@ -35,10 +34,23 @@ export type ThemeColors = {
   chart: string[];
 };
 
-export const Colors: { light: ThemeColors; dark: ThemeColors } = {
+/**
+ * A palette with its foregrounds derived. Every `*Text` token is computed from the colour it sits
+ * on, never written by hand — that is the whole point (W2-01/W2-02). Build one with
+ * `withContrastText`, or take the live one from `useTheme()`, which also folds in presets and
+ * user overrides. A preset may declare its own foreground; nothing else may.
+ */
+export type ThemeColors = BaseColors & {
+  tintText: string;
+  incomeText: string;
+  expenseText: string;
+  warningText: string;
+};
+
+export const Colors: { light: BaseColors; dark: BaseColors } = {
   light: {
     text:            '#18181B',
-    secondaryText:   '#71717A',
+    secondaryText:   '#636369',
     background:      '#F5F5F5',
     card:            '#FFFFFF',
     cardAlt:         '#E5E7EB',
@@ -47,14 +59,11 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     surface:         '#F3F4F6',
     inputBg:         '#FFFFFF',
     tint:            primaryLight,
-    tintText:        '#FFFFFF',
     icon:            '#71717A',
-    tabIconDefault:  '#A1A1AA',
+    tabIconDefault:  '#85858E',
     tabIconSelected: primaryLight,
     income:          successLight,
-    incomeText:      '#FFFFFF',
     expense:         dangerLight,
-    expenseText:     '#FFFFFF',
     primary:         primaryLight,
     success:         successLight,
     danger:          dangerLight,
@@ -72,14 +81,11 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
     surface:         '#1C1C1E',
     inputBg:         '#18181B',
     tint:            primaryDark,
-    tintText:        '#FFFFFF',
     icon:            '#A1A1AA',
     tabIconDefault:  '#71717A',
     tabIconSelected: primaryDark,
     income:          successDark,
-    incomeText:      '#FFFFFF',
     expense:         dangerDark,
-    expenseText:     '#FFFFFF',
     primary:         primaryDark,
     success:         successDark,
     danger:          dangerDark,
@@ -88,13 +94,13 @@ export const Colors: { light: ThemeColors; dark: ThemeColors } = {
   },
 };
 
+// A preset states the three surface colours and nothing else. It used to declare its own
+// foregrounds too, and 25 of those 48 pairs were below 4.5:1, so ThemeContext computes them
+// all from the surface now and there is nothing here for a new preset to get wrong.
 export interface PresetColors {
   accent: string;
-  accentText: string;
   income: string;
-  incomeText: string;
   expense: string;
-  expenseText: string;
 }
 
 export interface ThemePreset {
@@ -108,43 +114,43 @@ export const THEME_PRESETS: ThemePreset[] = [
     name: 'Graphite',
     // Light: deep charcoal accent is bold and readable
     // Dark: near-white so active tab is clearly highlighted against dark bg
-    light: { accent: '#18181B', accentText: '#FFFFFF', income: '#22C55E', incomeText: '#FFFFFF', expense: '#EF4444', expenseText: '#FFFFFF' },
-    dark:  { accent: '#E4E4E7', accentText: '#18181B', income: '#4ADE80', incomeText: '#052E16', expense: '#F87171', expenseText: '#FFFFFF' },
+    light: { accent: '#18181B', income: '#22C55E', expense: '#EF4444' },
+    dark:  { accent: '#E4E4E7', income: '#4ADE80', expense: '#F87171' },
   },
   {
     name: 'Ocean',
-    light: { accent: '#2563EB', accentText: '#FFFFFF', income: '#10B981', incomeText: '#FFFFFF', expense: '#F43F5E', expenseText: '#FFFFFF' },
-    dark:  { accent: '#3B82F6', accentText: '#FFFFFF', income: '#34D399', incomeText: '#064E3B', expense: '#FB7185', expenseText: '#FFFFFF' },
+    light: { accent: '#2563EB', income: '#10B981', expense: '#F43F5E' },
+    dark:  { accent: '#3B82F6', income: '#34D399', expense: '#FB7185' },
   },
   {
     name: 'Forest',
-    light: { accent: '#16A34A', accentText: '#FFFFFF', income: '#059669', incomeText: '#FFFFFF', expense: '#DC2626', expenseText: '#FFFFFF' },
-    dark:  { accent: '#22C55E', accentText: '#052E16', income: '#4ADE80', incomeText: '#052E16', expense: '#F87171', expenseText: '#FFFFFF' },
+    light: { accent: '#16A34A', income: '#059669', expense: '#DC2626' },
+    dark:  { accent: '#22C55E', income: '#4ADE80', expense: '#F87171' },
   },
   {
     name: 'Dusk',
-    light: { accent: '#7C3AED', accentText: '#FFFFFF', income: '#0EA5E9', incomeText: '#FFFFFF', expense: '#EC4899', expenseText: '#FFFFFF' },
-    dark:  { accent: '#A78BFA', accentText: '#1E1B4B', income: '#38BDF8', incomeText: '#082F49', expense: '#F472B6', expenseText: '#FFFFFF' },
+    light: { accent: '#7C3AED', income: '#0EA5E9', expense: '#EC4899' },
+    dark:  { accent: '#A78BFA', income: '#38BDF8', expense: '#F472B6' },
   },
   {
     name: 'Ember',
-    light: { accent: '#EA580C', accentText: '#FFFFFF', income: '#16A34A', incomeText: '#FFFFFF', expense: '#DC2626', expenseText: '#FFFFFF' },
-    dark:  { accent: '#FB923C', accentText: '#431407', income: '#4ADE80', incomeText: '#052E16', expense: '#F87171', expenseText: '#FFFFFF' },
+    light: { accent: '#EA580C', income: '#16A34A', expense: '#DC2626' },
+    dark:  { accent: '#FB923C', income: '#4ADE80', expense: '#F87171' },
   },
   {
     name: 'Pearl',
-    light: { accent: '#475569', accentText: '#FFFFFF', income: '#0EA5E9', incomeText: '#FFFFFF', expense: '#F43F5E', expenseText: '#FFFFFF' },
-    dark:  { accent: '#CBD5E1', accentText: '#0F172A', income: '#38BDF8', incomeText: '#082F49', expense: '#FB7185', expenseText: '#FFFFFF' },
+    light: { accent: '#475569', income: '#0EA5E9', expense: '#F43F5E' },
+    dark:  { accent: '#CBD5E1', income: '#38BDF8', expense: '#FB7185' },
   },
   {
     name: 'Azure',
-    light: { accent: '#0284C7', accentText: '#FFFFFF', income: '#10B981', incomeText: '#FFFFFF', expense: '#F43F5E', expenseText: '#FFFFFF' },
-    dark:  { accent: '#38BDF8', accentText: '#082F49', income: '#34D399', incomeText: '#064E3B', expense: '#FB7185', expenseText: '#FFFFFF' },
+    light: { accent: '#0369A1', income: '#10B981', expense: '#F43F5E' },
+    dark:  { accent: '#38BDF8', income: '#34D399', expense: '#FB7185' },
   },
   {
     name: 'Coral',
-    light: { accent: '#E11D48', accentText: '#FFFFFF', income: '#0EA5E9', incomeText: '#FFFFFF', expense: '#E11D48', expenseText: '#FFFFFF' },
-    dark:  { accent: '#FB7185', accentText: '#4C0519', income: '#38BDF8', incomeText: '#082F49', expense: '#FB7185', expenseText: '#FFFFFF' },
+    light: { accent: '#E11D48', income: '#0EA5E9', expense: '#E11D48' },
+    dark:  { accent: '#FB7185', income: '#38BDF8', expense: '#FB7185' },
   },
 ];
 
@@ -216,7 +222,11 @@ export function hexToRGBA(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Returns '#FFFFFF' for dark backgrounds, '#18181B' for light backgrounds (WCAG luminance)
+// The only two foregrounds the app ever puts on a coloured surface.
+export const CONTRAST_LIGHT = '#FFFFFF';
+export const CONTRAST_DARK  = '#18181B';
+
+// Returns CONTRAST_LIGHT for dark backgrounds, CONTRAST_DARK for light ones (WCAG luminance)
 export function getContrastText(hex: string): string {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.substring(0, 2), 16);
@@ -224,8 +234,35 @@ export function getContrastText(hex: string): string {
   const b = parseInt(clean.substring(4, 6), 16);
   const toLinear = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
   const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-  return lum > 0.179 ? '#18181B' : '#FFFFFF';
+  // The familiar 0.179 crossover is the one for white vs *pure black*; the dark token here is
+  // #18181B (luminance 0.00927), so the point where the two stop being equally good sits at
+  // sqrt((1 + 0.05) * (0.00927 + 0.05)) - 0.05. Using 0.179 handed #6366F1 dark text at 3.97:1
+  // when white would have given 4.47:1.
+  return lum > 0.1995 ? CONTRAST_DARK : CONTRAST_LIGHT;
 }
+
+/**
+ * Derive the four foreground tokens for a palette. `ThemeContext` layers presets and overrides on
+ * top of this; anything reading `Colors` directly should go through it rather than assuming white.
+ */
+export function withContrastText(base: BaseColors): ThemeColors {
+  return {
+    ...base,
+    tintText:    getContrastText(base.tint),
+    incomeText:  getContrastText(base.income),
+    expenseText: getContrastText(base.expense),
+    warningText: getContrastText(base.warning),
+  };
+}
+
+/**
+ * The two palettes with their foregrounds derived, for the rare reader that runs outside
+ * `ThemeContext` and so cannot see presets or user overrides. Prefer `useTheme()`.
+ */
+export const StaticThemes: { light: ThemeColors; dark: ThemeColors } = {
+  light: withContrastText(Colors.light),
+  dark:  withContrastText(Colors.dark),
+};
 
 export function getCategoryColors(category: string, isDark: boolean) {
   const base = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || CATEGORY_COLORS['Other'];

@@ -26,6 +26,17 @@ export interface SettlementExpense {
   paidById: string;
   /** Member ids sharing this expense. Empty array → expense is ignored. */
   participantIds: string[];
+  /**
+   * Explicit share per member id, in minor units, for an unevenly divided expense.
+   *
+   * When present **it is the whole truth**: the keys are the participants and the values are the
+   * shares, so `participantIds` and `amountMinor` are both ignored for this expense and cannot
+   * contradict it. That is deliberate — a declared total disagreeing with its own shares is the
+   * one way this engine could return balances that do not sum to zero, and the way to make that
+   * unrepresentable is to have only one source of truth. Validate the two against each other at
+   * the input boundary (the form, and the server), not here.
+   */
+  sharesMinor?: Record<string, number>;
 }
 
 /** Per-member computed standing for a trip. */
@@ -132,6 +143,8 @@ export function splitEvenly(amount: number, n: number): number[] {
  *    are skipped (they cannot be attributed meaningfully).
  *  - participant ids not present in `members` are ignored.
  *  - duplicate participant ids within one expense are de-duplicated.
+ *  - an expense carrying `sharesMinor` uses those shares verbatim and credits the payer with
+ *    their sum, so the zero-sum guarantee holds whatever the declared total says.
  */
 export function computeBalances(
   members: SettlementMember[],
@@ -146,9 +159,27 @@ export function computeBalances(
   }
 
   for (const exp of expenses) {
+    if (!known.has(exp.paidById)) continue;
+
+    // An unevenly divided expense states its own shares; an even one derives them.
+    if (exp.sharesMinor) {
+      let attributed = 0;
+      for (const [pid, raw] of Object.entries(exp.sharesMinor)) {
+        if (!known.has(pid)) continue;
+        const amount = Math.trunc(raw);
+        if (!Number.isFinite(amount) || amount <= 0) continue;
+        share.set(pid, (share.get(pid) ?? 0) + amount);
+        attributed += amount;
+      }
+      if (attributed === 0) continue;
+      // The payer is credited with what was actually attributed, never the declared total — that
+      // is what keeps the balances summing to zero when the two disagree.
+      paid.set(exp.paidById, (paid.get(exp.paidById) ?? 0) + attributed);
+      continue;
+    }
+
     const amount = Math.trunc(exp.amountMinor);
     if (!Number.isFinite(amount) || amount <= 0) continue;
-    if (!known.has(exp.paidById)) continue;
 
     // De-duplicate participants and keep only known members.
     const participants: string[] = [];

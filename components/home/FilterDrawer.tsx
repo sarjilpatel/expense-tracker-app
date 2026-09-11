@@ -250,5 +250,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     height: 54, borderRadius: 16, gap: 8, marginTop: 8,
   },
-  applyText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  applyText: { fontSize: 16, fontWeight: '700' },
 });

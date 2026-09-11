@@ -4,6 +4,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, interpolateColo
 import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/src/context/ThemeContext';
+import { getContrastText } from '@/constants/theme';
 
 type Frequency = 'daily' | 'weekly' | 'monthly';
 
@@ -57,7 +58,7 @@ export function RecurringToggle({ enabled, frequency, onToggle, onFrequencyChang
               style={[styles.freqBtn, frequency === f && { backgroundColor: tintColor }]}
               onPress={() => onFrequencyChange(f)}
             >
-              <Text style={[styles.freqText, { color: frequency === f ? '#FFF' : textColor }]}>
+              <Text style={[styles.freqText, { color: frequency === f ? getContrastText(tintColor) : textColor }]}>
                 {f.charAt(0).toUpperCase() + f.slice(1)}
               </Text>
             </TouchableOpacity>

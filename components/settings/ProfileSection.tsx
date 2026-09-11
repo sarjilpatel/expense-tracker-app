@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/src/context/ThemeContext';
+import { getContrastText } from '@/constants/theme';
 import { useAuth } from '@/src/context/AuthContext';
 import apiClient from '@/src/services/apiClient';
 
@@ -47,7 +48,7 @@ export function ProfileSection({ user, tintColor }: Props) {
           {user?.profilePhoto ? (
             <Image source={{ uri: user.profilePhoto }} style={styles.avatarImg} />
           ) : (
-            <ThemedText style={styles.avatarText}>{user?.name?.charAt(0) || 'U'}</ThemedText>
+            <ThemedText style={[styles.avatarText, { color: getContrastText(tintColor) }]}>{user?.name?.charAt(0) || 'U'}</ThemedText>
           )}
         </View>
         <View style={{ flex: 1 }}>
@@ -58,7 +59,7 @@ export function ProfileSection({ user, tintColor }: Props) {
           style={[styles.editBtn, { backgroundColor: tintColor }]}
           onPress={() => router.push('/edit-profile')}
         >
-          <Ionicons name="pencil" size={18} color="#FFF" />
+          <Ionicons name="pencil" size={18} color={getContrastText(tintColor)} />
         </TouchableOpacity>
       </View>
 
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImg:  { width: '100%', height: '100%' },
-  avatarText: { color: '#FFF', fontSize: 22, fontWeight: '800' },
+  avatarText: { fontSize: 22, fontWeight: '800' },
   editBtn:    { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
   email:      { fontSize: 13, marginTop: 2 },
   deleteRow: {

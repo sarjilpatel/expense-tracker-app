@@ -6,6 +6,7 @@ import {
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
+import { getContrastText } from '@/constants/theme';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const SHEET_HEIGHT = Math.round(SCREEN_H * 0.52);
@@ -189,7 +190,7 @@ export function AmountKeypad({ visible, value, onClose, onDone, onChange, accent
       : isCalcBtn   ? opBg
       : keyBg;
 
-    const txtColor = (isEq || isDone)       ? '#FFF'
+    const txtColor = (isEq || isDone)       ? getContrastText(accentColor)
       : (isOp || isCalcBtn) ? accentColor
       : isAC                ? (theme.danger || '#EF4444')
       : theme.text;
@@ -209,11 +210,11 @@ export function AmountKeypad({ visible, value, onClose, onDone, onChange, accent
         {isDel ? (
           <Ionicons name="backspace-outline" size={20} color={theme.text} />
         ) : isDone ? (
-          <Text style={[styles.keyText, styles.doneText]}>Done</Text>
+          <Text style={[styles.keyText, styles.doneText, { color: txtColor }]}>Done</Text>
         ) : isCalcBtn ? (
           <Ionicons name="calculator-outline" size={22} color={accentColor} />
         ) : isEq ? (
-          <Text style={[styles.keyText, styles.doneText]}>=</Text>
+          <Text style={[styles.keyText, styles.doneText, { color: txtColor }]}>=</Text>
         ) : isOp ? (
           <Text style={[styles.keyText, { color: txtColor, fontSize: 24, fontWeight: '400' }]}>{k}</Text>
         ) : isAC ? (
@@ -312,5 +313,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06, shadowRadius: 3, elevation: 1,
   },
   keyText:  { fontSize: 22, fontWeight: '500' },
-  doneText: { color: '#FFF', fontSize: 17, fontWeight: '700' },
+  doneText: { fontSize: 17, fontWeight: '700' },
 });

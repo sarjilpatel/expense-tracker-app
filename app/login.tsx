@@ -58,7 +58,7 @@ export default function LoginScreen() {
         <ThemedView style={styles.container}>
           <ThemedView style={styles.header}>
             <View style={[styles.logo, { backgroundColor: theme.tint }]}>
-              <ThemedText style={styles.logoText}>₹</ThemedText>
+              <ThemedText style={[styles.logoText, { color: theme.tintText }]}>₹</ThemedText>
             </View>
             <ThemedText type="title" style={styles.title}>Expense Tracker</ThemedText>
             <ThemedText style={styles.subtitle}>Sign in to your account</ThemedText>
@@ -101,9 +101,9 @@ export default function LoginScreen() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={theme.tintText} />
               ) : (
-                <ThemedText style={styles.buttonText}>Log In</ThemedText>
+                <ThemedText style={[styles.buttonText, { color: theme.tintText }]}>Log In</ThemedText>
               )}
             </TouchableOpacity>
           </ThemedView>
@@ -149,7 +149,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoText: {
-    color: '#FFF',
     fontSize: 32,
     fontWeight: '800',
   },
@@ -199,7 +198,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: '#FFF',
     fontSize: 18,
     fontWeight: '800',
   },

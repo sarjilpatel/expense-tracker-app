@@ -98,7 +98,7 @@ export default function CustomizationScreen() {
           <View style={[styles.previewRow, { borderBottomColor: theme.border }]}>
             <View style={styles.previewRowLeft}>
               <View style={[styles.rowIcon, { backgroundColor: currentIncome }]}>
-                <Ionicons name="arrow-down" size={14} color="#FFF" />
+                <Ionicons name="arrow-down" size={14} color={getContrastText(currentIncome)} />
               </View>
               <Text style={{ color: theme.text, fontSize: 13, fontWeight: '500' }}>Salary Deposit</Text>
             </View>
@@ -108,7 +108,7 @@ export default function CustomizationScreen() {
           <View style={[styles.previewRow, { borderBottomWidth: 0 }]}>
             <View style={styles.previewRowLeft}>
               <View style={[styles.rowIcon, { backgroundColor: currentExpense }]}>
-                <Ionicons name="arrow-up" size={14} color="#FFF" />
+                <Ionicons name="arrow-up" size={14} color={getContrastText(currentExpense)} />
               </View>
               <Text style={{ color: theme.text, fontSize: 13, fontWeight: '500' }}>Coffee Shop</Text>
             </View>
@@ -197,7 +197,7 @@ export default function CustomizationScreen() {
               style={[styles.colorSwatch, { backgroundColor: c.value }]}
               activeOpacity={0.8}
             >
-              {currentIncome === c.value && <Ionicons name="checkmark" size={16} color="#FFF" />}
+              {currentIncome === c.value && <Ionicons name="checkmark" size={16} color={getContrastText(c.value)} />}
             </TouchableOpacity>
           ))}
         </View>
@@ -212,7 +212,7 @@ export default function CustomizationScreen() {
               style={[styles.colorSwatch, { backgroundColor: c.value }]}
               activeOpacity={0.8}
             >
-              {currentExpense === c.value && <Ionicons name="checkmark" size={16} color="#FFF" />}
+              {currentExpense === c.value && <Ionicons name="checkmark" size={16} color={getContrastText(c.value)} />}
             </TouchableOpacity>
           ))}
         </View>

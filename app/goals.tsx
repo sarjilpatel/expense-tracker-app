@@ -15,7 +15,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
-import { Currency } from '@/constants/theme';
+import { Currency, getContrastText } from '@/constants/theme';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
 import {
   getGoals, createGoal, updateGoal, deleteGoal, Goal,
@@ -260,7 +260,7 @@ export default function GoalsScreen() {
         </TouchableOpacity>
         <ThemedText type="title" style={S.headerTitle}>Savings Goals</ThemedText>
         <TouchableOpacity onPress={openAdd} hitSlop={8} style={[S.addBtn, { backgroundColor: theme.tint }]}>
-          <Ionicons name="add" size={20} color="#FFF" />
+          <Ionicons name="add" size={20} color={theme.tintText} />
         </TouchableOpacity>
       </View>
 
@@ -275,8 +275,8 @@ export default function GoalsScreen() {
           <ThemedText style={S.emptyTitle}>No goals yet</ThemedText>
           <ThemedText style={S.emptyBody}>Set a savings goal to track your progress toward something meaningful.</ThemedText>
           <TouchableOpacity style={[S.emptyBtn, { backgroundColor: theme.tint }]} onPress={openAdd}>
-            <Ionicons name="add" size={16} color="#FFF" />
-            <Text style={S.emptyBtnText}>Add First Goal</Text>
+            <Ionicons name="add" size={16} color={theme.tintText} />
+            <Text style={[S.emptyBtnText, { color: theme.tintText }]}>Add First Goal</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -368,8 +368,8 @@ export default function GoalsScreen() {
                     onPress={() => { setFundsGoal(goal); setFundsAmt(''); }}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="add" size={15} color="#FFF" />
-                    <Text style={S.actionBtnText}>Add Funds</Text>
+                    <Ionicons name="add" size={15} color={getContrastText(goal.color)} />
+                    <Text style={[S.actionBtnText, { color: getContrastText(goal.color) }]}>Add Funds</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[S.editBtn2, { borderColor: theme.border }]}
@@ -498,7 +498,7 @@ export default function GoalsScreen() {
                       style={[S.colorDot, { backgroundColor: c }, form.color === c && S.colorSelected]}
                       onPress={() => setForm(f => ({ ...f, color: c }))}
                     >
-                      {form.color === c && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                      {form.color === c && <Ionicons name="checkmark" size={14} color={getContrastText(c)} />}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -536,8 +536,8 @@ export default function GoalsScreen() {
                     onPress={handleAddFunds}
                     disabled={saving}
                   >
-                    {saving ? <ActivityIndicator size="small" color="#FFF" /> : (
-                      <Text style={{ color: '#FFF', fontWeight: '700' }}>Add</Text>
+                    {saving ? <ActivityIndicator size="small" color={getContrastText(fundsGoal?.color ?? theme.tint)} /> : (
+                      <Text style={{ color: getContrastText(fundsGoal?.color ?? theme.tint), fontWeight: '700' }}>Add</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -582,7 +582,7 @@ const S = StyleSheet.create({
 
   actions:      { flexDirection: 'row', gap: 10 },
   actionBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 14 },
-  actionBtnText:{ color: '#FFF', fontSize: 13, fontWeight: '700' },
+  actionBtnText:{ fontSize: 13, fontWeight: '700' },
   editBtn2:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 14, borderWidth: 1 },
   editBtnText:  { fontSize: 13, fontWeight: '600' },
 
@@ -590,7 +590,7 @@ const S = StyleSheet.create({
   emptyTitle:   { fontSize: 18, fontWeight: '700', textAlign: 'center' },
   emptyBody:    { fontSize: 13, textAlign: 'center', lineHeight: 20 },
   emptyBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16, marginTop: 8 },
-  emptyBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  emptyBtnText: { fontSize: 14, fontWeight: '700' },
 
   // Modal
   modal:        { flex: 1 },

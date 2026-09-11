@@ -141,7 +141,7 @@ export function SyncModal({ visible, onDone }: Props) {
                 Your data has been uploaded to your account.
               </Text>
               <TouchableOpacity style={[styles.btn, { backgroundColor: theme.income }]} onPress={onDone}>
-                <Text style={styles.btnText}>Continue</Text>
+                <Text style={[styles.btnText, { color: theme.incomeText }]}>Continue</Text>
               </TouchableOpacity>
             </>
           )}
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
     gap: 8, marginBottom: 10,
   },
-  btnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  btnText: { fontSize: 16, fontWeight: '700' },
   btnSecondary: {
     width: '100%', height: 48, borderRadius: 14, borderWidth: 1,
     justifyContent: 'center', alignItems: 'center', marginBottom: 8,

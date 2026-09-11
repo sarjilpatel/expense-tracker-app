@@ -8,7 +8,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Currency } from '@/constants/theme';
+import { Currency, getContrastText } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLanguage } from '@/src/i18n/LanguageContext';
 import { ThemedView } from '@/components/themed-view';
@@ -87,7 +87,8 @@ export default function AccountDetailScreen() {
 
   if (!account) return null;
 
-  const meta = ACCOUNT_TYPE_META[account.type];
+  const meta      = ACCOUNT_TYPE_META[account.type];
+  const onAccount = getContrastText(account.color);
 
   return (
     <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
@@ -108,7 +109,7 @@ export default function AccountDetailScreen() {
           style={[styles.editBtn, { backgroundColor: account.color, marginLeft: 8 }]}
           onPress={() => router.push({ pathname: '/add-transaction', params: { prefillAccountId: account.id } })}
         >
-          <Ionicons name="add" size={20} color="#FFF" />
+          <Ionicons name="add" size={20} color={onAccount} />
         </TouchableOpacity>
       </View>
 
@@ -125,33 +126,33 @@ export default function AccountDetailScreen() {
               <Ionicons name={meta.icon as any} size={28} color={theme.tintText} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.accountName, { color: '#FFF' }]}>{account.name}</Text>
-              <Text style={[styles.accountType, { color: '#FFF' }]}>{meta.label}</Text>
+              <Text style={[styles.accountName, { color: onAccount }]}>{account.name}</Text>
+              <Text style={[styles.accountType, { color: onAccount }]}>{meta.label}</Text>
             </View>
           </View>
  
-          <Text style={[styles.balanceLabel, { color: '#FFF' }]}>CURRENT BALANCE</Text>
-          <Text style={[styles.balanceAmt, { color: '#FFF' }]}>
+          <Text style={[styles.balanceLabel, { color: onAccount }]}>CURRENT BALANCE</Text>
+          <Text style={[styles.balanceAmt, { color: onAccount }]}>
             {Currency.format(balance)}
           </Text>
  
           <View style={[styles.statsRow, { borderTopColor: theme.border }]}>
             <View style={styles.statItem}>
-              <Ionicons name="arrow-down-circle" size={16} color="#FFF" />
-              <Text style={[styles.statLabel, { color: '#FFF' }]}>Income</Text>
-              <Text style={[styles.statVal, { color: '#FFF' }]}>{Currency.format(income)}</Text>
+              <Ionicons name="arrow-down-circle" size={16} color={onAccount} />
+              <Text style={[styles.statLabel, { color: onAccount }]}>Income</Text>
+              <Text style={[styles.statVal, { color: onAccount }]}>{Currency.format(income)}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
             <View style={styles.statItem}>
-              <Ionicons name="arrow-up-circle" size={16} color="#FFF" />
-              <Text style={[styles.statLabel, { color: '#FFF' }]}>Expenses</Text>
-              <Text style={[styles.statVal, { color: '#FFF' }]}>{Currency.format(expense)}</Text>
+              <Ionicons name="arrow-up-circle" size={16} color={onAccount} />
+              <Text style={[styles.statLabel, { color: onAccount }]}>Expenses</Text>
+              <Text style={[styles.statVal, { color: onAccount }]}>{Currency.format(expense)}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
             <View style={styles.statItem}>
-              <Ionicons name="receipt-outline" size={16} color="#FFF" />
-              <Text style={[styles.statLabel, { color: '#FFF' }]}>Records</Text>
-              <Text style={[styles.statVal, { color: '#FFF' }]}>{transactions.length}</Text>
+              <Ionicons name="receipt-outline" size={16} color={onAccount} />
+              <Text style={[styles.statLabel, { color: onAccount }]}>Records</Text>
+              <Text style={[styles.statVal, { color: onAccount }]}>{transactions.length}</Text>
             </View>
           </View>
         </Animated.View>
@@ -167,7 +168,7 @@ export default function AccountDetailScreen() {
               style={[styles.addFirstBtn, { backgroundColor: account.color }]}
               onPress={() => router.push({ pathname: '/add-transaction', params: { prefillAccountId: account.id } })}
             >
-              <Text style={styles.addFirstText}>Add first transaction</Text>
+              <Text style={[styles.addFirstText, { color: onAccount }]}>Add first transaction</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -233,5 +234,5 @@ const styles = StyleSheet.create({
   empty:       { alignItems: 'center', paddingTop: 48 },
   emptyText:   { fontSize: 14, marginBottom: 20 },
   addFirstBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 },
-  addFirstText:{ color: '#FFF', fontWeight: '700', fontSize: 14 },
+  addFirstText:{ fontWeight: '700', fontSize: 14 },
 });

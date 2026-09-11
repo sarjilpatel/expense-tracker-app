@@ -13,6 +13,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
 import * as DocumentPicker from 'expo-document-picker';
+import { getContrastText } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
@@ -24,9 +25,9 @@ import { generateMonthlyPDF } from '@/src/services/reportService';
 import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
 
 function Row({
-  icon, iconBg, iconColor, title, sub, right, onPress, danger,
+  icon, iconBg, iconColor = getContrastText(iconBg), title, sub, right, onPress, danger,
 }: {
-  icon: string; iconBg: string; iconColor: string;
+  icon: string; iconBg: string; iconColor?: string;
   title: string; sub?: string;
   right?: React.ReactNode; onPress?: () => void; danger?: boolean;
 }) {
@@ -367,7 +368,7 @@ export default function DataScreen() {
             <Card>
               <View style={S.row}>
                 <View style={[S.iconBox, { backgroundColor: '#0F766E' }]}>
-                  <Ionicons name="cloud-done-outline" size={18} color="#FFF" />
+                  <Ionicons name="cloud-done-outline" size={18} color={getContrastText('#0F766E')} />
                 </View>
                 <View style={S.rowMid}>
                   <Text style={[S.rowTitle, { color: theme.text }]}>Cloud Backup</Text>
@@ -383,20 +384,20 @@ export default function DataScreen() {
         <Text style={[S.groupLabel, { color: theme.secondaryText }]}>EXPORT</Text>
         <Card>
           <Row
-            icon="download-outline" iconBg="#0F766E" iconColor="#FFF"
+            icon="download-outline" iconBg="#0F766E"
             title="Export CSV" sub="Choose date range"
             onPress={() => { setExportShowCustom(false); setExportSheetType('csv'); }}
             right={exporting ? <ActivityIndicator size="small" color="#0F766E" /> : undefined}
           />
           <Sep />
           <Row
-            icon="document-outline" iconBg="#0F766E" iconColor="#FFF"
+            icon="document-outline" iconBg="#0F766E"
             title="Export XLSX" sub="Excel — choose date range"
             onPress={() => { setExportShowCustom(false); setExportSheetType('xlsx'); }}
           />
           <Sep />
           <Row
-            icon="document-text-outline" iconBg="#0F766E" iconColor="#FFF"
+            icon="document-text-outline" iconBg="#0F766E"
             title="Export PDF Report" sub="Summary — choose date range"
             onPress={() => { setExportShowCustom(false); setExportSheetType('pdf'); }}
           />
@@ -406,7 +407,7 @@ export default function DataScreen() {
         <Text style={[S.groupLabel, { color: theme.secondaryText }]}>BACKUP</Text>
         <Card>
           <Row
-            icon="save-outline" iconBg="#3B82F6" iconColor="#FFF"
+            icon="save-outline" iconBg="#3B82F6"
             title="Backup to Device" sub="Export all transactions as JSON"
             onPress={backupToDevice}
             right={working ? <ActivityIndicator size="small" color="#3B82F6" /> : undefined}
@@ -429,7 +430,7 @@ export default function DataScreen() {
         <Text style={[S.groupLabel, { color: theme.secondaryText }]}>IMPORT</Text>
         <Card>
           <Row
-            icon="cloud-download-outline" iconBg="#6366F1" iconColor="#FFF"
+            icon="cloud-download-outline" iconBg="#6366F1"
             title="Import Excel / CSV" sub="Import .xlsx or .csv transactions"
             onPress={importExcel}
           />

@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16, marginTop: 8,
   },
-  emptyBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  emptyBtnText: { fontWeight: '700', fontSize: 15 },
 
   card: {
     padding:           16,

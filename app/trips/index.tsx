@@ -1,3 +1,10 @@
+/**
+ * Trips — the list.
+ *
+ * This is what the old `splits.tsx` and the local-only TripMaster became (W2-28). There is one
+ * feature now, reached the same way signed in or out: `dataService` picks the device or the server
+ * and both answer with the same `Trip`, so nothing below this line knows or cares which it got.
+ */
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
@@ -9,16 +16,19 @@ import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { ThemedView } from '@/components/themed-view';
 import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
-import { getTrips, createTrip, deleteTrip, Trip } from '@/src/services/local/tripMasterService';
+import { getTrips, createTrip, deleteTrip, Trip } from '@/src/services/dataService';
+import { toSettlementInput } from '@/src/services/tripService';
 import { computeSettlement, formatMinor } from '@/src/utils/settlement';
 import { hexToRGBA } from '@/constants/theme';
 
-export default function TripMasterListScreen() {
+export default function TripsListScreen() {
   const { theme }   = useTheme();
   const { prefs }   = usePreferences();
+  const { isGuest } = useAuth();
   const { top }     = useSafeAreaInsets();
 
   const [trips, setTrips]           = useState<Trip[]>([]);
@@ -26,12 +36,16 @@ export default function TripMasterListScreen() {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName]       = useState('');
   const [creating, setCreating]     = useState(false);
+  const [error, setError]           = useState('');
 
   const load = useCallback(async () => {
     try {
       setTrips(await getTrips());
-    } catch (e) {
-      console.error(e);
+      setError('');
+    } catch (e: any) {
+      // A guest read cannot fail, so this is always the network — say so rather than showing an
+      // empty list, which reads as "you have no trips".
+      setError(typeof e === 'string' ? e : e?.message || 'Could not load your trips.');
     } finally {
       setLoading(false);
     }
@@ -43,12 +57,12 @@ export default function TripMasterListScreen() {
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const trip = await createTrip(newName, prefs.currency);
+      const trip = await createTrip({ name: newName.trim(), currency: prefs.currency });
       setShowCreate(false);
       setNewName('');
-      router.push(`/trip-master/${trip.id}` as any);
-    } catch (e) {
-      Alert.alert('Error', 'Could not create the trip. Please try again.');
+      router.push(`/trips/${trip.id}` as any);
+    } catch (e: any) {
+      Alert.alert('Error', typeof e === 'string' ? e : e?.message || 'Could not create the trip.');
     } finally {
       setCreating(false);
     }
@@ -61,7 +75,13 @@ export default function TripMasterListScreen() {
       `Delete "${trip.name}" and all its expenses? This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => { await deleteTrip(trip.id); load(); } },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            try { await deleteTrip(trip.id); load(); }
+            catch (e: any) { Alert.alert('Error', typeof e === 'string' ? e : e?.message || 'Could not delete.'); }
+          },
+        },
       ],
     );
   };
@@ -83,7 +103,7 @@ export default function TripMasterListScreen() {
           <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
         <View style={S.headerCenter}>
-          <Text style={[S.headerTitle, { color: theme.text }]}>TripMaster</Text>
+          <Text style={[S.headerTitle, { color: theme.text }]}>Trips</Text>
           {!loading && trips.length > 0 && (
             <Text style={[S.headerSub, { color: theme.secondaryText }]}>
               {trips.length} {trips.length === 1 ? 'trip' : 'trips'}
@@ -103,6 +123,14 @@ export default function TripMasterListScreen() {
         <View style={S.center}>
           <ActivityIndicator color={theme.tint} size="large" />
         </View>
+      ) : error ? (
+        <View style={S.center}>
+          <Ionicons name="cloud-offline-outline" size={40} color={theme.secondaryText} />
+          <Text style={[S.errorText, { color: theme.secondaryText }]}>{error}</Text>
+          <TouchableOpacity onPress={() => { setLoading(true); load(); }} style={[S.retryBtn, { borderColor: theme.border }]}>
+            <Text style={[S.retryText, { color: theme.tint }]}>Try again</Text>
+          </TouchableOpacity>
+        </View>
       ) : trips.length === 0 ? (
         <ScrollView contentContainerStyle={S.emptyScroll}>
           <LinearGradient
@@ -113,7 +141,8 @@ export default function TripMasterListScreen() {
           </LinearGradient>
           <Text style={[S.emptyTitle, { color: theme.text }]}>Split bills, settle up fast</Text>
           <Text style={[S.emptySub, { color: theme.secondaryText }]}>
-            Add who paid for what on a trip or group outing, and TripMaster tells everyone exactly who owes whom — with the fewest payments.
+            Add who paid for what on a trip or group outing, and we work out exactly who owes whom —
+            with the fewest payments.
           </Text>
           <TouchableOpacity
             style={[S.emptyBtn, { backgroundColor: theme.tint }]}
@@ -123,11 +152,16 @@ export default function TripMasterListScreen() {
             <Ionicons name="add" size={20} color={theme.tintText} />
             <Text style={[S.emptyBtnText, { color: theme.tintText }]}>Create your first trip</Text>
           </TouchableOpacity>
+          {isGuest && (
+            <Text style={[S.guestNote, { color: theme.secondaryText }]}>
+              Trips work offline. Sign in later and yours come with you.
+            </Text>
+          )}
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={S.scroll} showsVerticalScrollIndicator={false}>
           {trips.map(trip => {
-            const { totalSpentMinor, transfers } = computeSettlement(trip.members, trip.expenses);
+            const { totalSpentMinor, transfers } = computeSettlement(trip.members, toSettlementInput(trip));
             const symbol = symbolFor(trip.currency);
             const settled = transfers.length === 0;
             const hasExpenses = trip.expenses.length > 0;
@@ -138,7 +172,7 @@ export default function TripMasterListScreen() {
                 style={[S.tripCard, { backgroundColor: theme.card, borderColor: theme.border }]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(`/trip-master/${trip.id}` as any);
+                  router.push(`/trips/${trip.id}` as any);
                 }}
                 onLongPress={() => handleDelete(trip)}
                 activeOpacity={0.72}
@@ -238,8 +272,12 @@ const S = StyleSheet.create({
   headerTitle:  { fontSize: 17, fontWeight: '800' },
   headerSub:    { fontSize: 12, marginTop: 1 },
 
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, padding: 32 },
   scroll: { paddingHorizontal: 16, paddingTop: 4 },
+
+  errorText: { fontSize: 14, textAlign: 'center', lineHeight: 21 },
+  retryBtn:  { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  retryText: { fontSize: 14, fontWeight: '700' },
 
   // Empty state
   emptyScroll:  { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 32, paddingTop: 60 },
@@ -248,6 +286,7 @@ const S = StyleSheet.create({
   emptySub:     { fontSize: 14, lineHeight: 22, textAlign: 'center', marginBottom: 32, maxWidth: 300 },
   emptyBtn:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 28, paddingVertical: 16, borderRadius: 16 },
   emptyBtnText: { fontSize: 15, fontWeight: '700' },
+  guestNote:    { fontSize: 12, textAlign: 'center', marginTop: 20, maxWidth: 280, lineHeight: 18 },
 
   // Trip card
   tripCard: {

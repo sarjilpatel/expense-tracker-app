@@ -35,14 +35,14 @@ export function CategoriesSection() {
         >
           <View style={styles.rowLeft}>
             <View style={[styles.iconBox, { backgroundColor: theme.income }]}>
-              <Ionicons name="arrow-down-outline" size={20} color="#FFF" />
+              <Ionicons name="arrow-down-outline" size={20} color={theme.incomeText} />
             </View>
             <Text style={[styles.rowTitle, { color: theme.text }]}>Income Categories</Text>
           </View>
           <View style={styles.rowRight}>
             {incomeCount > 0 && (
               <View style={[styles.badge, { backgroundColor: theme.income }]}>
-                <Text style={[styles.badgeText, { color: '#FFF' }]}>{incomeCount}</Text>
+                <Text style={[styles.badgeText, { color: theme.incomeText }]}>{incomeCount}</Text>
               </View>
             )}
             <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} />
@@ -58,14 +58,14 @@ export function CategoriesSection() {
         >
           <View style={styles.rowLeft}>
             <View style={[styles.iconBox, { backgroundColor: theme.expense }]}>
-              <Ionicons name="arrow-up-outline" size={20} color="#FFF" />
+              <Ionicons name="arrow-up-outline" size={20} color={theme.expenseText} />
             </View>
             <Text style={[styles.rowTitle, { color: theme.text }]}>Expense Categories</Text>
           </View>
           <View style={styles.rowRight}>
             {expenseCount > 0 && (
               <View style={[styles.badge, { backgroundColor: theme.expense }]}>
-                <Text style={[styles.badgeText, { color: '#FFF' }]}>{expenseCount}</Text>
+                <Text style={[styles.badgeText, { color: theme.expenseText }]}>{expenseCount}</Text>
               </View>
             )}
             <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} />

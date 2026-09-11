@@ -77,7 +77,7 @@ export default function SignupScreen() {
         <ThemedView style={styles.container}>
           <ThemedView style={styles.header}>
             <View style={[styles.logo, { backgroundColor: theme.tint }]}>
-                <ThemedText style={styles.logoText}>₹</ThemedText>
+                <ThemedText style={[styles.logoText, { color: theme.tintText }]}>₹</ThemedText>
             </View>
             <ThemedText type="title" style={styles.title}>Join Us</ThemedText>
             <ThemedText style={styles.subtitle}>Take control of your finances</ThemedText>
@@ -141,7 +141,7 @@ export default function SignupScreen() {
               onPress={handleSignup}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator color="#FFF" /> : <ThemedText style={styles.buttonText}>Get Started</ThemedText>}
+              {loading ? <ActivityIndicator color={theme.tintText} /> : <ThemedText style={[styles.buttonText, { color: theme.tintText }]}>Get Started</ThemedText>}
             </TouchableOpacity>
           </ThemedView>
 
@@ -174,7 +174,7 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, justifyContent: 'center' },
   logo: { width: 64, height: 64, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  logoText: { color: '#FFF', fontSize: 32, fontWeight: '800' },
+  logoText: { fontSize: 32, fontWeight: '800' },
   header: { marginBottom: 40, alignItems: 'center' },
   title: { fontSize: 28, fontWeight: '800', marginBottom: 8 },
   subtitle: { fontSize: 16 },
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   input: { height: 56, backgroundColor: 'transparent', borderRadius: 16, paddingHorizontal: 16, borderWidth: 1 },
   button: { height: 60, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 10, shadowColor: '#5856D6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 4 },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  buttonText: { fontSize: 18, fontWeight: '800' },
   dividerRow:  { flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 16, gap: 12 },
   divider:     { flex: 1, height: 1 },
   dividerText: { fontSize: 13 },

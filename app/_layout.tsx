@@ -12,7 +12,7 @@ import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { PreferencesProvider } from '@/src/context/PreferencesContext';
 import { ThemeProvider as AppThemeProvider } from '@/src/context/ThemeContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
+import { Colors, getContrastText } from '@/constants/theme';
 import apiClient from '@/src/services/apiClient';
 import { LanguageProvider } from '@/src/i18n/LanguageContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -101,7 +101,7 @@ function RootLayoutNav() {
     return (
       <View style={[loadingStyles.container, { backgroundColor: bg }]}>
         <View style={loadingStyles.iconWrap}>
-          <Ionicons name="wallet" size={38} color="#FFF" />
+          <Ionicons name="wallet" size={38} color={getContrastText(Colors.light.primary)} />
         </View>
         <ActivityIndicator size="large" color={Colors.light.primary} style={{ marginTop: 28 }} />
       </View>
@@ -146,9 +146,8 @@ function RootLayoutNav() {
         <Stack.Screen name="import-categories"  options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="edit-profile"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="goals"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="splits"            options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="trip-master/index" options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="trip-master/[id]"  options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="trips/index"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="trips/[id]"        options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="modal"              options={{ presentation: 'modal', title: 'Modal'              }} />
       </Stack>
       <StatusBar style="auto" />

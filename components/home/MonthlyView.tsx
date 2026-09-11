@@ -131,13 +131,13 @@ export function MonthlyView({ transactions, year, theme }: Props) {
 
               {/* Center: income */}
               <Text style={[styles.incomeAmt, { color: theme.income }]}>
-                {Currency.format(income)}
+                +{Currency.format(income)}
               </Text>
 
               {/* Right: expense + balance stacked */}
               <View style={styles.colRight}>
                 <Text style={[styles.expenseAmt, { color: theme.expense }]}>
-                  {Currency.format(expense)}
+                  -{Currency.format(expense)}
                 </Text>
                 <Text style={[styles.balanceAmt, { color: theme.text }]}>
                   {Currency.format(balance)}
@@ -173,7 +173,7 @@ export function MonthlyView({ transactions, year, theme }: Props) {
                   <Text style={[styles.wkIncomeAmt, {
                     color: theme.income,
                   }]}>
-                    {Currency.format(wt.income)}
+                    +{Currency.format(wt.income)}
                   </Text>
 
                   {/* Right: expense + balance */}
@@ -181,7 +181,7 @@ export function MonthlyView({ transactions, year, theme }: Props) {
                     <Text style={[styles.wkExpenseAmt, {
                       color: theme.expense,
                     }]}>
-                      {Currency.format(wt.expense)}
+                      -{Currency.format(wt.expense)}
                     </Text>
                     <Text style={[styles.wkBalanceAmt, {
                       color: theme.secondaryText,

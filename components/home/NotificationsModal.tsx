@@ -46,7 +46,7 @@ export function NotificationsModal({ visible, onClose, notifications, theme }: P
                     <Ionicons
                       name={notif.type === 'income' ? 'arrow-down' : 'arrow-up'}
                       size={16}
-                      color="#FFF"
+                      color={theme.tintText}
                     />
                   </View>
                   <View style={{ flex: 1 }}>

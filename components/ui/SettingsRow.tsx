@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
+import { getContrastText } from '@/constants/theme';
 
 interface RowProps {
   icon: string;
@@ -14,7 +15,7 @@ interface RowProps {
   danger?: boolean;
 }
 
-export function SettingsRow({ icon, iconBg, iconColor = '#FFF', title, sub, right, onPress, danger }: RowProps) {
+export function SettingsRow({ icon, iconBg, iconColor = getContrastText(iconBg), title, sub, right, onPress, danger }: RowProps) {
   const { theme } = useTheme();
   const content = (
     <View style={S.row}>

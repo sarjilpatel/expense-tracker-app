@@ -57,10 +57,10 @@ export function TransactionSectionHeader({ section, theme }: Props) {
 
       <View style={styles.right}>
         <Text style={[styles.amt, { color: theme.income }]}>
-          {Currency.format(section.income || 0)}
+          +{Currency.format(section.income || 0)}
         </Text>
         <Text style={[styles.amt, { color: theme.expense }]}>
-          {Currency.format(section.expense || 0)}
+          -{Currency.format(section.expense || 0)}
         </Text>
       </View>
     </TouchableOpacity>

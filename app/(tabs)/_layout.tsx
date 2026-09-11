@@ -34,7 +34,7 @@ const CustomAddButton = ({ theme }: { theme: any }) => {
       }}
       activeOpacity={0.85}
     >
-      <Ionicons name="add" size={28} color="#FFF" />
+      <Ionicons name="add" size={28} color={theme.tintText} />
     </TouchableOpacity>
   );
 };

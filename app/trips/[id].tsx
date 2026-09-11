@@ -1,21 +1,37 @@
+/**
+ * Trip detail — people, expenses, and who pays whom.
+ *
+ * The merged screen from W2-28: the old TripMaster detail view, plus the two things only the
+ * server-side splits screen could do — members that are real accounts, and recording a payment that
+ * someone actually made. Everything goes through `dataService`, so the same screen drives a trip on
+ * this device and a trip in the group.
+ *
+ * Money is integer minor units end to end; `settlement.ts` does the arithmetic and never sees a
+ * float. A recorded payment is fed to it as an expense the sender paid for the recipient — see
+ * `tripService.toSettlementInput` — so "settled" needs no special case anywhere.
+ */
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   Modal, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useAuth } from '@/src/context/AuthContext';
 import { ThemedView } from '@/components/themed-view';
 import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
 import { hexToRGBA } from '@/constants/theme';
 import {
-  getTrip, addMember, removeMember, addExpense, updateExpense, deleteExpense,
-  Trip, TripExpense,
-} from '@/src/services/local/tripMasterService';
+  getTrip, addTripMember, removeTripMember, addTripExpense, updateTripExpense, deleteTripExpense,
+  recordTripSettlement, deleteTripSettlement, getCurrentGroup,
+  Trip, TripExpense, TripMember,
+} from '@/src/services/dataService';
+import { isLocalTrip, toSettlementInput } from '@/src/services/tripService';
 import { computeSettlement, formatMinor, toMinorUnits, fromMinorUnits } from '@/src/utils/settlement';
 
 // Palette for member avatars — cycles if more than 10 people
@@ -24,6 +40,10 @@ const AVATAR_PALETTE = [
   '#6C5CE7', '#00B894', '#E17055', '#A29BFE', '#FD79A8',
 ];
 function avatarColor(index: number) { return AVATAR_PALETTE[index % AVATAR_PALETTE.length]; }
+
+/** Both halves of the service throw: the remote one a string, the local one an Error. */
+const msg = (e: any, fallback: string) =>
+  (typeof e === 'string' ? e : e?.message) || fallback;
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -57,19 +77,43 @@ const SH = StyleSheet.create({
   actionText: { fontSize: 13, fontWeight: '700' },
 });
 
+/** A member's face: their photo when the account has one, their initial otherwise. */
+function MemberAvatar({ name, photo, color, size = 34 }: {
+  name: string; photo?: string | null; color: string; size?: number;
+}) {
+  if (photo) {
+    return <Image source={{ uri: photo }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+  }
+  return (
+    <View style={{
+      width: size, height: size, borderRadius: size / 2,
+      backgroundColor: hexToRGBA(color, 0.18), justifyContent: 'center', alignItems: 'center',
+    }}>
+      <Text style={{ fontSize: size * 0.42, fontWeight: '800', color }}>
+        {(name || '?').charAt(0).toUpperCase()}
+      </Text>
+    </View>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function TripDetailScreen() {
   const { id }    = useLocalSearchParams<{ id: string }>();
   const { theme } = useTheme();
+  const { user: authUser, isGuest } = useAuth();
   const { top, bottom } = useSafeAreaInsets();
+
+  const myId = (authUser as any)?._id || (authUser as any)?.id || '';
 
   const [trip, setTrip]       = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Add-member modal
-  const [showMember, setShowMember] = useState(false);
-  const [memberName, setMemberName] = useState('');
+  const [showMember, setShowMember]     = useState(false);
+  const [memberName, setMemberName]     = useState('');
+  const [candidates, setCandidates]     = useState<TripMember[]>([]);
+  const [addingMember, setAddingMember] = useState(false);
 
   // Add/edit-expense sheet
   const [showExpense, setShowExpense]   = useState(false);
@@ -78,6 +122,8 @@ export default function TripDetailScreen() {
   const [expAmount, setExpAmount]       = useState('');
   const [expPaidBy, setExpPaidBy]       = useState<string>('');
   const [expParts, setExpParts]         = useState<Set<string>>(new Set());
+  const [splitMode, setSplitMode]       = useState<'equal' | 'custom'>('equal');
+  const [customAmounts, setCustom]      = useState<Record<string, string>>({});
   const [saving, setSaving]             = useState(false);
 
   const load = useCallback(async () => {
@@ -95,10 +141,22 @@ export default function TripDetailScreen() {
 
   const symbol = trip ? (CURRENCY_META[trip.currency as CurrencyCode]?.symbol ?? '₹') : '₹';
 
+  // A recorded payment is part of the input, not a flag on top of it, so the balances below already
+  // account for everything anyone has paid back.
   const settlement = useMemo(
-    () => (trip ? computeSettlement(trip.members, trip.expenses) : null),
+    () => (trip ? computeSettlement(trip.members, toSettlementInput(trip)) : null),
     [trip],
   );
+
+  /**
+   * Whether the viewer may change this trip.
+   *
+   * A trip on the device is entirely theirs. A trip in the group belongs to whoever made it — the
+   * rule W1-27 settled for splits, because group membership alone would let any member delete the
+   * record of what they owe. Confirming a payment is the documented exception and is handled by
+   * `canConfirm` below.
+   */
+  const canEdit = !!trip && (isLocalTrip(trip) || trip.ownerId === myId);
 
   const getMemberName = useCallback(
     (mid: string) => trip?.members.find(m => m.id === mid)?.name ?? 'Unknown',
@@ -110,18 +168,50 @@ export default function TripDetailScreen() {
     [trip],
   );
 
+  const readOnly = () =>
+    Alert.alert('Not your trip', 'Only the person who created this trip can change it.');
+
   // ── Member handlers ──
-  const handleAddMember = async () => {
-    if (!trip || !memberName.trim()) return;
-    const updated = await addMember(trip.id, memberName);
-    setTrip(updated);
+  const openAddMember = async () => {
+    if (!canEdit) return readOnly();
     setMemberName('');
-    setShowMember(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCandidates([]);
+    setShowMember(true);
+    if (isGuest || !trip) return;
+
+    // Group members are offered as a shortcut, not a requirement: linking a member to an account is
+    // what lets that person confirm a payment made to them. Anyone else is still just a name.
+    try {
+      const group: any = await getCurrentGroup();
+      const taken = new Set(trip.members.map(m => m.userId).filter(Boolean));
+      setCandidates(
+        (group?.members || [])
+          .filter((m: any) => !taken.has(String(m._id)))
+          .map((m: any) => ({ id: '', name: m.name, userId: String(m._id), photo: m.profilePhoto })),
+      );
+    } catch {
+      // The name field still works; only the shortcut is missing.
+    }
+  };
+
+  const addMember = async (name: string, userId?: string | null) => {
+    if (!trip || !name.trim()) return;
+    setAddingMember(true);
+    try {
+      setTrip(await addTripMember(trip.id, name.trim(), userId ?? null));
+      setMemberName('');
+      setShowMember(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e: any) {
+      Alert.alert('Error', msg(e, 'Could not add that person.'));
+    } finally {
+      setAddingMember(false);
+    }
   };
 
   const handleRemoveMember = (mid: string) => {
     if (!trip) return;
+    if (!canEdit) return readOnly();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     const involved = trip.expenses.some(e => e.paidById === mid || e.participantIds.includes(mid));
     Alert.alert(
@@ -131,14 +221,22 @@ export default function TripDetailScreen() {
         : `Remove ${getMemberName(mid)} from this trip?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: async () => setTrip(await removeMember(trip.id, mid)) },
+        {
+          text: 'Remove', style: 'destructive',
+          onPress: async () => {
+            try { setTrip(await removeTripMember(trip.id, mid)); }
+            catch (e: any) { Alert.alert('Error', msg(e, 'Could not remove them.')); }
+          },
+        },
       ],
     );
   };
 
   // ── Expense handlers ──
   const openAddExpense = () => {
-    if (!trip || trip.members.length === 0) {
+    if (!trip) return;
+    if (!canEdit) return readOnly();
+    if (trip.members.length === 0) {
       Alert.alert('Add people first', 'Add at least one person before logging an expense.');
       return;
     }
@@ -148,17 +246,26 @@ export default function TripDetailScreen() {
     setExpAmount('');
     setExpPaidBy(trip.members[0].id);
     setExpParts(new Set(trip.members.map(m => m.id)));
+    setSplitMode('equal');
+    setCustom({});
     setShowExpense(true);
   };
 
   const openEditExpense = (exp: TripExpense) => {
     if (!trip) return;
+    if (!canEdit) return readOnly();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditingId(exp.id);
     setExpDesc(exp.description);
     setExpAmount(String(fromMinorUnits(exp.amountMinor)));
     setExpPaidBy(exp.paidById);
     setExpParts(new Set(exp.participantIds));
+    setSplitMode(exp.sharesMinor ? 'custom' : 'equal');
+    setCustom(
+      exp.sharesMinor
+        ? Object.fromEntries(Object.entries(exp.sharesMinor).map(([k, v]) => [k, String(fromMinorUnits(v))]))
+        : {},
+    );
     setShowExpense(true);
   };
 
@@ -171,27 +278,56 @@ export default function TripDetailScreen() {
     });
   };
 
-  const amountMinorPreview = toMinorUnits(parseFloat(expAmount));
-  const canSaveExpense = amountMinorPreview > 0 && !!expPaidBy && expParts.size > 0;
+  // In custom mode the shares are the truth and the total is their sum — the same rule the engine
+  // and the server enforce, so the form cannot submit a total that contradicts its own shares.
+  const customShares = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const mid of expParts) {
+      const minor = toMinorUnits(parseFloat(customAmounts[mid] ?? ''));
+      if (minor > 0) out[mid] = minor;
+    }
+    return out;
+  }, [customAmounts, expParts]);
+
+  const customTotalMinor  = Object.values(customShares).reduce((a, b) => a + b, 0);
+  const amountMinorEqual  = toMinorUnits(parseFloat(expAmount));
+  const totalMinorPreview = splitMode === 'custom' ? customTotalMinor : amountMinorEqual;
+
+  const canSaveExpense = splitMode === 'custom'
+    ? Object.keys(customShares).length > 0 && !!expPaidBy
+    : amountMinorEqual > 0 && !!expPaidBy && expParts.size > 0;
+
+  /** Seeds the custom fields from the even split, so switching modes starts from what is on screen. */
+  const switchToCustom = () => {
+    Haptics.selectionAsync();
+    if (splitMode === 'custom') { setSplitMode('equal'); return; }
+    const ids = [...expParts];
+    if (amountMinorEqual > 0 && ids.length > 0) {
+      const each = Math.floor(amountMinorEqual / ids.length);
+      setCustom(Object.fromEntries(ids.map(mid => [mid, String(fromMinorUnits(each))])));
+    }
+    setSplitMode('custom');
+  };
 
   const handleSaveExpense = async () => {
     if (!trip || !canSaveExpense) return;
     setSaving(true);
     try {
       const payload = {
-        description: expDesc,
-        amountMinor: amountMinorPreview,
-        paidById: expPaidBy,
-        participantIds: [...expParts],
+        description:    expDesc,
+        amountMinor:    totalMinorPreview,
+        paidById:       expPaidBy,
+        participantIds: splitMode === 'custom' ? Object.keys(customShares) : [...expParts],
+        sharesMinor:    splitMode === 'custom' ? customShares : null,
       };
       const updated = editingId
-        ? await updateExpense(trip.id, editingId, payload)
-        : await addExpense(trip.id, payload);
+        ? await updateTripExpense(trip.id, editingId, payload)
+        : await addTripExpense(trip.id, payload);
       setTrip(updated);
       setShowExpense(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (e) {
-      Alert.alert('Error', 'Could not save the expense.');
+    } catch (e: any) {
+      Alert.alert('Error', msg(e, 'Could not save the expense.'));
     } finally {
       setSaving(false);
     }
@@ -199,11 +335,73 @@ export default function TripDetailScreen() {
 
   const handleDeleteExpense = (exp: TripExpense) => {
     if (!trip) return;
+    if (!canEdit) return readOnly();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert('Delete Expense', `Delete "${exp.description || 'this expense'}"?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => setTrip(await deleteExpense(trip.id, exp.id)) },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          try { setTrip(await deleteTripExpense(trip.id, exp.id)); }
+          catch (e: any) { Alert.alert('Error', msg(e, 'Could not delete the expense.')); }
+        },
+      },
     ]);
+  };
+
+  // ── Settlement handlers ──
+
+  /**
+   * Recording a payment belongs to whoever received it (W1-13), with the trip owner as the fallback
+   * for a member who has no account to confirm from. The server checks this again; the button is
+   * hidden here so nobody is offered an action that will be refused.
+   */
+  const canConfirm = useCallback((toId: string) => {
+    if (!trip) return false;
+    if (isLocalTrip(trip)) return true;
+    const to = trip.members.find(m => m.id === toId);
+    return (to?.userId && to.userId === myId) || trip.ownerId === myId;
+  }, [trip, myId]);
+
+  const handleRecordSettlement = (fromId: string, toId: string, amountMinor: number) => {
+    if (!trip) return;
+    Alert.alert(
+      'Mark as paid?',
+      `${getMemberName(fromId)} paid ${getMemberName(toId)} ${formatMinor(amountMinor, symbol)}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Mark Paid',
+          onPress: async () => {
+            try {
+              setTrip(await recordTripSettlement(trip.id, { fromId, toId, amountMinor }));
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (e: any) {
+              Alert.alert('Error', msg(e, 'Could not record the payment.'));
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  /** Undoing a payment is deleting its record, not a second flag over the top of it (W1-29). */
+  const handleUndoSettlement = (settlementId: string, fromId: string, toId: string, amountMinor: number) => {
+    if (!trip) return;
+    Alert.alert(
+      'Undo this payment?',
+      `${getMemberName(fromId)} will owe ${getMemberName(toId)} ${formatMinor(amountMinor, symbol)} again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Undo', style: 'destructive',
+          onPress: async () => {
+            try { setTrip(await deleteTripSettlement(trip.id, settlementId)); }
+            catch (e: any) { Alert.alert('Error', msg(e, 'Could not undo the payment.')); }
+          },
+        },
+      ],
+    );
   };
 
   // ── Loading / not found ──
@@ -222,7 +420,7 @@ export default function TripDetailScreen() {
           <TouchableOpacity onPress={() => router.back()} style={S.iconBtn} hitSlop={12}>
             <Ionicons name="chevron-back" size={24} color={theme.text} />
           </TouchableOpacity>
-          <Text style={[S.headerTitle, { color: theme.text }]}>TripMaster</Text>
+          <Text style={[S.headerTitle, { color: theme.text }]}>Trip</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={S.center}>
@@ -234,6 +432,7 @@ export default function TripDetailScreen() {
 
   const hasExpenses  = trip.expenses.length > 0;
   const hasMembers   = trip.members.length > 0;
+  const hasPayments  = trip.settlements.length > 0;
   const allSettled   = settlement?.transfers.length === 0;
 
   return (
@@ -259,9 +458,9 @@ export default function TripDetailScreen() {
           end={{ x: 1, y: 1.2 }}
           style={S.heroCard}
         >
-          <Text style={S.heroLabel}>TOTAL TRIP SPEND</Text>
-          <Text style={S.heroAmount}>
-            {formatMinor(settlement!.totalSpentMinor, symbol)}
+          <Text style={[S.heroLabel, { color: theme.tintText }]}>TOTAL TRIP SPEND</Text>
+          <Text style={[S.heroAmount, { color: theme.tintText }]}>
+            {formatMinor(trip.expenses.reduce((sum, e) => sum + e.amountMinor, 0), symbol)}
           </Text>
           <View style={S.heroMeta}>
             <View style={S.heroPill}>
@@ -295,11 +494,20 @@ export default function TripDetailScreen() {
           </View>
         </LinearGradient>
 
+        {!canEdit && (
+          <View style={[S.noticeBox, { backgroundColor: hexToRGBA(theme.tint, 0.08), borderColor: hexToRGBA(theme.tint, 0.2) }]}>
+            <Ionicons name="eye-outline" size={14} color={theme.tint} />
+            <Text style={[S.noticeText, { color: theme.tint }]}>
+              {trip.name} belongs to someone else. You can see it and confirm payments made to you.
+            </Text>
+          </View>
+        )}
+
         {/* ── People section ── */}
         <SectionHeader
           title="People"
-          action="Add"
-          onAction={() => { setMemberName(''); setShowMember(true); }}
+          action={canEdit ? 'Add' : undefined}
+          onAction={canEdit ? openAddMember : undefined}
         />
 
         {!hasMembers ? (
@@ -311,16 +519,18 @@ export default function TripDetailScreen() {
           </View>
         ) : (
           <View style={[S.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            {trip.members.map((m, idx) => {
-              const color = avatarColor(idx);
-              return (
-                <View key={m.id}>
-                  {idx > 0 && <View style={[S.sep, { backgroundColor: theme.separator }]} />}
-                  <View style={S.memberRow}>
-                    <View style={[S.memberAvatar, { backgroundColor: hexToRGBA(color, 0.18) }]}>
-                      <Text style={[S.memberAvatarText, { color }]}>{m.name.charAt(0).toUpperCase()}</Text>
-                    </View>
+            {trip.members.map((m, idx) => (
+              <View key={m.id}>
+                {idx > 0 && <View style={[S.sep, { backgroundColor: theme.separator }]} />}
+                <View style={S.memberRow}>
+                  <MemberAvatar name={m.name} photo={m.photo} color={avatarColor(idx)} />
+                  <View style={S.memberBody}>
                     <Text style={[S.memberName, { color: theme.text }]}>{m.name}</Text>
+                    {m.userId === myId && (
+                      <Text style={[S.memberTag, { color: theme.secondaryText }]}>You</Text>
+                    )}
+                  </View>
+                  {canEdit && (
                     <TouchableOpacity
                       onPress={() => handleRemoveMember(m.id)}
                       style={[S.memberRemove, { backgroundColor: hexToRGBA(theme.expense, 0.1) }]}
@@ -328,18 +538,18 @@ export default function TripDetailScreen() {
                     >
                       <Ionicons name="close" size={14} color={theme.expense} />
                     </TouchableOpacity>
-                  </View>
+                  )}
                 </View>
-              );
-            })}
+              </View>
+            ))}
           </View>
         )}
 
         {/* ── Expenses section ── */}
         <SectionHeader
           title="Expenses"
-          action="Add"
-          onAction={openAddExpense}
+          action={canEdit ? 'Add' : undefined}
+          onAction={canEdit ? openAddExpense : undefined}
         />
 
         {!hasExpenses ? (
@@ -377,7 +587,10 @@ export default function TripDetailScreen() {
                           </Text>
                         </View>
                         <Text style={[S.expMeta, { color: theme.secondaryText }]} numberOfLines={1}>
-                          {getMemberName(exp.paidById)} paid · {exp.participantIds.length}-way split
+                          {getMemberName(exp.paidById)} paid ·{' '}
+                          {exp.sharesMinor
+                            ? `uneven, ${exp.participantIds.length} people`
+                            : `${exp.participantIds.length}-way split`}
                         </Text>
                       </View>
                     </View>
@@ -388,7 +601,7 @@ export default function TripDetailScreen() {
             })}
           </View>
         )}
-        {hasExpenses && (
+        {hasExpenses && canEdit && (
           <Text style={[S.hint, { color: theme.secondaryText }]}>Tap to edit · long-press to delete</Text>
         )}
 
@@ -413,14 +626,13 @@ export default function TripDetailScreen() {
                 const even  = b.netMinor === 0;
                 const color = even ? theme.secondaryText : owes ? theme.expense : theme.income;
                 const memberIdx = trip.members.findIndex(m => m.id === b.id);
+                const member    = memberIdx >= 0 ? trip.members[memberIdx] : null;
                 const memberColor = memberIdx >= 0 ? avatarColor(memberIdx) : theme.tint;
                 return (
                   <View key={b.id}>
                     {i > 0 && <View style={[S.sep, { backgroundColor: theme.separator }]} />}
                     <View style={S.balRow}>
-                      <View style={[S.memberAvatar, { backgroundColor: hexToRGBA(memberColor, 0.18) }]}>
-                        <Text style={[S.memberAvatarText, { color: memberColor }]}>{b.name.charAt(0).toUpperCase()}</Text>
-                      </View>
+                      <MemberAvatar name={b.name} photo={member?.photo} color={memberColor} />
                       <View style={S.balBody}>
                         <Text style={[S.balName, { color: theme.text }]}>{b.name}</Text>
                         <Text style={[S.balSub, { color: theme.secondaryText }]}>
@@ -461,11 +673,7 @@ export default function TripDetailScreen() {
                     <View key={`${t.fromId}-${t.toId}-${i}`}>
                       {i > 0 && <View style={[S.sep, { backgroundColor: theme.separator }]} />}
                       <View style={S.transferRow}>
-                        {/* From avatar */}
-                        <View style={[S.transferAvatar, { backgroundColor: hexToRGBA(fromColor, 0.16) }]}>
-                          <Text style={[S.memberAvatarText, { color: fromColor }]}>{t.fromName.charAt(0).toUpperCase()}</Text>
-                        </View>
-                        {/* Names + arrow */}
+                        <MemberAvatar name={t.fromName} photo={trip.members[fromIdx]?.photo} color={fromColor} />
                         <View style={S.transferBody}>
                           <Text style={[S.transferFrom, { color: theme.text }]} numberOfLines={1}>{t.fromName}</Text>
                           <View style={S.transferArrowRow}>
@@ -474,26 +682,68 @@ export default function TripDetailScreen() {
                           </View>
                           <Text style={[S.transferTo, { color: theme.secondaryText }]} numberOfLines={1}>{t.toName}</Text>
                         </View>
-                        {/* To avatar */}
-                        <View style={[S.transferAvatar, { backgroundColor: hexToRGBA(toColor, 0.16) }]}>
-                          <Text style={[S.memberAvatarText, { color: toColor }]}>{t.toName.charAt(0).toUpperCase()}</Text>
-                        </View>
-                        {/* Amount */}
+                        <MemberAvatar name={t.toName} photo={trip.members[toIdx]?.photo} color={toColor} />
                         <View style={[S.transferAmtWrap, { backgroundColor: hexToRGBA(theme.tint, 0.1) }]}>
                           <Text style={[S.transferAmt, { color: theme.tint }]}>{formatMinor(t.amountMinor, symbol)}</Text>
                         </View>
                       </View>
+                      {canConfirm(t.toId) && (
+                        <TouchableOpacity
+                          style={[S.markPaidBtn, { borderColor: hexToRGBA(theme.income, 0.35) }]}
+                          onPress={() => handleRecordSettlement(t.fromId, t.toId, t.amountMinor)}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons name="checkmark-circle-outline" size={14} color={theme.income} />
+                          <Text style={[S.markPaidText, { color: theme.income }]}>Mark paid</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 })}
               </View>
+            )}
+
+            {/* Payments already made */}
+            {hasPayments && (
+              <>
+                <Text style={[S.subLabel, { color: theme.secondaryText }]}>PAYMENTS MADE</Text>
+                <View style={[S.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                  {trip.settlements.map((s, i) => (
+                    <View key={s.id}>
+                      {i > 0 && <View style={[S.sep, { backgroundColor: theme.separator }]} />}
+                      <View style={S.paymentRow}>
+                        <View style={[S.paymentIcon, { backgroundColor: hexToRGBA(theme.income, 0.12) }]}>
+                          <Ionicons name="arrow-forward" size={15} color={theme.income} />
+                        </View>
+                        <View style={S.paymentBody}>
+                          <Text style={[S.paymentText, { color: theme.text }]} numberOfLines={1}>
+                            {getMemberName(s.fromId)} → {getMemberName(s.toId)}
+                          </Text>
+                          <Text style={[S.paymentAmt, { color: theme.secondaryText }]}>
+                            {formatMinor(s.amountMinor, symbol)}
+                          </Text>
+                        </View>
+                        {canConfirm(s.toId) && (
+                          <TouchableOpacity
+                            onPress={() => handleUndoSettlement(s.id, s.fromId, s.toId, s.amountMinor)}
+                            style={[S.undoBtn, { backgroundColor: hexToRGBA(theme.expense, 0.1) }]}
+                            hitSlop={8}
+                          >
+                            <Ionicons name="arrow-undo-outline" size={14} color={theme.expense} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </>
             )}
           </>
         )}
       </ScrollView>
 
       {/* ── FAB: Add Expense ── */}
-      {hasMembers && (
+      {hasMembers && canEdit && (
         <TouchableOpacity
           style={[S.fab, { backgroundColor: theme.tint, bottom: Math.max(bottom, 20) + 16 }]}
           onPress={openAddExpense}
@@ -511,7 +761,9 @@ export default function TripDetailScreen() {
               <Ionicons name="person-add-outline" size={28} color={theme.tint} />
             </View>
             <Text style={[S.modalTitle, { color: theme.text }]}>Add Person</Text>
-            <Text style={[S.modalSub, { color: theme.secondaryText }]}>Enter the name of someone on this trip.</Text>
+            <Text style={[S.modalSub, { color: theme.secondaryText }]}>
+              Anyone can be on a trip — they do not need an account.
+            </Text>
             <TextInput
               style={[S.input, { backgroundColor: theme.cardAlt, color: theme.text, borderColor: theme.border }]}
               placeholder="e.g. Rahul, Priya"
@@ -520,17 +772,41 @@ export default function TripDetailScreen() {
               onChangeText={setMemberName}
               autoFocus
               maxLength={30}
-              onSubmitEditing={handleAddMember}
+              onSubmitEditing={() => addMember(memberName)}
               returnKeyType="done"
             />
             <TouchableOpacity
-              style={[S.modalBtn, { backgroundColor: theme.tint, opacity: memberName.trim() ? 1 : 0.5 }]}
-              onPress={handleAddMember}
-              disabled={!memberName.trim()}
+              style={[S.modalBtn, { backgroundColor: theme.tint, opacity: memberName.trim() && !addingMember ? 1 : 0.5 }]}
+              onPress={() => addMember(memberName)}
+              disabled={!memberName.trim() || addingMember}
             >
-              <Text style={[S.modalBtnText, { color: theme.tintText }]}>Add Person</Text>
+              {addingMember
+                ? <ActivityIndicator size="small" color={theme.tintText} />
+                : <Text style={[S.modalBtnText, { color: theme.tintText }]}>Add Person</Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={S.modalCancel} onPress={() => setShowMember(false)}>
+
+            {candidates.length > 0 && (
+              <>
+                <Text style={[S.candidateLabel, { color: theme.secondaryText }]}>FROM YOUR GROUP</Text>
+                <ScrollView style={S.candidateList} keyboardShouldPersistTaps="handled">
+                  {candidates.map(c => (
+                    <TouchableOpacity
+                      key={c.userId}
+                      style={[S.candidateRow, { borderColor: theme.border }]}
+                      onPress={() => addMember(c.name, c.userId)}
+                      disabled={addingMember}
+                      activeOpacity={0.7}
+                    >
+                      <MemberAvatar name={c.name} photo={c.photo} color={theme.tint} size={28} />
+                      <Text style={[S.candidateName, { color: theme.text }]} numberOfLines={1}>{c.name}</Text>
+                      <Ionicons name="add-circle-outline" size={18} color={theme.tint} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+
+            <TouchableOpacity style={S.modalCancel} onPress={() => setShowMember(false)} disabled={addingMember}>
               <Text style={[S.modalCancelText, { color: theme.secondaryText }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -559,18 +835,29 @@ export default function TripDetailScreen() {
 
               {/* Amount */}
               <Text style={[S.fieldLabel, { color: theme.secondaryText }]}>AMOUNT</Text>
-              <View style={[S.amountRow, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
-                <Text style={[S.amountSymbol, { color: theme.text }]}>{symbol}</Text>
-                <TextInput
-                  style={[S.amountInput, { color: theme.text }]}
-                  placeholder="0"
-                  placeholderTextColor={theme.secondaryText}
-                  value={expAmount}
-                  onChangeText={t => setExpAmount(t.replace(/[^0-9.]/g, ''))}
-                  keyboardType="decimal-pad"
-                  autoFocus={!editingId}
-                />
-              </View>
+              {splitMode === 'custom' ? (
+                <View style={[S.amountRow, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
+                  <Text style={[S.amountSymbol, { color: theme.text }]}>{symbol}</Text>
+                  {/* Read-only in custom mode: the shares below are the total, and a second field
+                      that could disagree with them is exactly what the minor-unit model removes. */}
+                  <Text style={[S.amountInput, { color: customTotalMinor > 0 ? theme.text : theme.secondaryText }]}>
+                    {fromMinorUnits(customTotalMinor).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              ) : (
+                <View style={[S.amountRow, { backgroundColor: theme.cardAlt, borderColor: theme.border }]}>
+                  <Text style={[S.amountSymbol, { color: theme.text }]}>{symbol}</Text>
+                  <TextInput
+                    style={[S.amountInput, { color: theme.text }]}
+                    placeholder="0"
+                    placeholderTextColor={theme.secondaryText}
+                    value={expAmount}
+                    onChangeText={t => setExpAmount(t.replace(/[^0-9.]/g, ''))}
+                    keyboardType="decimal-pad"
+                    autoFocus={!editingId}
+                  />
+                </View>
+              )}
 
               {/* Description */}
               <Text style={[S.fieldLabel, { color: theme.secondaryText }]}>DESCRIPTION (optional)</Text>
@@ -614,56 +901,93 @@ export default function TripDetailScreen() {
               {/* Split between */}
               <View style={S.splitHeadRow}>
                 <Text style={[S.fieldLabel, { color: theme.secondaryText, marginTop: 0 }]}>SPLIT BETWEEN</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setExpParts(prev =>
-                      prev.size === trip.members.length ? new Set() : new Set(trip.members.map(m => m.id)),
-                    );
-                  }}
-                  hitSlop={8}
-                >
+                <TouchableOpacity onPress={switchToCustom} hitSlop={8}>
                   <Text style={[S.selectAllText, { color: theme.tint }]}>
-                    {expParts.size === trip.members.length ? 'Clear all' : 'Select all'}
+                    {splitMode === 'custom' ? 'Split evenly' : 'Enter amounts'}
                   </Text>
                 </TouchableOpacity>
               </View>
-              <View style={S.chipWrap}>
-                {trip.members.map((m, idx) => {
-                  const active = expParts.has(m.id);
-                  const color  = avatarColor(idx);
-                  return (
-                    <TouchableOpacity
-                      key={m.id}
-                      style={[
-                        S.paidChip,
-                        {
-                          borderColor: active ? color : theme.border,
-                          backgroundColor: active ? hexToRGBA(color, 0.1) : 'transparent',
-                        },
-                      ]}
-                      onPress={() => toggleParticipant(m.id)}
-                      activeOpacity={0.75}
-                    >
-                      <View style={[S.chipAvatar, { backgroundColor: hexToRGBA(color, active ? 0.3 : 0.15) }]}>
-                        {active
-                          ? <Ionicons name="checkmark" size={12} color={color} />
-                          : <Text style={[S.chipAvatarText, { color }]}>{m.name.charAt(0).toUpperCase()}</Text>}
-                      </View>
-                      <Text style={[S.chipName, { color: active ? color : theme.text }]}>{m.name}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
 
-              {amountMinorPreview > 0 && expParts.size > 0 && (
-                <View style={[S.splitPreviewBox, { backgroundColor: hexToRGBA(theme.tint, 0.08), borderColor: hexToRGBA(theme.tint, 0.2) }]}>
-                  <Ionicons name="calculator-outline" size={14} color={theme.tint} />
-                  <Text style={[S.splitPreviewText, { color: theme.tint }]}>
-                    {formatMinor(Math.floor(amountMinorPreview / expParts.size), symbol)} each
-                    {amountMinorPreview % expParts.size !== 0 ? ' (1 paisa difference)' : ''}
-                  </Text>
-                </View>
+              {splitMode === 'equal' ? (
+                <>
+                  <View style={S.chipWrap}>
+                    {trip.members.map((m, idx) => {
+                      const active = expParts.has(m.id);
+                      const color  = avatarColor(idx);
+                      return (
+                        <TouchableOpacity
+                          key={m.id}
+                          style={[
+                            S.paidChip,
+                            {
+                              borderColor: active ? color : theme.border,
+                              backgroundColor: active ? hexToRGBA(color, 0.1) : 'transparent',
+                            },
+                          ]}
+                          onPress={() => toggleParticipant(m.id)}
+                          activeOpacity={0.75}
+                        >
+                          <View style={[S.chipAvatar, { backgroundColor: hexToRGBA(color, active ? 0.3 : 0.15) }]}>
+                            {active
+                              ? <Ionicons name="checkmark" size={12} color={color} />
+                              : <Text style={[S.chipAvatarText, { color }]}>{m.name.charAt(0).toUpperCase()}</Text>}
+                          </View>
+                          <Text style={[S.chipName, { color: active ? color : theme.text }]}>{m.name}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {amountMinorEqual > 0 && expParts.size > 0 && (
+                    <View style={[S.splitPreviewBox, { backgroundColor: hexToRGBA(theme.tint, 0.08), borderColor: hexToRGBA(theme.tint, 0.2) }]}>
+                      <Ionicons name="calculator-outline" size={14} color={theme.tint} />
+                      <Text style={[S.splitPreviewText, { color: theme.tint }]}>
+                        {formatMinor(Math.floor(amountMinorEqual / expParts.size), symbol)} each
+                        {amountMinorEqual % expParts.size !== 0 ? ' (1 paisa difference)' : ''}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  {trip.members.map((m, idx) => {
+                    const included = expParts.has(m.id);
+                    const color    = avatarColor(idx);
+                    return (
+                      <View key={m.id} style={S.shareRow}>
+                        <TouchableOpacity onPress={() => toggleParticipant(m.id)} hitSlop={6} style={S.shareWho}>
+                          <View style={[S.chipAvatar, { backgroundColor: hexToRGBA(color, included ? 0.3 : 0.12) }]}>
+                            {included
+                              ? <Ionicons name="checkmark" size={12} color={color} />
+                              : <Text style={[S.chipAvatarText, { color }]}>{m.name.charAt(0).toUpperCase()}</Text>}
+                          </View>
+                          <Text style={[S.shareName, { color: included ? theme.text : theme.secondaryText }]} numberOfLines={1}>
+                            {m.name}
+                          </Text>
+                        </TouchableOpacity>
+                        <View style={[S.shareInputWrap, { backgroundColor: theme.cardAlt, borderColor: theme.border, opacity: included ? 1 : 0.4 }]}>
+                          <Text style={[S.shareSymbol, { color: theme.secondaryText }]}>{symbol}</Text>
+                          <TextInput
+                            style={[S.shareInput, { color: theme.text }]}
+                            placeholder="0"
+                            placeholderTextColor={theme.secondaryText}
+                            value={customAmounts[m.id] ?? ''}
+                            editable={included}
+                            onChangeText={t => setCustom(prev => ({ ...prev, [m.id]: t.replace(/[^0-9.]/g, '') }))}
+                            keyboardType="decimal-pad"
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                  <View style={[S.splitPreviewBox, { backgroundColor: hexToRGBA(theme.tint, 0.08), borderColor: hexToRGBA(theme.tint, 0.2) }]}>
+                    <Ionicons name="calculator-outline" size={14} color={theme.tint} />
+                    <Text style={[S.splitPreviewText, { color: theme.tint }]}>
+                      Total {formatMinor(customTotalMinor, symbol)} across {Object.keys(customShares).length}{' '}
+                      {Object.keys(customShares).length === 1 ? 'person' : 'people'}
+                    </Text>
+                  </View>
+                </>
               )}
 
               <TouchableOpacity
@@ -704,13 +1028,16 @@ const S = StyleSheet.create({
   heroCard: {
     borderRadius: 20, padding: 22, marginBottom: 4,
   },
-  heroLabel:   { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: 'rgba(255,255,255,0.75)' },
-  heroAmount:  { fontSize: 38, fontWeight: '900', color: '#FFFFFF', marginTop: 6, letterSpacing: -1 },
+  heroLabel:   { fontSize: 11, fontWeight: '800', letterSpacing: 1, opacity: 0.75 },
+  heroAmount:  { fontSize: 38, fontWeight: '900', marginTop: 6, letterSpacing: -1 },
   heroMeta:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   heroPill:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
   heroPillText:{ fontSize: 12, fontWeight: '600' },
   heroDot:     { width: 3, height: 3, borderRadius: 2 },
   heroBadge:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+
+  noticeBox:  { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, padding: 12, marginTop: 12 },
+  noticeText: { flex: 1, fontSize: 12, lineHeight: 18 },
 
   // Cards
   card:         { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
@@ -720,9 +1047,9 @@ const S = StyleSheet.create({
 
   // Member rows
   memberRow:       { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13 },
-  memberAvatar:    { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
-  memberAvatarText:{ fontSize: 14, fontWeight: '800' },
-  memberName:      { flex: 1, fontSize: 15, fontWeight: '600' },
+  memberBody:      { flex: 1, minWidth: 0 },
+  memberName:      { fontSize: 15, fontWeight: '600' },
+  memberTag:       { fontSize: 11, marginTop: 1 },
   memberRemove:    { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
 
   // Expense rows
@@ -746,7 +1073,6 @@ const S = StyleSheet.create({
 
   // Transfer rows
   transferRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
-  transferAvatar: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
   transferBody:   { flex: 1, alignItems: 'center', gap: 2 },
   transferFrom:   { fontSize: 13, fontWeight: '700', textAlign: 'center' },
   transferArrowRow:{ flexDirection: 'row', alignItems: 'center', gap: 2 },
@@ -754,6 +1080,17 @@ const S = StyleSheet.create({
   transferTo:     { fontSize: 12, textAlign: 'center' },
   transferAmtWrap:{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
   transferAmt:    { fontSize: 14, fontWeight: '800' },
+  markPaidBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    marginHorizontal: 14, marginBottom: 12, paddingVertical: 9, borderRadius: 12, borderWidth: 1 },
+  markPaidText:   { fontSize: 13, fontWeight: '700' },
+
+  // Payments made
+  paymentRow:  { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  paymentIcon: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+  paymentBody: { flex: 1, minWidth: 0 },
+  paymentText: { fontSize: 14, fontWeight: '600' },
+  paymentAmt:  { fontSize: 12, marginTop: 2 },
+  undoBtn:     { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
 
   // Settle-up labels / banners
   subLabel:       { fontSize: 11, fontWeight: '800', letterSpacing: 1, marginTop: 18, marginBottom: 8, paddingHorizontal: 2 },
@@ -792,6 +1129,11 @@ const S = StyleSheet.create({
   modalCancel:  { paddingVertical: 14, alignItems: 'center' },
   modalCancelText:{ fontSize: 14 },
 
+  candidateLabel: { alignSelf: 'flex-start', fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginTop: 20, marginBottom: 8 },
+  candidateList:  { width: '100%', maxHeight: 160 },
+  candidateRow:   { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 8 },
+  candidateName:  { flex: 1, fontSize: 14, fontWeight: '600' },
+
   // Bottom sheet (Add / Edit Expense)
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet:        { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, maxHeight: '92%' },
@@ -811,6 +1153,14 @@ const S = StyleSheet.create({
   chipAvatar:     { width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   chipAvatarText: { fontSize: 10, fontWeight: '800' },
   chipName:       { fontSize: 14, fontWeight: '700' },
+
+  // Per-person amount rows (uneven split)
+  shareRow:       { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  shareWho:       { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
+  shareName:      { fontSize: 14, fontWeight: '600', flex: 1 },
+  shareInputWrap: { flexDirection: 'row', alignItems: 'center', width: 130, height: 44, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12 },
+  shareSymbol:    { fontSize: 14, fontWeight: '700', marginRight: 6 },
+  shareInput:     { flex: 1, fontSize: 15, fontWeight: '700', padding: 0 },
 
   splitHeadRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18, marginBottom: 10 },
   selectAllText: { fontSize: 13, fontWeight: '700' },

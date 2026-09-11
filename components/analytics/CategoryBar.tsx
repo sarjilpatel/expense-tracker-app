@@ -7,8 +7,8 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Currency } from '@/constants/theme';
+import { Currency } from '@/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { CATEGORY_EMOJIS } from '@/constants/maps';
 
@@ -22,8 +22,7 @@ interface Props {
 }
 
 export function CategoryBar({ category, amount, percentage, color, rank, onPress }: Props) {
-  const scheme = useColorScheme() || 'light';
-  const theme = Colors[scheme];
+  const { theme } = useTheme();
   const pct = Math.min(Number(percentage) || 0, 100);
   const barW = useSharedValue(0);
 

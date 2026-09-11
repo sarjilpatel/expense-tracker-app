@@ -34,7 +34,7 @@ export function GroupSection({ group, groups = [] }: Props) {
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.emptyState}>
             <View style={[styles.emptyIcon, { backgroundColor: theme.tint }]}>
-              <Ionicons name="people-outline" size={28} color="#FFF" />
+              <Ionicons name="people-outline" size={28} color={theme.tintText} />
             </View>
             <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>No Group Yet</ThemedText>
             <Text style={[styles.emptySub, { color: theme.secondaryText }]}>
@@ -45,8 +45,8 @@ export function GroupSection({ group, groups = [] }: Props) {
               onPress={() => router.push('/group-setup')}
               activeOpacity={0.85}
             >
-              <Ionicons name="add" size={18} color="#FFF" />
-              <Text style={styles.createBtnText}>Create or Join Group</Text>
+              <Ionicons name="add" size={18} color={theme.tintText} />
+              <Text style={[styles.createBtnText, { color: theme.tintText }]}>Create or Join Group</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -64,7 +64,7 @@ export function GroupSection({ group, groups = [] }: Props) {
       >
         <View style={styles.row}>
           <View style={[styles.iconBox, { backgroundColor: theme.tint }]}>
-            <Ionicons name={group?.isPersonal ? 'person' : 'people'} size={20} color="#FFF" />
+            <Ionicons name={group?.isPersonal ? 'person' : 'people'} size={20} color={theme.tintText} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.groupName, { color: theme.text }]}>{group?.name}</Text>
@@ -108,5 +108,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 6,
   },
-  createBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+  createBtnText: { fontWeight: '700', fontSize: 14 },
 });

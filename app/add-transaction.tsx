@@ -340,7 +340,7 @@ export default function AddTransactionScreen() {
                 onPress={() => handleTypeChange(tab)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.segmentedText, { color: active ? '#FFF' : theme.secondaryText }]}>
+                <Text style={[styles.segmentedText, { color: active ? accentText : theme.secondaryText }]}>
                   {tab === 'expense' ? 'Expense' : tab === 'income' ? 'Income' : 'Transfer'}
                 </Text>
               </TouchableOpacity>
@@ -598,8 +598,8 @@ export default function AddTransactionScreen() {
         {/* Success toast */}
         {successToast && (
           <View style={[styles.toast, { backgroundColor: theme.tint }]}>
-            <Ionicons name="checkmark-circle-outline" size={18} color="#FFF" />
-            <Text style={styles.toastText}>Transaction added!</Text>
+            <Ionicons name="checkmark-circle-outline" size={18} color={theme.tintText} />
+            <Text style={[styles.toastText, { color: theme.tintText }]}>Transaction added!</Text>
           </View>
         )}
         </Animated.View>
@@ -726,5 +726,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24,
     elevation: 6, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
   },
-  toastText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  toastText: { fontSize: 14, fontWeight: '600' },
 });

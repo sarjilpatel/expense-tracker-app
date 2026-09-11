@@ -6,10 +6,12 @@ import {
   getLocalAccounts, getLocalTxAccountMap, setLocalTxAccountMap,
   retainLocalAccounts, clearLocalAccounts, clearLocalTxAccountMap,
 } from './local/localAccountService';
+import * as localTrip from './local/localTripService';
 import apiClient, { LONG_TIMEOUT_MS } from './apiClient';
 import * as remoteBudg from './budgetApi';
 import * as remoteGrp  from './groupApi';
 import * as remoteAcct from './accountApi';
+import * as remoteTrip from './tripApi';
 
 const LAST_SYNC_KEY = '@last_sync_at';
 
@@ -30,6 +32,7 @@ export interface SyncSummary {
   categories: number;
   budgets: number;
   accounts: number;
+  trips: number;
   total: number;
 }
 
@@ -43,11 +46,12 @@ export interface SyncResult {
 }
 
 export async function getSyncSummary(): Promise<SyncSummary> {
-  const [txs, cats, budgets, accounts] = await Promise.all([
+  const [txs, cats, budgets, accounts, trips] = await Promise.all([
     getAllLocalTransactions(),
     getAllLocalCategories(),
     getAllLocalBudgets(),
     getLocalAccounts(),
+    localTrip.getTrips(),
   ]);
   const customCats = cats.filter(c => !c._id.startsWith('dc_'));
   return {
@@ -55,7 +59,8 @@ export async function getSyncSummary(): Promise<SyncSummary> {
     categories:   customCats.length,
     budgets:      budgets.length,
     accounts:     accounts.length,
-    total:        txs.length + customCats.length + budgets.length + accounts.length,
+    trips:        trips.length,
+    total:        txs.length + customCats.length + budgets.length + accounts.length + trips.length,
   };
 }
 
@@ -82,15 +87,16 @@ export async function syncLocalToServer(
   onProgress?: (step: string, done: number, total: number) => void
 ): Promise<SyncResult> {
   try {
-    const [txs, cats, budgets, accounts, txAccountMap] = await Promise.all([
+    const [txs, cats, budgets, accounts, trips, txAccountMap] = await Promise.all([
       getAllLocalTransactions(),
       getAllLocalCategories(),
       getAllLocalBudgets(),
       getLocalAccounts(),
+      localTrip.getTrips(),
       getLocalTxAccountMap(),
     ]);
     const customCats = cats.filter(c => !c._id.startsWith('dc_'));
-    const totalItems = txs.length + customCats.length + budgets.length + accounts.length;
+    const totalItems = txs.length + customCats.length + budgets.length + accounts.length + trips.length;
 
     if (totalItems === 0) {
       await setLastSyncTime();
@@ -101,6 +107,7 @@ export async function syncLocalToServer(
     const failedTxIds:      string[] = [];
     const failedBudgetIds:  string[] = [];
     const failedAccountIds: string[] = [];
+    const failedTripIds:    string[] = [];
     let   firstError: string | undefined;
     let   done = 0;
 
@@ -197,18 +204,67 @@ export async function syncLocalToServer(
       onProgress?.('budgets', done, totalItems);
     }
 
+    // Trips last. Each one is several requests rather than a row in a bulk import, so if the rate
+    // limit is going to cut the run short it should cut it here, where a trip either arrives whole
+    // or is rolled back — not somewhere the failure is half an import.
+    for (const trip of trips) {
+      let createdId: string | null = null;
+      try {
+        // Member ids go up verbatim and the server keeps them, so the expenses below still name
+        // their payer and participants correctly with no remapping. The server also seeds a member
+        // for the account doing the sync; it is referenced by nothing and carries a zero balance.
+        // That leaves a duplicate the user can delete, which is the better failure than guessing
+        // which existing member was them and rewriting who owes what.
+        const created = await remoteTrip.createTrip({
+          name:     trip.name,
+          currency: trip.currency,
+          members:  trip.members.map(m => ({ id: m.id, name: m.name })),
+        });
+        createdId = created.id;
+
+        for (const e of trip.expenses) {
+          await remoteTrip.addExpense(created.id, {
+            description:    e.description,
+            amountMinor:    e.amountMinor,
+            paidById:       e.paidById,
+            participantIds: e.participantIds,
+            sharesMinor:    e.sharesMinor ?? null,
+          });
+        }
+        for (const st of trip.settlements) {
+          await remoteTrip.recordSettlement(created.id, {
+            fromId:      st.fromId,
+            toId:        st.toId,
+            amountMinor: st.amountMinor,
+          });
+        }
+      } catch (err) {
+        // The trip stays on the device, so a half-uploaded one has to come back off the server —
+        // otherwise the retry adds a second copy alongside the incomplete first. If even the delete
+        // fails there is nothing further to do from here; the local copy is still intact, which is
+        // the invariant that matters.
+        if (createdId) { try { await remoteTrip.deleteTrip(createdId); } catch {} }
+        failedTripIds.push(trip.id);
+        note(err);
+      }
+      done++;
+      onProgress?.('trips', done, totalItems);
+    }
+
     // Keep exactly what did not land; drop the rest.
     await Promise.all([
       retainLocalCategories(failedCatIds),
       retainLocalTransactions(failedTxIds),
       retainLocalBudgets(failedBudgetIds),
       retainLocalAccounts(failedAccountIds),
+      localTrip.retainTrips(failedTripIds),
     ]);
 
     // The map is only safe to drop once nothing is left waiting to reference it.
     if (failedAccountIds.length === 0 && failedTxIds.length === 0) await clearLocalTxAccountMap();
 
-    const failed = failedCatIds.length + failedTxIds.length + failedBudgetIds.length + failedAccountIds.length;
+    const failed = failedCatIds.length + failedTxIds.length + failedBudgetIds.length
+                 + failedAccountIds.length + failedTripIds.length;
     const synced = totalItems - failed;
 
     if (failed === 0) await setLastSyncTime();
@@ -238,5 +294,6 @@ export async function discardLocalData(): Promise<void> {
     clearLocalCategories(),
     clearLocalBudgets(),
     clearLocalAccounts(),
+    localTrip.clearAllTrips(),
   ]);
 }

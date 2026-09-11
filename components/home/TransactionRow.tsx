@@ -25,9 +25,13 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
   const amountColor = isExpense ? theme.expense : theme.income;
 
   const txCurrencyMeta = item.currency && item.currency !== 'INR' ? CURRENCY_META[item.currency as keyof typeof CURRENCY_META] : null;
+  // The sign, not the colour, is what says which direction this went: red/green alone is WCAG
+  // 1.4.1 Level A, and it is the pair ~1 in 12 men cannot separate. Matches explore, search,
+  // CalendarView and NoteView, which all already prefix it.
+  const sign            = isExpense ? '-' : '+';
   const formattedAmount = txCurrencyMeta
-    ? `${txCurrencyMeta.symbol}${item.amount.toLocaleString(txCurrencyMeta.locale)}`
-    : Currency.format(item.amount);
+    ? `${sign}${txCurrencyMeta.symbol}${item.amount.toLocaleString(txCurrencyMeta.locale)}`
+    : `${sign}${Currency.format(item.amount)}`;
 
   const timeLabel = new Date(item.date || item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 

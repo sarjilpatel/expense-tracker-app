@@ -126,7 +126,7 @@ export default function EditProfileScreen() {
                  </View>
                )}
                <TouchableOpacity style={[styles.editBadge, { backgroundColor: theme.tint, borderColor: theme.background }]} onPress={pickImage}>
-                  <Ionicons name="camera" size={20} color="#FFF" />
+                  <Ionicons name="camera" size={20} color={theme.tintText} />
                </TouchableOpacity>
             </View>
             <ThemedText style={styles.photoHint}>Tap the camera to change photo</ThemedText>
@@ -158,7 +158,7 @@ export default function EditProfileScreen() {
               onPress={handleSave}
               disabled={saving}
             >
-              {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+              {saving ? <ActivityIndicator color={theme.tintText} /> : <Text style={[styles.saveBtnText, { color: theme.tintText }]}>Save Changes</Text>}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -199,5 +199,5 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', marginBottom: 8, paddingLeft: 4 },
   input: { height: 56, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, fontSize: 16, fontWeight: '600' },
   saveBtn: { height: 60, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 4 },
-  saveBtnText: { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  saveBtnText: { fontSize: 18, fontWeight: '800' },
 });

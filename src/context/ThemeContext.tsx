@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, ThemeColors, THEME_PRESETS, getContrastText } from '@/constants/theme';
+import { Colors, ThemeColors, THEME_PRESETS, getContrastText, withContrastText } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const STORAGE_KEY = '@theme_overrides_v1';
@@ -22,7 +22,7 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme:       Colors.light,
+  theme:       withContrastText(Colors.light),
   overrides:   {},
   setOverride: () => {},
   resetTheme:  () => {},
@@ -70,15 +70,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const activePreset = overrides.presetName ? THEME_PRESETS.find(p => p.name === overrides.presetName) : undefined;
   const activePresetColors = activePreset ? activePreset[activeScheme] : undefined;
 
-  const currentTint = overrides.tint ?? activePresetColors?.accent ?? base.tint;
-  // Manual tint override → always auto-compute contrast. Preset → trust the preset's declared accentText.
-  const currentTintText = overrides.tint
-    ? getContrastText(currentTint)
-    : (activePresetColors?.accentText ?? getContrastText(currentTint));
-  const currentIncome = overrides.income ?? activePresetColors?.income ?? base.income;
-  const currentIncomeText = activePresetColors?.incomeText ?? base.incomeText;
-  const currentExpense = overrides.expense ?? activePresetColors?.expense ?? base.expense;
-  const currentExpenseText = activePresetColors?.expenseText ?? base.expenseText;
+  // One rule for every foreground, with no exceptions: compute it from the background it sits on.
+  // The presets used to be trusted to declare their own, and 25 of their 48 pairs were below
+  // 4.5:1 — white on Graphite's #22C55E income is 2.28:1 — with getContrastText beating the
+  // declared value in every one of the 25. Never read a *Text token from `base` either.
+  const currentTint        = overrides.tint    ?? activePresetColors?.accent  ?? base.tint;
+  const currentTintText    = getContrastText(currentTint);
+  const currentIncome      = overrides.income  ?? activePresetColors?.income  ?? base.income;
+  const currentIncomeText  = getContrastText(currentIncome);
+  const currentExpense     = overrides.expense ?? activePresetColors?.expense ?? base.expense;
+  const currentExpenseText = getContrastText(currentExpense);
 
   const theme: ThemeColors = {
     ...base,
@@ -92,6 +93,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     primary:         currentTint,
     success:         base.success,
     danger:          currentExpense,
+    warningText:     getContrastText(base.warning),
   };
 
   return (

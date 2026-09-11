@@ -5,6 +5,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getContrastText } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { ThemedView } from '@/components/themed-view';
 
@@ -23,9 +24,9 @@ function Card({ children }: { children: React.ReactNode }) {
 }
 
 function LinkRow({
-  icon, iconBg, iconColor, title, sub, onPress,
+  icon, iconBg, iconColor = getContrastText(iconBg), title, sub, onPress,
 }: {
-  icon: string; iconBg: string; iconColor: string;
+  icon: string; iconBg: string; iconColor?: string;
   title: string; sub?: string; onPress: () => void;
 }) {
   const { theme } = useTheme();
@@ -44,9 +45,9 @@ function LinkRow({
 }
 
 function InfoRow({
-  icon, iconBg, iconColor, title, value,
+  icon, iconBg, iconColor = getContrastText(iconBg), title, value,
 }: {
-  icon: string; iconBg: string; iconColor: string;
+  icon: string; iconBg: string; iconColor?: string;
   title: string; value: string;
 }) {
   const { theme } = useTheme();
@@ -83,7 +84,7 @@ export default function HelpScreen() {
         <Text style={[S.groupLabel, { color: theme.secondaryText }]}>LEGAL</Text>
         <Card>
           <LinkRow
-            icon="shield-checkmark-outline" iconBg="#71717A" iconColor="#FFF"
+            icon="shield-checkmark-outline" iconBg="#71717A"
             title="Privacy Policy"
             sub="How we collect and use your data"
             onPress={() => Linking.openURL('https://sarjilpatel.github.io/expense-tracker/privacy')}
@@ -100,7 +101,7 @@ export default function HelpScreen() {
         <Text style={[S.groupLabel, { color: theme.secondaryText }]}>SUPPORT</Text>
         <Card>
           <LinkRow
-            icon="mail-outline" iconBg="#71717A" iconColor="#FFF"
+            icon="mail-outline" iconBg="#71717A"
             title="Contact Support"
             sub="Get help with the app"
             onPress={() => Linking.openURL('mailto:sarjilpatel2903@gmail.com?subject=Expense%20Tracker%20Support')}

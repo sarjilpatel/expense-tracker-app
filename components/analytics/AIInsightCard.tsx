@@ -155,8 +155,8 @@ export function AIInsightCard({ month, year, hasData }: Props) {
           onPress={() => consentGiven ? fetchInsights() : setShowConsent(true)}
           activeOpacity={0.82}
         >
-          <Ionicons name="sparkles-outline" size={17} color="#fff" />
-          <Text style={styles.revealText}>Analyze My Spending</Text>
+          <Ionicons name="sparkles-outline" size={17} color={theme.tintText} />
+          <Text style={[styles.revealText, { color: theme.tintText }]}>Analyze My Spending</Text>
         </TouchableOpacity>
       )}
 
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 8, paddingVertical: 14, borderRadius: 16,
   },
-  revealText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  revealText: { fontSize: 15, fontWeight: '700' },
 
   loadingCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

@@ -109,7 +109,7 @@ export function DataSection() {
             <View style={styles.row}>
               <View style={styles.rowLeft}>
                 <View style={[styles.iconBox, { backgroundColor: theme.tint }]}>
-                  <Ionicons name="cloud-done-outline" size={20} color="#FFF" />
+                  <Ionicons name="cloud-done-outline" size={20} color={theme.tintText} />
                 </View>
                 <View>
                   <Text style={[styles.rowTitle, { color: theme.text }]}>Cloud Backup</Text>
@@ -127,7 +127,7 @@ export function DataSection() {
         <TouchableOpacity style={styles.row} onPress={() => router.push('/manage-categories')} activeOpacity={0.7}>
           <View style={styles.rowLeft}>
             <View style={[styles.iconBox, { backgroundColor: theme.tint }]}>
-              <Ionicons name="grid-outline" size={20} color="#FFF" />
+              <Ionicons name="grid-outline" size={20} color={theme.tintText} />
             </View>
             <Text style={[styles.rowTitle, { color: theme.text }]}>Category Management</Text>
           </View>
@@ -139,7 +139,7 @@ export function DataSection() {
         <TouchableOpacity style={styles.row} onPress={handleExport} disabled={exporting} activeOpacity={0.7}>
           <View style={styles.rowLeft}>
             <View style={[styles.iconBox, { backgroundColor: theme.tint }]}>
-              <Ionicons name="download-outline" size={20} color="#FFF" />
+              <Ionicons name="download-outline" size={20} color={theme.tintText} />
             </View>
             <Text style={[styles.rowTitle, { color: theme.text }]}>Export This Month (CSV)</Text>
           </View>
@@ -155,7 +155,7 @@ export function DataSection() {
             <TouchableOpacity style={styles.row} onPress={handleWipeLocalData} disabled={wiping} activeOpacity={0.7}>
               <View style={styles.rowLeft}>
                 <View style={[styles.iconBox, { backgroundColor: theme.danger }]}>
-                  <Ionicons name="trash-outline" size={20} color="#FFF" />
+                  <Ionicons name="trash-outline" size={20} color={theme.expenseText} />
                 </View>
                 <View>
                   <Text style={[styles.rowTitle, { color: theme.danger }]}>Wipe All Local Data</Text>

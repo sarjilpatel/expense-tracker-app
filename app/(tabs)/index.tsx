@@ -538,7 +538,7 @@ export default function HomeScreen() {
                 style={[styles.emptyCta, { backgroundColor: theme.tint }]}
                 onPress={() => router.push('/add-transaction')}
               >
-                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 15 }}>Add Transaction</Text>
+                <Text style={{ color: theme.tintText, fontWeight: '700', fontSize: 15 }}>Add Transaction</Text>
               </TouchableOpacity>
             </View>
           }
@@ -625,7 +625,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={[styles.headerIconBtn, { backgroundColor: theme.background }]} onPress={() => setShowNotifications(true)}>
                 <Ionicons name="options-outline" size={18} color={theme.text} />
-                {notifications.length > 0 && <View style={styles.notifDot} />}
+                {notifications.length > 0 && <View style={[styles.notifDot, { borderColor: theme.background }]} />}
               </TouchableOpacity>
             </View>
           </View>
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
   monthText:     { fontSize: 17, fontWeight: '800' },
   headerIcons:   { flexDirection: 'row', gap: 8, alignItems: 'center' },
   headerIconBtn: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  notifDot:      { position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF3B30', borderWidth: 1.5, borderColor: '#FFF' },
+  notifDot:      { position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF3B30', borderWidth: 1.5 },
 
   topBlock: {
     marginHorizontal: 8,

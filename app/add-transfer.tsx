@@ -110,7 +110,7 @@ export default function AddTransferScreen() {
                 onPress={() => onSelect(acc.id)}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.accountChipText, { color: selected ? '#FFF' : theme.text }]}>
+                <Text style={[styles.accountChipText, { color: selected ? theme.tintText : theme.text }]}>
                   {acc.name}
                 </Text>
               </TouchableOpacity>
@@ -164,7 +164,7 @@ export default function AddTransferScreen() {
               {accounts.find(a => a.id === fromAccountId)?.name || 'Select account'}
             </Text>
             <View style={[styles.arrowCircle, { backgroundColor: theme.tint }]}>
-              <Ionicons name="arrow-forward" size={16} color="#FFF" />
+              <Ionicons name="arrow-forward" size={16} color={theme.tintText} />
             </View>
             <Text style={[styles.arrowAccountName, { color: theme.text }]} numberOfLines={1}>
               {accounts.find(a => a.id === toAccountId)?.name || 'Select account'}
@@ -220,11 +220,11 @@ export default function AddTransferScreen() {
             activeOpacity={0.85}
           >
             {loading ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={theme.tintText} />
             ) : (
               <View style={styles.submitRow}>
-                <Ionicons name="swap-horizontal" size={22} color="#FFF" />
-                <Text style={styles.submitText}>Transfer Funds</Text>
+                <Ionicons name="swap-horizontal" size={22} color={theme.tintText} />
+                <Text style={[styles.submitText, { color: theme.tintText }]}>Transfer Funds</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -288,5 +288,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
   },
   submitRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  submitText: { color: '#FFF', fontSize: 18, fontWeight: '800' },
+  submitText: { fontSize: 18, fontWeight: '800' },
 });

@@ -155,8 +155,8 @@ export default function SettingsScreen() {
               disabled={deletingAccount}
             >
               {deletingAccount
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={S.deleteConfirmText}>Delete My Account</Text>}
+                ? <ActivityIndicator size="small" color={theme.expenseText} />
+                : <Text style={[S.deleteConfirmText, { color: theme.expenseText }]}>Delete My Account</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={S.deleteCancelBtn} onPress={() => setShowDeleteModal(false)} disabled={deletingAccount}>
               <Text style={[S.deleteCancelText, { color: theme.secondaryText }]}>Cancel</Text>
@@ -219,10 +219,10 @@ export default function SettingsScreen() {
         {/* ── Group: create/join, or the group you are in ── */}
         {!isGuest && <GroupSection group={group} groups={myGroups} />}
 
-        {/* ── TripMaster featured card ── */}
+        {/* ── Trips featured card ── */}
         <TouchableOpacity
           style={[S.tripCard, { backgroundColor: theme.card, borderColor: theme.border }]}
-          onPress={() => router.push('/trip-master' as any)}
+          onPress={() => router.push('/trips' as any)}
           activeOpacity={0.8}
         >
           <View style={[S.tripIcon, { backgroundColor: '#8B5CF6' }]}>
@@ -230,13 +230,13 @@ export default function SettingsScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <View style={S.tripTitleRow}>
-              <Text style={[S.tripTitle, { color: theme.text }]}>TripMaster</Text>
+              <Text style={[S.tripTitle, { color: theme.text }]}>Trips</Text>
               <View style={[S.tripBadge, { backgroundColor: '#8B5CF618' }]}>
                 <Text style={[S.tripBadgeText, { color: '#8B5CF6' }]}>Split bills</Text>
               </View>
             </View>
             <Text style={[S.tripSub, { color: theme.secondaryText }]}>
-              Track who paid what & see who owes whom — works offline
+              Split any bill — with your group or with anyone. Works offline.
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} />
@@ -355,7 +355,7 @@ const S = StyleSheet.create({
   deleteInput:       { width: '100%', height: 50, borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, fontSize: 15, marginBottom: 8 },
   deleteErrorText:   { fontSize: 12, marginBottom: 10, alignSelf: 'flex-start' },
   deleteConfirmBtn:  { width: '100%', height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 10, marginTop: 4 },
-  deleteConfirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  deleteConfirmText: { fontSize: 15, fontWeight: '700' },
   deleteCancelBtn:   { paddingVertical: 10 },
   deleteCancelText:  { fontSize: 14 },
 });

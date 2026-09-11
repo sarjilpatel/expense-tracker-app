@@ -3,7 +3,7 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Colors, ThemeColors } from '@/constants/theme';
+import { StaticThemes, ThemeColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/src/context/ThemeContext';
 
@@ -25,6 +25,6 @@ export function useThemeColor(
   if (colorFromProps) {
     return colorFromProps;
   } else {
-    return (contextTheme?.[colorName] ?? Colors[scheme][colorName]) as string;
+    return (contextTheme?.[colorName] ?? StaticThemes[scheme][colorName]) as string;
   }
 }

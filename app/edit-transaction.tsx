@@ -228,7 +228,7 @@ export default function EditTransactionScreen() {
               <Text
                 style={[
                   styles.segmentedText,
-                  { color: active ? '#FFF' : theme.secondaryText }
+                  { color: active ? accentText : theme.secondaryText }
                 ]}
               >
                 {tab === 'expense' ? 'Expense' : 'Income'}

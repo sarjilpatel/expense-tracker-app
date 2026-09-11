@@ -5,6 +5,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getContrastText } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { ThemedView } from '@/components/themed-view';
@@ -12,9 +13,9 @@ import { getBudgets, getCurrentGroup as getCategoryData } from '@/src/services/d
 import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
 
 function Row({
-  icon, iconBg, iconColor, title, sub, right, onPress,
+  icon, iconBg, iconColor = getContrastText(iconBg), title, sub, right, onPress,
 }: {
-  icon: string; iconBg: string; iconColor: string;
+  icon: string; iconBg: string; iconColor?: string;
   title: string; sub?: string;
   right?: React.ReactNode; onPress?: () => void;
 }) {
@@ -109,7 +110,7 @@ export default function MoneyScreen() {
           <Text style={[S.groupLabel, { color: theme.secondaryText }]}>BUDGETS & GOALS</Text>
           <Card>
             <Row
-              icon="wallet-outline" iconBg="#10B981" iconColor="#FFF"
+              icon="wallet-outline" iconBg="#10B981"
               title="Monthly Budget"
               sub={budget ? `${currencyMeta?.symbol ?? '₹'} ${budget.amount.toLocaleString('en-IN')}/month` : 'Not set'}
               onPress={() => router.push('/budget')}
@@ -124,9 +125,9 @@ export default function MoneyScreen() {
             <Sep />
             <Row
               icon="git-branch-outline" iconBg="#10B98118" iconColor="#10B981"
-              title="Expense Splits"
-              sub="Split bills with group members"
-              onPress={() => router.push('/splits')}
+              title="Trips & Splits"
+              sub="Split bills and see who owes whom"
+              onPress={() => router.push('/trips' as any)}
             />
           </Card>
 

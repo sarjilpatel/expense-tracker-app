@@ -103,7 +103,7 @@ export default function ImportCategoriesScreen() {
             >
               <View style={styles.groupLeft}>
                 <View style={[styles.groupIcon, { backgroundColor: theme.tint }]}>
-                    <Ionicons name="people" size={20} color='#FFF' />
+                    <Ionicons name="people" size={20} color={theme.tintText} />
                 </View>
                 <ThemedText style={styles.groupName}>{group.name}</ThemedText>
               </View>

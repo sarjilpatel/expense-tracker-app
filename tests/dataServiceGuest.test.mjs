@@ -3,25 +3,32 @@
 // through. Both screens did guard guest mode, but by hand, at each call site, which is exactly the
 // arrangement that holds until someone adds a fourth call and forgets the guard.
 //
-// Neither feature has, or should have, a local implementation: a split is a debt between members
-// of a group and goals are group-scoped server-side, so there is nothing to store for a guest with
-// no group. The guest branch is therefore "refuse", not "fake it" — and these tests pin that a
-// guest reaches the network for neither.
+// The two features answer that guard differently, and both answers are pinned here.
+//
+// Goals are group-scoped server-side, so there is nothing coherent to store for a guest with no
+// group: the guest branch refuses rather than faking one, and a guest must not reach the network.
+//
+// Trips are the opposite, and were the point of W2-28. A shared bill needs people, not a group, so
+// a guest keeps whole trips on the device and `syncService` hands them to the server on first
+// login. The guard here is therefore "use the local service", and what must be pinned is that a
+// guest reaches the local store and never the network, while a signed-in user reaches `/trips`.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { __reset as resetSecure } from './stubs/secureStore.mjs';
+import { __reset as resetStorage } from './stubs/asyncStorage.mjs';
 import { __reset as resetAxios, __handle, __calls } from './stubs/axios.mjs';
 
 const dataService = await import('../src/services/dataService.ts');
 
-/** Fresh transport with every goals/splits endpoint wired, so a leaked call shows up as a call. */
+/** Fresh transport with every goals/trips endpoint wired, so a leaked call shows up as a call. */
 function setup(guest) {
   resetSecure({ token: 'tok', refreshToken: 'ref' });
+  resetStorage({});
   resetAxios();
 
-  for (const url of ['/goals', '/splits']) {
+  for (const url of ['/goals', '/trips']) {
     for (const method of ['get', 'post', 'put', 'patch', 'delete']) {
       __handle(method, url, () => []);
     }
@@ -29,24 +36,18 @@ function setup(guest) {
   __handle('post', '/goals/g1', () => ({ _id: 'g1' }));
   __handle('put',  '/goals/g1', () => ({ _id: 'g1' }));
   __handle('delete', '/goals/g1', () => ({}));
-  __handle('post', '/splits/s1/settle', () => ({ _id: 's1' }));
-  __handle('delete', '/splits/s1', () => ({}));
+  __handle('post', '/trips', () => ({ _id: 't1', name: 'Goa', members: [], expenses: [] }));
 
   dataService.setMode(guest);
 }
 
-const NEW_GOAL  = { name: 'Car', targetAmount: 1000 };
-const NEW_SPLIT = { title: 'Dinner', totalAmount: 60, splits: [] };
+const NEW_GOAL = { name: 'Car', targetAmount: 1000 };
 
-/** Every write on both features, as [label, invocation]. */
-const writes = [
-  ['createGoal',  () => dataService.createGoal(NEW_GOAL)],
-  ['updateGoal',  () => dataService.updateGoal('g1', { savedAmount: 10 })],
-  ['deleteGoal',  () => dataService.deleteGoal('g1')],
-  ['createSplit', () => dataService.createSplit(NEW_SPLIT)],
-  ['settleSplit', () => dataService.settleSplit('s1', 'u1')],
-  ['unsettleSplit', () => dataService.unsettleSplit('s1', 'u1')],
-  ['deleteSplit', () => dataService.deleteSplit('s1')],
+/** Every goal write, as [label, invocation]. */
+const goalWrites = [
+  ['createGoal', () => dataService.createGoal(NEW_GOAL)],
+  ['updateGoal', () => dataService.updateGoal('g1', { savedAmount: 10 })],
+  ['deleteGoal', () => dataService.deleteGoal('g1')],
 ];
 
 test('a guest reading goals gets an empty list, not a request', async () => {
@@ -55,16 +56,10 @@ test('a guest reading goals gets an empty list, not a request', async () => {
   assert.deepEqual(__calls(), [], 'a guest has no token worth spending on a 401');
 });
 
-test('a guest reading splits gets an empty list, not a request', async () => {
-  setup(true);
-  assert.deepEqual(await dataService.getSplits(), []);
-  assert.deepEqual(__calls(), []);
-});
-
-test('every guest write rejects instead of silently doing nothing', async () => {
+test('every guest goal write rejects instead of silently doing nothing', async () => {
   // Resolving quietly would leave the user staring at a form that accepted their input and threw
   // it away. A rejection is at least visible.
-  for (const [label, invoke] of writes) {
+  for (const [label, invoke] of goalWrites) {
     setup(true);
     await assert.rejects(invoke(), (err) => {
       assert.equal(err.name, 'GuestUnsupportedError', `${label} rejected with the wrong error`);
@@ -73,9 +68,9 @@ test('every guest write rejects instead of silently doing nothing', async () => 
   }
 });
 
-test('no guest write reaches the network', async () => {
+test('no guest goal write reaches the network', async () => {
   // The point of routing through dataService at all: the guard is structural, not per-screen.
-  for (const [label, invoke] of writes) {
+  for (const [label, invoke] of goalWrites) {
     setup(true);
     await invoke().catch(() => {});
     assert.deepEqual(__calls(), [], `${label} sent a request as a guest`);
@@ -85,17 +80,16 @@ test('no guest write reaches the network', async () => {
 test('the guest error names the feature so a screen can say something useful', async () => {
   setup(true);
   await assert.rejects(dataService.createGoal(NEW_GOAL), /Savings goals/);
-  await assert.rejects(dataService.createSplit(NEW_SPLIT), /Split expenses/);
 });
 
 test('a signed-in user reaches the real endpoints', async () => {
   // The other half: the guard must not have quietly disabled the feature for everyone.
   setup(false);
   await dataService.getGoals();
-  await dataService.getSplits();
+  await dataService.getTrips();
 
   const urls = __calls().map((c) => c.url);
-  assert.deepEqual(urls, ['/goals', '/splits']);
+  assert.deepEqual(urls, ['/goals', '/trips']);
 });
 
 test('a signed-in write is passed through with its payload intact', async () => {
@@ -117,17 +111,50 @@ test('setMode flips both features together', async () => {
 
   dataService.setMode(false);
   assert.equal(dataService.isGuestMode(), false);
-  await dataService.getSplits();
-  assert.ok(__calls().some((c) => c.url === '/splits'), 'logging in must re-enable the feature');
+  await dataService.getTrips();
+  assert.ok(__calls().some((c) => c.url === '/trips'), 'logging in must re-enable the feature');
 });
 
-test('a signed-in undo goes to the settle route as a delete', async () => {
-  // W1-29: undoing a settle is deleting the settlement, not a second kind of settle, so it shares
-  // the URL and differs by method. Getting the method wrong would silently re-settle instead.
-  setup(false);
-  await dataService.unsettleSplit('s1', 'u1');
+// ── Trips (W2-28) ─────────────────────────────────────────────────────
 
-  const [call] = __calls();
-  assert.equal(call.method, 'delete');
-  assert.equal(call.url, '/splits/s1/settle/u1');
+test('a guest trip is created on the device, not refused and not sent', async () => {
+  // This is the behaviour change W2-28 bought. The old splits feature rejected this call.
+  setup(true);
+  const trip = await dataService.createTrip({ name: 'Goa', currency: 'INR' });
+
+  assert.equal(trip.name, 'Goa');
+  assert.equal(trip.ownerId, null, 'a device trip has no owning account');
+  assert.deepEqual(__calls(), [], 'a guest trip must never leave the device');
+  assert.deepEqual((await dataService.getTrips()).map((t) => t.name), ['Goa']);
+});
+
+test('a guest can run a whole trip end to end without an account', async () => {
+  setup(true);
+  const made = await dataService.createTrip({
+    name: 'Goa', members: [{ name: 'Alice' }, { name: 'Bob' }],
+  });
+  const [alice, bob] = made.members;
+
+  await dataService.addTripExpense(made.id, {
+    description: 'Dinner', amountMinor: 240000, paidById: alice.id,
+    participantIds: [alice.id, bob.id],
+  });
+  const settled = await dataService.recordTripSettlement(made.id, {
+    fromId: bob.id, toId: alice.id, amountMinor: 120000,
+  });
+
+  assert.equal(settled.expenses.length, 1);
+  assert.equal(settled.settlements.length, 1);
+  assert.deepEqual(__calls(), [], 'none of it reached the network');
+});
+
+test('adding a member as a guest ignores the userId there is no account to link', async () => {
+  // The signature takes one because the signed-in screen offers group members; locally there is
+  // nobody to link to, and storing a stray id would make `syncService` claim the wrong account.
+  setup(true);
+  const made = await dataService.createTrip({ name: 'Goa' });
+  const withMember = await dataService.addTripMember(made.id, 'Alice', 'u1');
+
+  assert.equal(withMember.members[0].name, 'Alice');
+  assert.equal(withMember.members[0].userId, null);
 });
