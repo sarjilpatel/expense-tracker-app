@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  StyleSheet, View, Text, ScrollView, TouchableOpacity,
-  Dimensions, RefreshControl, Modal, FlatList,
+  StyleSheet, View, Text, ScrollView,
+  Dimensions, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, router } from 'expo-router';
@@ -21,7 +21,9 @@ import { useLanguage } from '@/src/i18n/LanguageContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Currency, TYPE_SCALE } from '@/constants/theme';
+import { Currency } from '@/constants/theme';
+import { space, type as text, icon as iconSize } from '@/constants/tokens';
+import { Card, Row, Touchable, Sheet, Amount, EmptyState, Chip, type SheetHandle } from '@/components/ui';
 import { CategoryBar } from '@/components/analytics/CategoryBar';
 import { ConnectedDonutChart } from '@/components/analytics/ConnectedDonutChart';
 import { MONTHS, CATEGORY_COLORS, CATEGORY_EMOJIS, EXPENSE_PALETTE, INCOME_PALETTE } from '@/constants/maps';
@@ -54,6 +56,8 @@ export default function AnalyticsScreen() {
   const [currentYear, setCurrentYear]     = useState(new Date().getFullYear());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [categoryModal, setCategoryModal] = useState<{ category: string; color: string } | null>(null);
+  const categorySheet = useRef<SheetHandle>(null);
+  const openCategory = (v: { category: string; color: string }) => { setCategoryModal(v); categorySheet.current?.present(); };
   const [categoryTxs, setCategoryTxs] = useState<any[]>([]);
 
   const hasData   = useRef(false);
@@ -138,7 +142,7 @@ export default function AnalyticsScreen() {
   };
 
   const openCategoryModal = useCallback(async (category: string, color: string) => {
-    setCategoryModal({ category, color });
+    openCategory({ category, color });
     try {
       const raw = await getAllTransactions(currentMonth, currentYear);
       const all: any[] = Array.isArray(raw) ? raw : [];
@@ -286,34 +290,30 @@ export default function AnalyticsScreen() {
         {/* ── Header — month selector + view mode toggle ── */}
         <View style={styles.header}>
           <View style={styles.monthSelector}>
-            <TouchableOpacity onPress={() => changeMonth(-1)} hitSlop={16}>
-              <Ionicons name="chevron-back" size={18} color={theme.text} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
-              <ThemedText style={styles.title}>
+            <Touchable onPress={() => changeMonth(-1)} size={28} haptic="selection" accessibilityLabel="Previous month" rippleBorderless>
+              <Ionicons name="chevron-back" size={iconSize.md} color={theme.text} />
+            </Touchable>
+            <Touchable onPress={() => setShowDatePicker(true)} haptic="selection" accessibilityLabel="Choose month">
+              <Text style={[text.heading, { color: theme.text }]}>
                 {MONTHS[currentMonth - 1]} {currentYear}
-              </ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => changeMonth(1)} hitSlop={16}>
-              <Ionicons name="chevron-forward" size={18} color={theme.text} />
-            </TouchableOpacity>
+              </Text>
+            </Touchable>
+            <Touchable onPress={() => changeMonth(1)} size={28} haptic="selection" accessibilityLabel="Next month" rippleBorderless>
+              <Ionicons name="chevron-forward" size={iconSize.md} color={theme.text} />
+            </Touchable>
           </View>
 
           {/* Overview / Trends icon toggle */}
-          <View style={[styles.viewToggle, { backgroundColor: theme.card }]}>
+          <View style={styles.viewToggle}>
             {(['overview', 'trends'] as ViewMode[]).map(mode => (
-              <TouchableOpacity
+              <Chip
                 key={mode}
-                style={[styles.viewToggleBtn, viewMode === mode && { backgroundColor: theme.tint }]}
+                size="sm"
+                icon={mode === 'overview' ? 'pie-chart' : 'trending-up'}
+                label={mode === 'overview' ? 'Overview' : 'Trends'}
+                selected={viewMode === mode}
                 onPress={() => setViewMode(mode)}
-                hitSlop={4}
-              >
-                <Ionicons
-                  name={mode === 'overview' ? 'pie-chart' : 'trending-up'}
-                  size={15}
-                  color={viewMode === mode ? theme.tintText : theme.secondaryText}
-                />
-              </TouchableOpacity>
+              />
             ))}
           </View>
         </View>
@@ -334,18 +334,20 @@ export default function AnalyticsScreen() {
                 ? (mainBudget?.amount || 0)
                 : (data?.balance || 0);
               return (
-                <TouchableOpacity
+                <Touchable
                   key={tab}
                   style={[styles.tab, isActive && { backgroundColor: activeBg }]}
                   onPress={() => setActiveTab(tab)}
+                  haptic="selection"
+                  accessibilityLabel={`${tab === 'expense' ? t('expenses') : tab === 'income' ? t('income') : tab === 'budget' ? 'Budget' : 'Total'}${isActive ? ', selected' : ''}`}
                 >
-                  <ThemedText style={[styles.tabText, isActive && { color: activeTextColor, fontWeight: '700' }]}>
+                  <Text style={[text.label, { color: isActive ? activeTextColor : theme.secondaryText }]}>
                     {tab === 'expense' ? t('expenses') : tab === 'income' ? t('income') : tab === 'budget' ? 'Budget' : 'Total'}
-                  </ThemedText>
-                  <Text style={[styles.tabSubText, { color: isActive ? activeTextColor : theme.secondaryText }]}>
+                  </Text>
+                  <Text style={[text.label, { color: isActive ? activeTextColor : theme.secondaryText, fontVariant: ['tabular-nums'] }]} numberOfLines={1}>
                     {tab === 'budget' && !mainBudget ? 'Not set' : Currency.format(amountVal)}
                   </Text>
-                </TouchableOpacity>
+                </Touchable>
               );
             })}
           </View>
@@ -383,9 +385,9 @@ export default function AnalyticsScreen() {
                             <View style={styles.budgetCardHeader}>
                               <Ionicons name="wallet-outline" size={18} color={mainColor} />
                               <ThemedText style={styles.budgetCardTitle}>Monthly Budget</ThemedText>
-                              <TouchableOpacity onPress={() => router.push('/budget')} hitSlop={8}>
-                                <Ionicons name="settings-outline" size={16} color={theme.secondaryText} />
-                              </TouchableOpacity>
+                              <Touchable onPress={() => router.push('/budget')} size={28} accessibilityLabel="Budget settings" rippleBorderless>
+                                <Ionicons name="settings-outline" size={iconSize.sm} color={theme.secondaryText} />
+                              </Touchable>
                             </View>
                             <View style={styles.budgetAmountRow}>
                               <Text style={[styles.budgetSpent, { color: mainColor }]}>{Currency.format(totalSpent)}</Text>
@@ -404,16 +406,9 @@ export default function AnalyticsScreen() {
                             </View>
                           </View>
                         ) : (
-                          <View style={[styles.budgetEmpty, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                            <Ionicons name="wallet-outline" size={40} color={theme.secondaryText} />
-                            <ThemedText style={styles.budgetEmptyText}>No monthly budget set</ThemedText>
-                            <TouchableOpacity
-                              style={[styles.budgetSetBtn, { backgroundColor: theme.tint }]}
-                              onPress={() => router.push('/budget')}
-                            >
-                              <Text style={[styles.budgetSetBtnText, { color: theme.tintText }]}>Set Budget</Text>
-                            </TouchableOpacity>
-                          </View>
+                          <Card>
+                            <EmptyState compact icon="wallet-outline" title="No monthly budget set" action={{ label: 'Set budget', onPress: () => router.push('/budget') }} />
+                          </Card>
                         )}
 
                         {catBudgets.length > 0 && (
@@ -674,65 +669,46 @@ export default function AnalyticsScreen() {
           )}
         </Animated.View>
 
-        {/* Category transactions modal */}
-        <Modal visible={!!categoryModal} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setCategoryModal(null)}>
-          <View style={[catStyles.overlay]}>
-            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setCategoryModal(null)} />
-            <View style={[catStyles.sheet, { backgroundColor: theme.card }]}>
-              <View style={[catStyles.dragHandle, { backgroundColor: theme.border }]} />
-              <View style={[catStyles.sheetHeader, { borderBottomColor: theme.border }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[catStyles.sheetTitle, { color: theme.text }]}>{categoryModal?.category}</Text>
-                  <Text style={[catStyles.sheetSubtitle, { color: theme.secondaryText }]}>
-                    {MONTHS[currentMonth - 1]} {currentYear} · {categoryTxs.length} transactions
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => setCategoryModal(null)} hitSlop={12}>
-                  <Ionicons name="close" size={22} color={theme.secondaryText} />
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                data={categoryTxs}
-                keyExtractor={item => item._id}
-                contentContainerStyle={{ paddingVertical: 8 }}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                  <View style={catStyles.emptyWrap}>
-                    <Ionicons name="receipt-outline" size={40} color={theme.secondaryText} />
-                    <Text style={[catStyles.emptyText, { color: theme.secondaryText }]}>No transactions</Text>
-                  </View>
-                }
-                renderItem={({ item }) => {
-                  const isExpense = item.type === 'expense';
-                  const d = new Date(item.date || item.createdAt);
-                  return (
-                    <View style={[catStyles.txRow, { borderBottomColor: theme.separator }]}>
-                      <View style={catStyles.txLeft}>
-                        <Text style={[catStyles.txNote, { color: theme.text }]} numberOfLines={1}>
-                          {item.note || item.category}
-                        </Text>
-                        <Text style={[catStyles.txDate, { color: theme.secondaryText }]}>
-                          {d.getDate()} {MONTHS[d.getMonth()].slice(0, 3)} · {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
-                        </Text>
-                      </View>
-                      <Text style={[catStyles.txAmt, { color: isExpense ? theme.expense : theme.income }]}>
-                        {isExpense ? '-' : '+'}{Currency.format(item.amount)}
-                      </Text>
-                    </View>
-                  );
-                }}
-              />
-            </View>
-          </View>
-        </Modal>
+        {/* Category transactions */}
+        <Sheet
+          ref={categorySheet}
+          title={categoryModal?.category ?? ''}
+          scroll
+          snapPoints={['70%']}
+          keyboard="none"
+          onDismiss={() => setCategoryModal(null)}
+        >
+          <Text style={[text.label, { color: theme.secondaryText, marginBottom: space.sm }]}>
+            {MONTHS[currentMonth - 1]} {currentYear} · {categoryTxs.length} {categoryTxs.length === 1 ? 'transaction' : 'transactions'}
+          </Text>
+          {categoryTxs.length === 0 ? (
+            <EmptyState compact icon="receipt-outline" title="No transactions" />
+          ) : (
+            <Card padded={false}>
+              {categoryTxs.map((item, i) => {
+                const d = new Date(item.date || item.createdAt);
+                return (
+                  <Row
+                    key={item._id}
+                    title={item.note || item.category}
+                    subtitle={`${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} · ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`}
+                    right={<Amount value={item.amount} kind={item.type === 'expense' ? 'expense' : 'income'} />}
+                    last={i === categoryTxs.length - 1}
+                  />
+                );
+              })}
+            </Card>
+          )}
+        </Sheet>
 
         {/* Month/Year Picker */}
         {showDatePicker && (
           <>
-            <TouchableOpacity
+            <Touchable
               style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', zIndex: 999 }]}
-              activeOpacity={1}
               onPress={() => setShowDatePicker(false)}
+              haptic="none"
+              accessibilityLabel="Close month picker"
             />
             <View style={[styles.pickerWrap, { top: top + 48 }]}>
               <MonthYearPicker
@@ -834,18 +810,3 @@ const styles = StyleSheet.create({
   catBudgetAmt:       { fontSize: 12, fontWeight: '700' },
 });
 
-const catStyles = StyleSheet.create({
-  overlay:     { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet:       { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '75%', paddingBottom: 32 },
-  dragHandle:  { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, opacity: 0.4 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
-  sheetTitle:  { fontSize: 17, fontWeight: '800' },
-  sheetSubtitle: { fontSize: 12, fontWeight: '500', marginTop: 2 },
-  txRow:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  txLeft:      { flex: 1 },
-  txNote:      { fontSize: 14, fontWeight: '600' },
-  txDate:      { fontSize: 12, marginTop: 2 },
-  txAmt:       { fontSize: 15, fontWeight: '800' },
-  emptyWrap:   { alignItems: 'center', paddingVertical: 48, gap: 12 },
-  emptyText:   { fontSize: 14 },
-});
