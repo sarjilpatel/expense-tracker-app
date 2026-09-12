@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View, Text } from 'react-native';
+import { View, Text, Alert, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/src/context/AuthContext';
 import { loginUser } from '@/src/services/authApi';
 import { useTheme } from '@/src/context/ThemeContext';
+import { space, type } from '@/constants/tokens';
+import { Screen, Button, Field, Touchable } from '@/components/ui';
+import { AuthHero } from '@/components/auth/AuthHero';
 
-// Google sign-in is hidden (W1-31). `googleAuthLogin` and `POST /api/auth/google` both still work
+// Google sign-in is hidden (W1-31). `googleAuthLogin` in authApi and `POST /api/auth/google` remain
 // — only the button is gone, so bringing it back is re-adding the button and the
 // `expo-auth-session` wiring, not rebuilding the flow.
 
@@ -50,168 +50,59 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <ThemedView style={styles.container}>
-          <ThemedView style={styles.header}>
-            <View style={[styles.logo, { backgroundColor: theme.tint }]}>
-              <ThemedText style={[styles.logoText, { color: theme.tintText }]}>₹</ThemedText>
-            </View>
-            <ThemedText type="title" style={styles.title}>Expense Tracker</ThemedText>
-            <ThemedText style={styles.subtitle}>Sign in to your account</ThemedText>
-          </ThemedView>
+    <Screen onBack={false} keyboard>
+      <AuthHero title="Expense Tracker" subtitle="Sign in to your account" />
 
-          <ThemedView style={styles.form}>
-            <ThemedView style={styles.inputWrapper}>
-              <ThemedText style={styles.label}>Email</ThemedText>
-              <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                placeholder="email@example.com"
-                placeholderTextColor="#A0A0A0"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </ThemedView>
+      <View style={S.form}>
+        <Field
+          label="Email"
+          placeholder="email@example.com"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          returnKeyType="next"
+        />
+        <Field
+          label="Password"
+          placeholder="••••••••"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          textContentType="password"
+          returnKeyType="go"
+          onSubmitEditing={handleLogin}
+        />
+        <Touchable onPress={() => router.push('/forgot-password')} haptic="none" style={S.forgot} accessibilityLabel="Forgot password">
+          <Text style={[type.label, { color: theme.tint }]}>Forgot password?</Text>
+        </Touchable>
+        <Button label="Log in" onPress={handleLogin} loading={loading} />
+      </View>
 
-            <ThemedView style={styles.inputWrapper}>
-              <View style={styles.pwLabelRow}>
-                <ThemedText style={styles.label}>Password</ThemedText>
-                <TouchableOpacity onPress={() => router.push('/forgot-password')}>
-                  <Text style={[styles.forgotLink, { color: theme.tint }]}>Forgot password?</Text>
-                </TouchableOpacity>
-              </View>
-              <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                placeholder="••••••••"
-                placeholderTextColor="#A0A0A0"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </ThemedView>
+      <View style={S.dividerRow}>
+        <View style={[S.divider, { backgroundColor: theme.border }]} />
+        <Text style={[type.label, { color: theme.secondaryText }]}>or</Text>
+        <View style={[S.divider, { backgroundColor: theme.border }]} />
+      </View>
 
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: theme.tint }, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={theme.tintText} />
-              ) : (
-                <ThemedText style={[styles.buttonText, { color: theme.tintText }]}>Log In</ThemedText>
-              )}
-            </TouchableOpacity>
-          </ThemedView>
+      <Button label="Continue as guest" icon="person-outline" variant="secondary" onPress={handleGuestMode} />
 
-          <View style={styles.dividerRow}>
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
-            <Text style={[styles.dividerText, { color: theme.secondaryText }]}>or</Text>
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.guestBtn, { borderColor: theme.border }]}
-            onPress={handleGuestMode}
-          >
-            <Ionicons name="person-outline" size={18} color={theme.secondaryText} />
-            <Text style={[styles.guestText, { color: theme.secondaryText }]}>Continue as Guest</Text>
-          </TouchableOpacity>
-
-          <ThemedView style={styles.footer}>
-            <ThemedText>Don&apos;t have an account? </ThemedText>
-            <TouchableOpacity onPress={() => router.replace('/signup')}>
-              <ThemedText style={[styles.link, { color: theme.tint }]}>Sign Up</ThemedText>
-            </TouchableOpacity>
-          </ThemedView>
-        </ThemedView>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <View style={S.footer}>
+        <Text style={[type.body, { color: theme.secondaryText }]}>Don&apos;t have an account? </Text>
+        <Touchable onPress={() => router.replace('/signup')} haptic="none" accessibilityLabel="Sign up">
+          <Text style={[type.bodyStrong, { color: theme.tint }]}>Sign up</Text>
+        </Touchable>
+      </View>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: '800',
-  },
-  header: {
-    marginBottom: 40,
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-  },
-  form: {
-    gap: 20,
-  },
-  inputWrapper: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  input: {
-    height: 56,
-    backgroundColor: 'transparent',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    borderWidth: 1,
-  },
-  button: {
-    height: 60,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#5856D6',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  pwLabelRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  forgotLink:  { fontSize: 13, fontWeight: '600' },
-  dividerRow:  { flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 16, gap: 12 },
-  divider:     { flex: 1, height: 1 },
-  dividerText: { fontSize: 13 },
-  guestBtn: {
-    height: 52, borderRadius: 14, borderWidth: 1,
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
-    marginTop: 0,
-  },
-  guestText: { fontSize: 15, fontWeight: '600' },
-  footer:    { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
-  link:      { fontWeight: 'bold' },
+const S = StyleSheet.create({
+  form:       { gap: space.md },
+  forgot:     { alignSelf: 'flex-end', paddingVertical: space.xs, marginTop: -space.xs },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginVertical: space.xl },
+  divider:    { flex: 1, height: StyleSheet.hairlineWidth },
+  footer:     { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: space.xxl },
 });

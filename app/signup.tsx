@@ -1,27 +1,27 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View, Text } from 'react-native';
+import { View, Text, Alert, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useAuth } from '@/src/context/AuthContext';
 import { signupUser } from '@/src/services/authApi';
 import { useTheme } from '@/src/context/ThemeContext';
+import { space, radius, type } from '@/constants/tokens';
+import { Screen, Button, Field, Touchable } from '@/components/ui';
+import { AuthHero } from '@/components/auth/AuthHero';
 
-// Google sign-in is hidden (W1-31). `googleAuthLogin` and `POST /api/auth/google` both still work
+// Google sign-in is hidden (W1-31). `googleAuthLogin` in authApi and `POST /api/auth/google` remain
 // — only the button is gone, so bringing it back is re-adding the button and the
 // `expo-auth-session` wiring, not rebuilding the flow.
 
-function passwordStrength(pw: string): { score: number; label: string; color: string } {
+function passwordStrength(pw: string): { score: number; label: string; tone: 'expense' | 'neutral' | 'income' } {
   let score = 0;
   if (pw.length >= 8)  score++;
   if (pw.length >= 12) score++;
   if (/[A-Z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { score, label: 'Weak',   color: '#F55345' };
-  if (score <= 3) return { score, label: 'Fair',   color: '#71717A' };
-  return              { score, label: 'Strong', color: '#1999FC' };
+  if (score <= 1) return { score, label: 'Weak',   tone: 'expense' };
+  if (score <= 3) return { score, label: 'Fair',   tone: 'neutral' };
+  return              { score, label: 'Strong', tone: 'income'  };
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -38,6 +38,7 @@ export default function SignupScreen() {
   const { theme } = useTheme();
 
   const strength = passwordStrength(password);
+  const strengthColor = { expense: theme.expense, neutral: theme.secondaryText, income: theme.income }[strength.tone];
 
   const validate = () => {
     const e: typeof errors = {};
@@ -55,7 +56,6 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     if (!validate()) return;
-
     setLoading(true);
     try {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -72,132 +72,80 @@ export default function SignupScreen() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <ThemedView style={styles.container}>
-          <ThemedView style={styles.header}>
-            <View style={[styles.logo, { backgroundColor: theme.tint }]}>
-                <ThemedText style={[styles.logoText, { color: theme.tintText }]}>₹</ThemedText>
+    <Screen onBack={false} keyboard>
+      <AuthHero title="Create account" subtitle="Start tracking your expenses" />
+
+      <View style={S.form}>
+        <Field
+          label="Name"
+          placeholder="Your name"
+          value={name}
+          onChangeText={t => { setName(t); if (errors.name) setErrors(e => ({ ...e, name: undefined })); }}
+          autoCapitalize="words"
+          textContentType="name"
+          error={errors.name}
+          returnKeyType="next"
+        />
+        <Field
+          label="Email"
+          placeholder="email@example.com"
+          value={email}
+          onChangeText={t => { setEmail(t); if (errors.email) setErrors(e => ({ ...e, email: undefined })); }}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          error={errors.email}
+          returnKeyType="next"
+        />
+        <Field
+          label="Password"
+          placeholder="At least 8 characters"
+          value={password}
+          onChangeText={t => { setPassword(t); if (errors.password) setErrors(e => ({ ...e, password: undefined })); }}
+          secureTextEntry
+          textContentType="newPassword"
+          error={errors.password}
+          returnKeyType="go"
+          onSubmitEditing={handleSignup}
+        />
+        {password.length > 0 && (
+          <View style={S.strengthRow} accessibilityLabel={`Password strength ${strength.label}`}>
+            <View style={S.strengthBar}>
+              {[1, 2, 3, 4, 5].map(i => (
+                <View key={i} style={[S.strengthSegment, { backgroundColor: i <= strength.score ? strengthColor : theme.border }]} />
+              ))}
             </View>
-            <ThemedText type="title" style={styles.title}>Join Us</ThemedText>
-            <ThemedText style={styles.subtitle}>Take control of your finances</ThemedText>
-          </ThemedView>
-
-          <ThemedView style={styles.form}>
-            <ThemedView style={styles.inputWrapper}>
-              <ThemedText style={styles.label}>Full Name</ThemedText>
-              <TextInput
-                style={[styles.input, { color: theme.text, borderColor: errors.name ? '#F55345' : theme.border }]}
-                placeholder="Your Name"
-                placeholderTextColor="#A0A0A0"
-                value={name}
-                onChangeText={v => { setName(v); setErrors(e => ({ ...e, name: undefined })); }}
-              />
-              {!!errors.name && <Text style={styles.fieldError}>{errors.name}</Text>}
-            </ThemedView>
-
-            <ThemedView style={styles.inputWrapper}>
-              <ThemedText style={styles.label}>Email Address</ThemedText>
-              <TextInput
-                style={[styles.input, { color: theme.text, borderColor: errors.email ? '#F55345' : theme.border }]}
-                placeholder="email@example.com"
-                placeholderTextColor="#A0A0A0"
-                value={email}
-                onChangeText={v => { setEmail(v); setErrors(e => ({ ...e, email: undefined })); }}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-              {!!errors.email && <Text style={styles.fieldError}>{errors.email}</Text>}
-            </ThemedView>
-
-            <ThemedView style={styles.inputWrapper}>
-              <ThemedText style={styles.label}>Password</ThemedText>
-              <TextInput
-                style={[styles.input, { color: theme.text, borderColor: errors.password ? '#F55345' : theme.border }]}
-                placeholder="Min. 8 characters"
-                placeholderTextColor="#A0A0A0"
-                value={password}
-                onChangeText={v => { setPassword(v); setErrors(e => ({ ...e, password: undefined })); }}
-                secureTextEntry
-              />
-              {password.length > 0 && (
-                <View style={styles.strengthRow}>
-                  <View style={styles.strengthBar}>
-                    {[1,2,3,4,5].map(i => (
-                      <View
-                        key={i}
-                        style={[styles.strengthSegment, { backgroundColor: i <= strength.score ? strength.color : theme.border }]}
-                      />
-                    ))}
-                  </View>
-                  <Text style={[styles.strengthLabel, { color: strength.color }]}>{strength.label}</Text>
-                </View>
-              )}
-              {!!errors.password && <Text style={styles.fieldError}>{errors.password}</Text>}
-            </ThemedView>
-
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: theme.tint }, loading && styles.buttonDisabled]}
-              onPress={handleSignup}
-              disabled={loading}
-            >
-              {loading ? <ActivityIndicator color={theme.tintText} /> : <ThemedText style={[styles.buttonText, { color: theme.tintText }]}>Get Started</ThemedText>}
-            </TouchableOpacity>
-          </ThemedView>
-
-          <View style={styles.dividerRow}>
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
-            <Text style={[styles.dividerText, { color: theme.secondaryText }]}>or</Text>
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <Text style={[type.label, { color: strengthColor }]}>{strength.label}</Text>
           </View>
+        )}
+        <Button label="Get started" onPress={handleSignup} loading={loading} style={{ marginTop: space.xs }} />
+      </View>
 
-          <TouchableOpacity
-            style={[styles.guestBtn, { borderColor: theme.border }]}
-            onPress={handleGuestMode}
-          >
-            <Ionicons name="person-outline" size={18} color={theme.secondaryText} />
-            <Text style={[styles.guestText, { color: theme.secondaryText }]}>Continue as Guest</Text>
-          </TouchableOpacity>
+      <View style={S.dividerRow}>
+        <View style={[S.divider, { backgroundColor: theme.border }]} />
+        <Text style={[type.label, { color: theme.secondaryText }]}>or</Text>
+        <View style={[S.divider, { backgroundColor: theme.border }]} />
+      </View>
 
-          <ThemedView style={styles.footer}>
-            <ThemedText>Already have an account? </ThemedText>
-            <TouchableOpacity onPress={() => router.replace('/login')}>
-              <ThemedText style={[styles.link, { color: theme.tint }]}>Log In</ThemedText>
-            </TouchableOpacity>
-          </ThemedView>
-        </ThemedView>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Button label="Continue as guest" icon="person-outline" variant="secondary" onPress={handleGuestMode} />
+
+      <View style={S.footer}>
+        <Text style={[type.body, { color: theme.secondaryText }]}>Already have an account? </Text>
+        <Touchable onPress={() => router.replace('/login')} haptic="none" accessibilityLabel="Log in">
+          <Text style={[type.bodyStrong, { color: theme.tint }]}>Log in</Text>
+        </Touchable>
+      </View>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center' },
-  logo: { width: 64, height: 64, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-  logoText: { fontSize: 32, fontWeight: '800' },
-  header: { marginBottom: 40, alignItems: 'center' },
-  title: { fontSize: 28, fontWeight: '800', marginBottom: 8 },
-  subtitle: { fontSize: 16 },
-  form: { gap: 20 },
-  inputWrapper: { gap: 8 },
-  label: { fontSize: 14, fontWeight: '600' },
-  input: { height: 56, backgroundColor: 'transparent', borderRadius: 16, paddingHorizontal: 16, borderWidth: 1 },
-  button: { height: 60, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 10, shadowColor: '#5856D6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 4 },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { fontSize: 18, fontWeight: '800' },
-  dividerRow:  { flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 16, gap: 12 },
-  divider:     { flex: 1, height: 1 },
-  dividerText: { fontSize: 13 },
-  guestBtn: {
-    height: 52, borderRadius: 14, borderWidth: 1,
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8,
-  },
-  guestText: { fontSize: 15, fontWeight: '600' },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 28 },
-  link: { fontWeight: 'bold' },
-  fieldError:      { fontSize: 12, color: '#F55345', marginTop: 4, marginLeft: 2 },
-  strengthRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  strengthBar:     { flex: 1, flexDirection: 'row', gap: 4 },
-  strengthSegment: { flex: 1, height: 4, borderRadius: 2 },
-  strengthLabel:   { fontSize: 12, fontWeight: '700', width: 46, textAlign: 'right' },
+const S = StyleSheet.create({
+  form:            { gap: space.md },
+  strengthRow:     { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: -space.xs },
+  strengthBar:     { flex: 1, flexDirection: 'row', gap: space.xs },
+  strengthSegment: { flex: 1, height: 4, borderRadius: radius.full },
+  dividerRow:      { flexDirection: 'row', alignItems: 'center', gap: space.md, marginVertical: space.xl },
+  divider:         { flex: 1, height: StyleSheet.hairlineWidth },
+  footer:          { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: space.xxl },
 });
