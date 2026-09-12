@@ -149,7 +149,6 @@ function RootLayoutNav() {
         <Stack.Screen name="goals"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="trips/index"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="trips/[id]"        options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="modal"              options={{ presentation: 'modal', title: 'Modal'              }} />
       </Stack>
       <StatusBar style="auto" />
       <SyncModal visible={showSync} onDone={() => setShowSync(false)} />
