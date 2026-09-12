@@ -23,6 +23,7 @@ import { hasPendingLocalData } from '@/src/services/syncService';
 import LockScreen from '@/app/lock';
 import { shouldLock, recordBackground, clearBackgroundTime } from '@/src/services/lockService';
 import { radius } from '@/constants/tokens';
+import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,6 +36,21 @@ SystemUI.setBackgroundColorAsync(
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+// W2-05: four kinds of screen, four option sets. Add a route to the list its kind belongs to.
+const ROOT: NativeStackNavigationOptions = { headerShown: false, animation: 'fade' };
+const PUSH: NativeStackNavigationOptions = { headerShown: false, animation: 'slide_from_right', gestureEnabled: true };
+const EDIT: NativeStackNavigationOptions = { headerShown: false, presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: true };
+const FLOW: NativeStackNavigationOptions = { headerShown: false, animation: 'slide_from_right', gestureEnabled: false };
+
+const PUSH_SCREENS = [
+  'accounts', 'account-detail', 'budget', 'goals', 'search', 'manage-group', 'manage-categories',
+  'import-categories', 'trips/index', 'trips/[id]',
+  'settings/customization', 'settings/security', 'settings/data', 'settings/help',
+];
+const EDIT_SCREENS = ['add-transaction', 'edit-transaction', 'add-budget', 'add-account', 'add-transfer', 'edit-profile'];
+const FLOW_SCREENS = ['login', 'signup', 'forgot-password', 'verify-email', 'reset-password', 'group-setup'];
+
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
@@ -122,34 +138,21 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={navTheme}>
       <OfflineBanner />
-      <Stack screenOptions={{ animation: 'default', contentStyle: { backgroundColor: bgColor } }}>
-        <Stack.Screen name="login"              options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="signup"             options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="forgot-password"    options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="verify-email"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="reset-password"     options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="group-setup"        options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="manage-group"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="(tabs)"             options={{ headerShown: false, animation: 'fade'              }} />
-        <Stack.Screen name="settings/customization" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="settings/security"      options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="settings/data"          options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="settings/help"          options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="add-transaction"     options={{ headerShown: false, animation: 'none' }} />
-        <Stack.Screen name="edit-transaction"   options={{ headerShown: false, animation: 'none' }} />
-        <Stack.Screen name="budget"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="add-budget"         options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="accounts"           options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="add-account"        options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="add-transfer"       options={{ headerShown: false, animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="search"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="account-detail"     options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="manage-categories"  options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="import-categories"  options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="edit-profile"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="goals"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="trips/index"       options={{ headerShown: false, animation: 'slide_from_right'  }} />
-        <Stack.Screen name="trips/[id]"        options={{ headerShown: false, animation: 'slide_from_right'  }} />
+      {/*
+        The screen taxonomy (W2-05). Every route is one of four kinds and gets that kind's
+        transition — there is no per-screen choice to make:
+          Root         the tab bar                          fade
+          Push         drill-down from where you were       slide from right, swipe back
+          Create/Edit  a task you finish and dismiss        native modal, drag down to dismiss
+          Flow         a linear sequence (auth, group)      slide from right, no swipe back mid-flow
+        Pickers and keypads are Sheets, not routes.
+      */}
+      <Stack screenOptions={{ ...PUSH, contentStyle: { backgroundColor: bgColor } }}>
+        <Stack.Screen name="(tabs)"              options={ROOT} />
+
+        {PUSH_SCREENS.map(name => <Stack.Screen key={name} name={name} options={PUSH} />)}
+        {EDIT_SCREENS.map(name => <Stack.Screen key={name} name={name} options={EDIT} />)}
+        {FLOW_SCREENS.map(name => <Stack.Screen key={name} name={name} options={FLOW} />)}
       </Stack>
       <StatusBar style="auto" />
       <SyncModal visible={showSync} onDone={() => setShowSync(false)} />
