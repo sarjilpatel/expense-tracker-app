@@ -526,7 +526,7 @@ export default function TripDetailScreen() {
                   <MemberAvatar name={m.name} photo={m.photo} color={avatarColor(idx)} />
                   <View style={S.memberBody}>
                     <Text style={[S.memberName, { color: theme.text }]}>{m.name}</Text>
-                    {m.userId === myId && (
+                    {(m.isSelf || m.userId === myId) && (
                       <Text style={[S.memberTag, { color: theme.secondaryText }]}>You</Text>
                     )}
                   </View>

@@ -18,6 +18,13 @@ export interface TripMember {
   /** The account behind this member, when there is one. An ad-hoc member has `null`. */
   userId?: string | null;
   photo?: string | null;
+  /**
+   * The member who *is* the device's user, on a guest trip. A guest has no `userId` to carry, and
+   * without this the sync could not say which member to link to the account — the server would
+   * seed a second "you" with a zero balance next to the real one, and removing the wrong duplicate
+   * cascades through every expense that member paid for.
+   */
+  isSelf?: boolean;
 }
 
 export interface TripExpense {
@@ -128,6 +135,7 @@ export function normaliseTrip(t: any): Trip {
         name:   str(m.name),
         userId: refId(m.userId),
         photo:  m.userId && typeof m.userId === 'object' ? (m.userId.profilePhoto ?? null) : null,
+        ...(m.isSelf ? { isSelf: true } : {}),
       })),
 
     expenses: (Array.isArray(t?.expenses) ? t.expenses : [])

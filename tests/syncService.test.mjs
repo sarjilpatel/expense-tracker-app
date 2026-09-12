@@ -10,6 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { __reset as resetStorage, __raw } from './stubs/asyncStorage.mjs';
+import { __reset as resetSecure } from './stubs/secureStore.mjs';
 import { __reset as resetAxios, __handle, __status, __calls } from './stubs/axios.mjs';
 
 const { syncLocalToServer, getSyncSummary, discardLocalData } =
@@ -52,6 +53,8 @@ function setup({ txs = [], cats = [], budgets = [], accounts = [], trips = [], m
     [TX_KEY]: txs, [CAT_KEY]: cats, [BUD_KEY]: budgets, [ACC_KEY]: accounts,
     [TRIP_KEY]: trips, [MAP_KEY]: map,
   });
+  // The signed-in account the sync is for — what AuthContext stores at login.
+  resetSecure({ token: 'tok', refreshToken: 'ref', user: JSON.stringify({ _id: 'u1', name: 'Me' }) });
   resetAxios();
   // A server that accepts everything. Individual tests re-register a route to fail.
   __handle('post', '/group/categories', () => ({ ok: true }));
@@ -69,12 +72,15 @@ function setup({ txs = [], cats = [], budgets = [], accounts = [], trips = [], m
   tripSeq = 0;
   __handle('post', '/trips', (cfg) => {
     const _id = 'srv' + (++tripSeq);
-    // The real server always seeds a member for the account doing the sync, and keeps any member
-    // id the client supplied. Both matter to the caller, so the stub does both.
+    // The real server keeps every member id the client supplied, and links the one sent with the
+    // caller's own userId as the creator — seeding a fresh creator only when none was sent. Both
+    // matter to the caller, so the stub does both.
+    const supplied = (cfg.data.members || []);
+    const self     = supplied.find((m) => m.userId === 'u1');
     const row = {
       _id, name: cfg.data.name, currency: cfg.data.currency || 'INR', ownerId: 'u1',
-      members: [{ id: 'srv-me', name: 'Me', userId: 'u1' },
-                ...(cfg.data.members || []).map((m) => ({ id: m.id || 'gen', name: m.name, userId: null }))],
+      members: [{ id: self?.id || 'srv-me', name: 'Me', userId: 'u1' },
+                ...supplied.filter((m) => m.userId !== 'u1').map((m) => ({ id: m.id || 'gen', name: m.name, userId: null }))],
       expenses: [], settlements: [],
     };
     serverTrips.set(_id, row);
@@ -336,6 +342,28 @@ test('member ids survive the upload, so nobody inherits another member\'s share'
   assert.deepEqual(row.members.map((m) => m.id), ['srv-me', 'm-a', 'm-b']);
   assert.equal(row.expenses[0].paidById, 'm-a');
   assert.deepEqual(row.expenses[0].participantIds, ['m-a', 'm-b']);
+});
+
+test("the guest's self-member is linked to the account instead of duplicated", async () => {
+  // A guest trip marks one member `isSelf`. The sync sends that member with the account's id and
+  // the server links it — the alternative was a second "you" with a zero balance beside the real
+  // one, and removing the wrong duplicate cascades through every expense it paid for.
+  setup({ trips: [trip('tr1', {
+    members: [{ id: 'm-me', name: 'You', userId: null, isSelf: true },
+              { id: 'm-b',  name: 'Bob', userId: null }],
+    expenses: [{ id: 'e1', description: 'Dinner', amountMinor: 240000, paidById: 'm-me',
+                 participantIds: ['m-me', 'm-b'], createdAt: '2026-09-01T00:00:00.000Z' }],
+  })] });
+  await syncLocalToServer();
+
+  const posted = __calls().find((c) => c.url === '/trips');
+  assert.deepEqual(posted.data.members.map((m) => m.userId ?? null), ['u1', null],
+    'only the self-member carries the account id');
+
+  const [row] = [...serverTrips.values()];
+  assert.deepEqual(row.members.map((m) => m.id), ['m-me', 'm-b'], 'no second "you" was added');
+  assert.equal(row.members.filter((m) => m.userId === 'u1').length, 1);
+  assert.equal(row.expenses[0].paidById, 'm-me', 'the expense still points at the linked member');
 });
 
 test('an uneven split keeps its explicit shares', async () => {

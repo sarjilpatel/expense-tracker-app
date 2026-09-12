@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { getAllLocalTransactions, retainLocalTransactions, clearAllLocalTransactions } from './local/localTransactionService';
 import { getAllLocalCategories, retainLocalCategories, clearLocalCategories } from './local/localCategoryService';
 import { getAllLocalBudgets, retainLocalBudgets, clearLocalBudgets } from './local/localBudgetService';
@@ -97,6 +98,12 @@ export async function syncLocalToServer(
     ]);
     const customCats = cats.filter(c => !c._id.startsWith('dc_'));
     const totalItems = txs.length + customCats.length + budgets.length + accounts.length + trips.length;
+
+    // The account this sync is for — read the same way AuthContext stored it. Only trips need it:
+    // it is what links a guest trip's self-member to the person now signed in.
+    const myUserId = await SecureStore.getItemAsync('user')
+      .then(raw => (raw ? String(JSON.parse(raw)?._id ?? '') : ''))
+      .catch(() => '');
 
     if (totalItems === 0) {
       await setLastSyncTime();
@@ -211,14 +218,17 @@ export async function syncLocalToServer(
       let createdId: string | null = null;
       try {
         // Member ids go up verbatim and the server keeps them, so the expenses below still name
-        // their payer and participants correctly with no remapping. The server also seeds a member
-        // for the account doing the sync; it is referenced by nothing and carries a zero balance.
-        // That leaves a duplicate the user can delete, which is the better failure than guessing
-        // which existing member was them and rewriting who owes what.
+        // their payer and participants correctly with no remapping. The member marked `isSelf` is
+        // sent with the account's own id, and the server links *that* one rather than seeding a
+        // second "you" beside it — a duplicate would carry a zero balance while the real one held
+        // every debt, and deleting the wrong one cascades through every expense it paid for.
+        // (A trip made before `isSelf` existed has no marked member; the server then seeds one.)
         const created = await remoteTrip.createTrip({
           name:     trip.name,
           currency: trip.currency,
-          members:  trip.members.map(m => ({ id: m.id, name: m.name })),
+          members:  trip.members.map(m => ({
+            id: m.id, name: m.name, ...(m.isSelf && myUserId ? { userId: myUserId } : {}),
+          })),
         });
         createdId = created.id;
 

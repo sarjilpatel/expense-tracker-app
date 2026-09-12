@@ -88,9 +88,15 @@ export async function createTrip(data: {
     // A guest has no account, so nothing here can be linked to one — `ownerId: null` is what marks
     // a trip as this device's, and `isLocalTrip` is how the screens read it.
     ownerId:  null,
-    members:  (data.members ?? [])
-      .map(m => ({ id: m.id || genId(), name: m.name.trim(), userId: null }))
-      .filter(m => m.name),
+    // The device's user is always a member, as the creator always is on the server — every balance
+    // is stated relative to them. `isSelf` is what lets the sync link this member to the account
+    // later instead of seeding a second one beside it.
+    members:  [
+      { id: genId(), name: 'You', userId: null, isSelf: true },
+      ...(data.members ?? [])
+        .map(m => ({ id: m.id || genId(), name: m.name.trim(), userId: null }))
+        .filter(m => m.name),
+    ],
     expenses:    [],
     settlements: [],
     createdAt:   nowIso(),

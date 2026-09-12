@@ -155,6 +155,18 @@ test('adding a member as a guest ignores the userId there is no account to link'
   const made = await dataService.createTrip({ name: 'Goa' });
   const withMember = await dataService.addTripMember(made.id, 'Alice', 'u1');
 
-  assert.equal(withMember.members[0].name, 'Alice');
-  assert.equal(withMember.members[0].userId, null);
+  const alice = withMember.members.find(m => m.name === 'Alice');
+  assert.ok(alice);
+  assert.equal(alice.userId, null);
+});
+
+test("a guest trip starts with the device's user as a member, marked isSelf", async () => {
+  // Mirrors the server, where the creator is always a member. `isSelf` is what the sync later
+  // uses to link this member to the account rather than seeding a second "you" beside it.
+  setup(true);
+  const made = await dataService.createTrip({ name: 'Goa' });
+
+  assert.equal(made.members.length, 1);
+  assert.equal(made.members[0].isSelf, true);
+  assert.equal(made.members[0].userId, null, 'a guest has no account id yet');
 });
