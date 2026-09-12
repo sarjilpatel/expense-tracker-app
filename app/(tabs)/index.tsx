@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, RefreshControl,
+  View, Text, RefreshControl,
   Alert, ScrollView, StyleSheet, Dimensions,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
@@ -33,9 +33,9 @@ import {
 } from '@/src/cache/transactionCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
-import { Currency } from '@/constants/theme';
+import { space, type as text, icon as iconSize } from '@/constants/tokens';
+import { Card, Row, Touchable, Button, Sheet, Amount, type SheetHandle } from '@/components/ui';
 
 import { ViewModeTabs, HomeViewMode } from '@/components/home/ViewModeTabs';
 import { FilterDrawer, FilterState, DEFAULT_FILTERS } from '@/components/home/FilterDrawer';
@@ -372,6 +372,8 @@ export default function HomeScreen() {
   const HEADER_HEIGHT = 46;
 
   const [actionSheet, setActionSheet] = useState<{ item: any } | null>(null);
+  const actionSheetRef = useRef<SheetHandle>(null);
+  const openActionSheet = (item: any) => { setActionSheet({ item }); actionSheetRef.current?.present(); };
 
   type FlatItem =
     | { _type: 'header'; title: string; dateObj: Date; income: number; expense: number; isFirst: boolean }
@@ -488,7 +490,7 @@ export default function HomeScreen() {
         accountName={accountNameMap[flatItem.item._id] ?? null}
         hasReceipt={!!receiptMap[flatItem.item._id]}
         onPress={handleEdit}
-        onLongPress={(id) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setActionSheet({ item: flatItem.item }); }}
+        onLongPress={(id) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openActionSheet(flatItem.item); }}
         isFirst={flatItem.isFirst}
         isLast={flatItem.isLast}
       />
@@ -534,12 +536,7 @@ export default function HomeScreen() {
               <Text style={[styles.emptySubText, { color: theme.secondaryText, marginBottom: 20 }]}>
                 Add your first transaction to start tracking
               </Text>
-              <TouchableOpacity
-                style={[styles.emptyCta, { backgroundColor: theme.tint }]}
-                onPress={() => router.push('/add-transaction')}
-              >
-                <Text style={{ color: theme.tintText, fontWeight: '700', fontSize: 15 }}>Add Transaction</Text>
-              </TouchableOpacity>
+              <Button label="Add transaction" icon="add" onPress={() => router.push('/add-transaction')} block={false} />
             </View>
           }
         />
@@ -601,32 +598,29 @@ export default function HomeScreen() {
         <View style={styles.topBlock}>
           <View style={styles.header}>
             <View style={styles.monthSelector}>
-              <TouchableOpacity onPress={() => changeMonth(-1)} hitSlop={16}>
-                <Ionicons name="chevron-back" size={18} color={theme.text} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
-                <ThemedText type="title" style={[styles.monthText, { color: theme.text }]}>
+              <Touchable onPress={() => changeMonth(-1)} size={28} haptic="selection" accessibilityLabel="Previous month" rippleBorderless>
+                <Ionicons name="chevron-back" size={iconSize.md} color={theme.text} />
+              </Touchable>
+              <Touchable onPress={() => setShowDatePicker(true)} haptic="selection" accessibilityLabel="Choose month">
+                <Text style={[text.heading, { color: theme.text }]}>
                   {viewMode === 'monthly' ? String(currentYear) : `${MONTHS[currentMonth - 1]} ${currentYear}`}
-                </ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => changeMonth(1)} hitSlop={16}>
-                <Ionicons name="chevron-forward" size={18} color={theme.text} />
-              </TouchableOpacity>
+                </Text>
+              </Touchable>
+              <Touchable onPress={() => changeMonth(1)} size={28} haptic="selection" accessibilityLabel="Next month" rippleBorderless>
+                <Ionicons name="chevron-forward" size={iconSize.md} color={theme.text} />
+              </Touchable>
             </View>
             <View style={styles.headerIcons}>
-              <TouchableOpacity
-                style={[styles.headerIconBtn, { backgroundColor: theme.background }]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowFilterDrawer(true); }}
-              >
-                <Ionicons name="filter-outline" size={18} color={activeFilters.type !== 'all' || activeFilters.categories.length > 0 || activeFilters.amountMin || activeFilters.amountMax ? theme.tint : theme.text} />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.headerIconBtn, { backgroundColor: theme.background }]} onPress={() => router.push('/search')}>
-                <Ionicons name="search-outline" size={18} color={theme.text} />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.headerIconBtn, { backgroundColor: theme.background }]} onPress={() => setShowNotifications(true)}>
-                <Ionicons name="options-outline" size={18} color={theme.text} />
-                {notifications.length > 0 && <View style={[styles.notifDot, { borderColor: theme.background }]} />}
-              </TouchableOpacity>
+              <Touchable style={styles.headerIconBtn} size={32} onPress={() => setShowFilterDrawer(true)} accessibilityLabel="Filters" rippleBorderless>
+                <Ionicons name="filter-outline" size={iconSize.md} color={activeFilters.type !== 'all' || activeFilters.categories.length > 0 || activeFilters.amountMin || activeFilters.amountMax ? theme.tint : theme.text} />
+              </Touchable>
+              <Touchable style={styles.headerIconBtn} size={32} onPress={() => router.push('/search')} accessibilityLabel="Search" rippleBorderless>
+                <Ionicons name="search-outline" size={iconSize.md} color={theme.text} />
+              </Touchable>
+              <Touchable style={styles.headerIconBtn} size={32} onPress={() => setShowNotifications(true)} accessibilityLabel={notifications.length > 0 ? `Notifications, ${notifications.length} new` : 'Notifications'} rippleBorderless>
+                <Ionicons name="options-outline" size={iconSize.md} color={theme.text} />
+                {notifications.length > 0 && <View style={[styles.notifDot, { backgroundColor: theme.danger, borderColor: theme.background }]} />}
+              </Touchable>
             </View>
           </View>
 
@@ -638,47 +632,28 @@ export default function HomeScreen() {
           />
 
           <View style={styles.summaryRow}>
-            <TouchableOpacity
-              style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: activeFilters.type === 'all' ? theme.tint : theme.card, borderWidth: 1 }]}
-              onPress={() => setActiveFilters(DEFAULT_FILTERS)}
-              activeOpacity={0.75}
-            >
-              <View style={[styles.summaryIcon, { backgroundColor: theme.text + '10', alignSelf: 'center', marginBottom: 4 }]}>
-                <Ionicons name="wallet-outline" size={12} color={theme.text} />
-              </View>
-              <Text style={[styles.summaryAmount, { color: theme.text, textAlign: 'center' }]} numberOfLines={1}>
-                {formatAmount(summary.income - summary.expense)}
-              </Text>
-              <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>Balance</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: activeFilters.type === 'income' ? theme.income : theme.card, borderWidth: 1 }]}
-              onPress={() => setActiveFilters(prev => ({ ...prev, type: 'income' }))}
-              activeOpacity={0.75}
-            >
-              <View style={[styles.summaryIcon, { backgroundColor: theme.income + '18', alignSelf: 'center', marginBottom: 4 }]}>
-                <Ionicons name="arrow-up" size={12} color={theme.income} />
-              </View>
-              <Text style={[styles.summaryAmount, { color: theme.income, textAlign: 'center' }]} numberOfLines={1}>
-                {formatAmount(summary.income)}
-              </Text>
-              <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>Income</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.summaryCard, { backgroundColor: theme.card, borderColor:  activeFilters.type === 'expense' ? theme.expense: theme.card, borderWidth: 1 }]}
-              onPress={() => setActiveFilters(prev => ({ ...prev, type: 'expense' }))}
-              activeOpacity={0.75}
-            >
-              <View style={[styles.summaryIcon, { backgroundColor: theme.expense + '18', alignSelf: 'center', marginBottom: 4 }]}>
-                <Ionicons name="arrow-down" size={12} color={theme.expense} />
-              </View>
-              <Text style={[styles.summaryAmount, { color: theme.expense, textAlign: 'center' }]} numberOfLines={1}>
-                {formatAmount(summary.expense)}
-              </Text>
-              <Text style={[styles.summaryLabel, { color: theme.secondaryText }]}>Expense</Text>
-            </TouchableOpacity>
+            {([
+              { key: 'all',     label: 'Balance', icon: 'wallet-outline', value: summary.income - summary.expense, kind: 'neutral' as const, color: theme.text,
+                onPress: () => setActiveFilters(DEFAULT_FILTERS) },
+              { key: 'income',  label: 'Income',  icon: 'arrow-up',       value: summary.income,  kind: 'income'  as const, color: theme.income,
+                onPress: () => setActiveFilters(prev => ({ ...prev, type: 'income' })) },
+              { key: 'expense', label: 'Expense', icon: 'arrow-down',     value: summary.expense, kind: 'expense' as const, color: theme.expense,
+                onPress: () => setActiveFilters(prev => ({ ...prev, type: 'expense' })) },
+            ]).map(card => {
+              const active = activeFilters.type === card.key;
+              return (
+                <Card
+                  key={card.key}
+                  onPress={card.onPress}
+                  accessibilityLabel={`${card.label}, ${active ? 'showing' : 'tap to filter'}`}
+                  style={[styles.summaryCard, active && { borderColor: card.color, borderWidth: 1.5 }]}
+                >
+                  <Ionicons name={card.icon as any} size={iconSize.sm} color={card.color} />
+                  <Amount value={card.value} kind={card.kind} unsigned role="label" color={card.color} />
+                  <Text style={[text.label, { color: theme.secondaryText }]}>{card.label}</Text>
+                </Card>
+              );
+            })}
           </View>
         </View>
 
@@ -690,10 +665,11 @@ export default function HomeScreen() {
         {/* Month/Year Picker */}
         {showDatePicker && (
           <>
-            <TouchableOpacity
+            <Touchable
               style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', zIndex: 999 }]}
-              activeOpacity={1}
               onPress={() => setShowDatePicker(false)}
+              haptic="none"
+              accessibilityLabel="Close month picker"
             />
             <View style={[styles.pickerWrap, { top: top + 48 }]}>
               <MonthYearPicker
@@ -729,55 +705,29 @@ export default function HomeScreen() {
           current={activeFilters}
         />
 
-        {/* Long-press action sheet */}
-        {actionSheet && (
-          <View style={[actionStyles.overlay, StyleSheet.absoluteFill]}>
-            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setActionSheet(null)} />
-            <View style={[actionStyles.sheet, { backgroundColor: theme.card, borderTopColor: theme.border }]}>
-              <View style={[actionStyles.dragHandle, { backgroundColor: theme.border }]} />
-              <View style={actionStyles.txPreview}>
-                <Text style={[actionStyles.txPreviewCat, { color: theme.secondaryText }]}>
-                  {actionSheet.item.category}
-                </Text>
-                <Text style={[actionStyles.txPreviewAmt, { color: actionSheet.item.type === 'expense' ? theme.expense : theme.income }]}>
-                  {actionSheet.item.type === 'expense' ? '-' : '+'}{Currency.format(actionSheet.item.amount)}
-                </Text>
+        {/* Long-press actions */}
+        <Sheet ref={actionSheetRef} onDismiss={() => setActionSheet(null)} keyboard="none">
+          {actionSheet && (
+            <>
+              <View style={styles.actionPreview}>
+                <Text style={[text.label, { color: theme.secondaryText }]}>{actionSheet.item.category}</Text>
+                <Amount value={actionSheet.item.amount} kind={actionSheet.item.type === 'expense' ? 'expense' : 'income'} role="heading" />
               </View>
-              <TouchableOpacity
-                style={[actionStyles.actionBtn, { borderBottomColor: theme.separator }]}
-                onPress={() => { setActionSheet(null); handleEdit(actionSheet.item); }}
-              >
-                <Ionicons name="create-outline" size={20} color={theme.tint} />
-                <Text style={[actionStyles.actionText, { color: theme.text }]}>Edit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[actionStyles.actionBtn, { borderBottomColor: theme.separator }]}
-                onPress={() => {
-                  const id = actionSheet.item._id;
-                  setActionSheet(null);
-                  handleDelete(id);
-                }}
-              >
-                <Ionicons name="trash-outline" size={20} color={theme.danger} />
-                <Text style={[actionStyles.actionText, { color: theme.danger }]}>Delete</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={actionStyles.cancelBtn}
-                onPress={() => setActionSheet(null)}
-              >
-                <Text style={[actionStyles.cancelText, { color: theme.secondaryText }]}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+              <Card padded={false}>
+                <Row icon="create-outline" title="Edit" onPress={() => { actionSheetRef.current?.dismiss(); handleEdit(actionSheet.item); }} />
+                <Row danger icon="trash-outline" title="Delete" onPress={() => { const id = actionSheet.item._id; actionSheetRef.current?.dismiss(); handleDelete(id); }} last />
+              </Card>
+            </>
+          )}
+        </Sheet>
 
         {/* Undo toast */}
         {undoState && (
           <View style={[styles.undoToast, { backgroundColor: theme.text }]}>
             <Text style={[styles.undoText, { color: theme.background }]}>Transaction deleted</Text>
-            <TouchableOpacity onPress={handleUndo} style={styles.undoBtn}>
-              <Text style={[styles.undoBtnText, { color: theme.tint }]}>UNDO</Text>
-            </TouchableOpacity>
+            <Touchable onPress={handleUndo} style={styles.undoBtn} accessibilityLabel="Undo delete" rippleBorderless>
+              <Text style={[text.label, { color: theme.tint }]}>UNDO</Text>
+            </Touchable>
           </View>
         )}
 
@@ -788,9 +738,9 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container:     { flex: 1 },
+  actionPreview: { alignItems: 'center', gap: 2, marginBottom: space.md },
   header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 36, marginBottom: 8 },
   monthSelector: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  monthText:     { fontSize: 17, fontWeight: '800' },
   headerIcons:   { flexDirection: 'row', gap: 8, alignItems: 'center' },
   headerIconBtn: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   notifDot:      { position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF3B30', borderWidth: 1.5 },
@@ -805,36 +755,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 2,
   },
-  summaryCard: {
-    flex: 1,
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-  },
-  summaryLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  summaryIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  summaryAmount: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  summaryLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 2,
-    textAlign: 'center',
-  },
+  summaryCard:   { flex: 1, alignItems: 'center', gap: 2, paddingVertical: space.sm, paddingHorizontal: space.xs },
 
   budgetCard: {
     marginHorizontal: 12,
@@ -882,7 +803,6 @@ const styles = StyleSheet.create({
   empty:         { marginTop: 28, alignItems: 'center', paddingHorizontal: 16 },
   emptyText:     { fontSize: 17, fontWeight: '700' },
   emptySubText:  { fontSize: 14, marginTop: 6, textAlign: 'center' },
-  emptyCta:      { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 16, marginTop: 12 },
   noteCard:      { flexDirection: 'row', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginBottom: 10 },
   noteColorBar:  { width: 4 },
   noteBody:      { flex: 1, padding: 14, gap: 4 },
@@ -933,16 +853,4 @@ const styles = StyleSheet.create({
   },
 });
 
-const actionStyles = StyleSheet.create({
-  overlay:     { zIndex: 200, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet:       { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, borderTopWidth: StyleSheet.hairlineWidth },
-  dragHandle:  { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 8, opacity: 0.4 },
-  txPreview:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
-  txPreviewCat:{ fontSize: 13, fontWeight: '600' },
-  txPreviewAmt:{ fontSize: 17, fontWeight: '800' },
-  actionBtn:   { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
-  actionText:  { fontSize: 16, fontWeight: '600' },
-  cancelBtn:   { alignItems: 'center', paddingVertical: 16 },
-  cancelText:  { fontSize: 15, fontWeight: '600' },
-});
 
