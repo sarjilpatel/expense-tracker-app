@@ -1,4 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Appearance } from 'react-native';
+import * as SystemUI from 'expo-system-ui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, ThemeColors, THEME_PRESETS, getContrastText, withContrastText } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -34,7 +36,6 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const colorScheme = useColorScheme();
   const [overrides, setOverrides] = useState<ThemeOverrides>({});
 
   useEffect(() => {
@@ -70,6 +71,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const activeScheme = overrides.themeMode && overrides.themeMode !== 'system'
     ? overrides.themeMode
     : (systemScheme ?? 'light');
+
+  // A forced mode is told to the OS as well (W2-15): `Appearance` then answers the same as the
+  // app, so the native window background, the splash's dark variant and every `useColorScheme()`
+  // outside this provider agree with the override instead of the phone's setting. And the window
+  // background — what shows through native transitions — is repainted to the active scheme the
+  // moment the saved override resolves, not left on whatever module load guessed.
+  useEffect(() => {
+    Appearance.setColorScheme(overrides.themeMode && overrides.themeMode !== 'system' ? overrides.themeMode : null);
+  }, [overrides.themeMode]);
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(Colors[activeScheme].background).catch(() => {});
+  }, [activeScheme]);
 
   const base  = Colors[activeScheme];
   const activePreset = overrides.presetName ? THEME_PRESETS.find(p => p.name === overrides.presetName) : undefined;

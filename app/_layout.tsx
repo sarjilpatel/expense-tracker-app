@@ -12,7 +12,7 @@ import * as SystemUI from 'expo-system-ui';
 
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { PreferencesProvider } from '@/src/context/PreferencesContext';
-import { ThemeProvider as AppThemeProvider } from '@/src/context/ThemeContext';
+import { ThemeProvider as AppThemeProvider, useTheme } from '@/src/context/ThemeContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors, getContrastText } from '@/constants/theme';
 import apiClient from '@/src/services/apiClient';
@@ -58,7 +58,7 @@ const FLOW_SCREENS = ['welcome', 'login', 'signup', 'forgot-password', 'verify-e
 
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const { theme, isDark } = useTheme();
   const { user, loading, isGuest, logout } = useAuth();
   const segments = useSegments();
   const router   = useRouter();
@@ -126,9 +126,8 @@ function RootLayoutNav() {
   }, [user, loading, segments, router, welcomeSeen]);
 
   if (loading || !lockChecked || welcomeSeen === null) {
-    const bg = colorScheme === 'dark' ? Colors.dark.background : Colors.light.background;
     return (
-      <View style={[loadingStyles.container, { backgroundColor: bg }]}>
+      <View style={[loadingStyles.container, { backgroundColor: theme.background }]}>
         <View style={loadingStyles.iconWrap}>
           <Ionicons name="wallet" size={38} color={getContrastText(Colors.light.primary)} />
         </View>
@@ -141,8 +140,8 @@ function RootLayoutNav() {
     return <LockScreen onUnlock={() => setLocked(false)} />;
   }
 
-  const bgColor = colorScheme === 'dark' ? Colors.dark.background : Colors.light.background;
-  const navTheme = colorScheme === 'dark'
+  const bgColor = theme.background;
+  const navTheme = isDark
     ? { ...DarkTheme,    colors: { ...DarkTheme.colors,    background: bgColor, card: bgColor } }
     : { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: bgColor, card: bgColor } };
 
@@ -172,12 +171,10 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  // Before the saved theme override resolves this follows the phone; ThemeProvider then tells
+  // `Appearance` about any forced mode, so this re-renders to match (W2-15).
   const colorScheme = useColorScheme();
   const bgColor = colorScheme === 'dark' ? Colors.dark.background : Colors.light.background;
-
-  useEffect(() => {
-    SystemUI.setBackgroundColorAsync(bgColor);
-  }, [bgColor]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: bgColor }}>
