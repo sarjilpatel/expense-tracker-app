@@ -75,7 +75,7 @@ export default function AccountsScreen() {
 
   if (loading && !refreshing) {
     return (
-      <Screen title="Accounts" onBack={false} right={headerRight}>
+      <Screen title="Accounts" right={headerRight}>
         <Skeleton.Group style={{ paddingTop: space.sm }}>
           <Skeleton.Block height={140} round={radius.lg} />
           <Skeleton.Row /><Skeleton.Row /><Skeleton.Row />
@@ -85,7 +85,7 @@ export default function AccountsScreen() {
   }
 
   return (
-    <Screen title="Accounts" onBack={false} right={headerRight} refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(true); }}>
+    <Screen title="Accounts" right={headerRight} refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(true); }}>
       {accounts.length === 0 ? (
         <EmptyState
           icon="wallet-outline"

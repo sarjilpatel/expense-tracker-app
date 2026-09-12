@@ -132,13 +132,13 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)"             options={{ headerShown: false, animation: 'fade'              }} />
         <Stack.Screen name="settings/customization" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/security"      options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="settings/money"         options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/data"          options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="settings/help"          options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="add-transaction"     options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="edit-transaction"   options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="budget"             options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="add-budget"         options={{ headerShown: false, animation: 'slide_from_right'  }} />
+        <Stack.Screen name="accounts"           options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="add-account"        options={{ headerShown: false, animation: 'slide_from_right'  }} />
         <Stack.Screen name="add-transfer"       options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="search"             options={{ headerShown: false, animation: 'slide_from_right'  }} />

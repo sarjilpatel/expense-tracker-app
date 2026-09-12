@@ -97,7 +97,7 @@ export default function BudgetScreen() {
         <View style={S.banner}>
           <Ionicons name="information-circle-outline" size={iconSize.sm} color={theme.secondaryText} />
           <Text style={[type.label, { color: theme.secondaryText, flex: 1 }]}>
-            Budget progress also shows on the Records tab, in the Total view.
+            Budget progress also shows on the Home tab, in the Total view.
           </Text>
         </View>
       </Card>

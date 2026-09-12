@@ -23,7 +23,7 @@ import {
  */
 const GRID_TILES = [
   { key: 'customize',  label: 'Customize',  sub: 'Theme, colors, language',  icon: 'color-palette-outline',      route: '/settings/customization', color: '#6366F1' },
-  { key: 'money',      label: 'Money',      sub: 'Budget, goals, splits',    icon: 'wallet-outline',             route: '/settings/money',         color: '#10B981' },
+  { key: 'accounts',   label: 'Accounts',   sub: 'Cash, bank, cards',        icon: 'wallet-outline',             route: '/accounts',               color: '#10B981' },
   { key: 'categories', label: 'Categories', sub: 'Income & expense types',   icon: 'grid-outline',               route: '/manage-categories',      color: '#F59E0B' },
   { key: 'security',   label: 'Security',   sub: 'PIN lock, biometric',      icon: 'shield-checkmark-outline',   route: '/settings/security',      color: '#3B82F6' },
   { key: 'data',       label: 'Data',       sub: 'Backup, export, import',   icon: 'server-outline',             route: '/settings/data',          color: '#0F766E' },
@@ -149,19 +149,6 @@ export default function SettingsScreen() {
       )}
 
       {!isGuest && <GroupSection group={group} groups={myGroups} />}
-
-      {/* ── Trips ── */}
-      <SectionHeader title="Split bills" />
-      <Card padded={false}>
-        <Row
-          icon="people"
-          iconBg="#8B5CF6"
-          title="Trips"
-          subtitle="Split any bill — with your group or with anyone. Works offline."
-          onPress={() => router.push('/trips' as any)}
-          last
-        />
-      </Card>
 
       {/* ── Destinations ── */}
       <SectionHeader title="Settings" />

@@ -75,18 +75,18 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Records',
+            title: 'Home',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons size={24} name={focused ? 'book' : 'book-outline'} color={color} />
+              <Ionicons size={24} name={focused ? 'home' : 'home-outline'} color={color} />
             ),
           }}
         />
         <Tabs.Screen
           name="explore"
           options={{
-            title: 'Stats',
+            title: 'Insights',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons size={24} name={focused ? 'bar-chart' : 'bar-chart-outline'} color={color} />
+              <Ionicons size={24} name={focused ? 'analytics' : 'analytics-outline'} color={color} />
             ),
           }}
         />
@@ -100,11 +100,11 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="accounts"
+          name="plan"
           options={{
-            title: 'Accounts',
+            title: 'Plan',
             tabBarIcon: ({ color, focused }) => (
-              <Ionicons size={24} name={focused ? 'wallet' : 'wallet-outline'} color={color} />
+              <Ionicons size={24} name={focused ? 'flag' : 'flag-outline'} color={color} />
             ),
           }}
         />
