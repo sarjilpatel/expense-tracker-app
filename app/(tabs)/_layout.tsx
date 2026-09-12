@@ -48,6 +48,9 @@ export default function TabLayout() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <Tabs
         screenOptions={{
+          // A tab behind the visible one stops rendering (W2-14): five screens of lists and
+          // charts otherwise re-render on every store change whether or not they are on screen.
+          freezeOnBlur: true,
           tabBarActiveTintColor:   theme.tint,
           tabBarInactiveTintColor: theme.secondaryText,
           headerShown: false,

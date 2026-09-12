@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { ActivityIndicator, View, StyleSheet, AppState, Appearance } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { enableFreeze } from 'react-native-screens';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as SystemUI from 'expo-system-ui';
@@ -27,6 +28,9 @@ import { radius } from '@/constants/tokens';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
 SplashScreen.preventAutoHideAsync();
+// Screens off the top of a stack, and blurred tabs, are wrapped in React.Suspense-style freeze so
+// they neither render nor run effects until they are visible again (W2-14).
+enableFreeze(true);
 
 // Set Android Activity window background immediately on module load.
 // This is what shows through during native slide animations — not fixable from JS-layer styles alone.
