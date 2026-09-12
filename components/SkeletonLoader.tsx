@@ -11,7 +11,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/src/context/ThemeContext';
 
-interface SkeletonBarProps {
+export interface SkeletonBarProps {
   width?: number | string;
   height?: number;
   borderRadius?: number;
@@ -19,7 +19,7 @@ interface SkeletonBarProps {
   shimmerX: SharedValue<number>;
 }
 
-function SkeletonBar({ width = '100%', height = 16, borderRadius = 8, style, shimmerX }: SkeletonBarProps) {
+export function SkeletonBar({ width = '100%', height = 16, borderRadius = 8, style, shimmerX }: SkeletonBarProps) {
   const { theme } = useTheme();
   const baseColor    = theme.cardAlt;
   const shimmerColor = theme.card === '#FFFFFF' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.07)';
@@ -52,16 +52,21 @@ interface SkeletonLoaderProps {
   type?: 'list' | 'card' | 'chart';
 }
 
-export function SkeletonLoader({ rows = 4, type = 'list' }: SkeletonLoaderProps) {
-  const { theme } = useTheme();
+/** One shimmer shared by every bar in a group, so they sweep together rather than out of phase. */
+export function useShimmer(): SharedValue<number> {
   const shimmerX = useSharedValue(-200);
-
   useEffect(() => {
     shimmerX.value = withRepeat(
       withTiming(420, { duration: 1400, easing: Easing.linear }),
       -1
     );
-  }, []);
+  }, [shimmerX]);
+  return shimmerX;
+}
+
+export function SkeletonLoader({ rows = 4, type = 'list' }: SkeletonLoaderProps) {
+  const { theme } = useTheme();
+  const shimmerX = useShimmer();
 
   if (type === 'card') {
     return (

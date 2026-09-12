@@ -4,6 +4,7 @@ import {
   getPrefs, setPrefs,
 } from '@/src/services/preferencesService';
 import { applyCurrency } from '@/constants/theme';
+import { setDefaultCurrency } from '@/src/utils/money';
 
 interface PreferencesContextType {
   prefs: AppPrefs;
@@ -33,7 +34,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
 
   const applyAndSet = useCallback((p: AppPrefs) => {
     const meta = CURRENCY_META[p.currency as CurrencyCode];
-    if (meta) applyCurrency(meta.symbol, meta.locale);
+    if (meta) {
+      applyCurrency(meta.symbol, meta.locale);
+      // The `Amount` primitive formats through src/utils/money; both must agree on the default.
+      setDefaultCurrency(meta.symbol, meta.locale);
+    }
     setPrefsState(p);
   }, []);
 

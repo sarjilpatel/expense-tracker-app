@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { ActivityIndicator, View, StyleSheet, AppState, Appearance } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as SystemUI from 'expo-system-ui';
 
@@ -171,7 +172,10 @@ export default function RootLayout() {
           <PreferencesProvider>
             <LanguageProvider>
               <AuthProvider>
-                <RootLayoutNav />
+                {/* Hosts every <Sheet> (components/ui) — one provider, mounted once, above the navigator. */}
+                <BottomSheetModalProvider>
+                  <RootLayoutNav />
+                </BottomSheetModalProvider>
               </AuthProvider>
             </LanguageProvider>
           </PreferencesProvider>
