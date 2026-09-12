@@ -43,11 +43,13 @@ export interface SheetProps {
   /** Show an × in the header. Default true when there is a title. */
   closeButton?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  /** A sheet holding inputs grows with the keyboard; a picker does not need to. Default `form`. */
+  keyboard?: 'form' | 'none';
   children?: React.ReactNode;
 }
 
 export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
-  { title, snapPoints, scroll = false, onDismiss, handle = true, closeButton, contentStyle, children },
+  { title, snapPoints, scroll = false, onDismiss, handle = true, closeButton, contentStyle, keyboard = 'form', children },
   ref,
 ) {
   const { theme } = useTheme();
@@ -96,6 +98,8 @@ export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
       backgroundStyle={{ backgroundColor: theme.card, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
       // Android back closes the sheet rather than the screen behind it.
       android_keyboardInputMode="adjustResize"
+      keyboardBehavior={keyboard === 'form' ? 'extend' : 'interactive'}
+      keyboardBlurBehavior="restore"
     >
       {header}
       <Body

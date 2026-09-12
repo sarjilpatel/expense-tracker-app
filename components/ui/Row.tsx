@@ -21,6 +21,8 @@ export interface RowProps {
   subtitle?: string;
   icon?: React.ComponentProps<typeof Ionicons>['name'];
   emoji?: string;
+  /** Custom leading content — an avatar, a colour swatch. Wins over `icon` / `emoji`. */
+  leading?: React.ReactNode;
   /** Background for the leading box. A solid colour gets a contrast-computed glyph. */
   iconBg?: string;
   iconColor?: string;
@@ -38,7 +40,7 @@ export interface RowProps {
 }
 
 export function Row({
-  title, subtitle, icon, emoji, iconBg, iconColor, right, onPress, onLongPress,
+  title, subtitle, icon, emoji, leading, iconBg, iconColor, right, onPress, onLongPress,
   chevron, danger = false, last = false, disabled = false, accessibilityLabel, style,
 }: RowProps) {
   const { theme } = useTheme();
@@ -49,7 +51,7 @@ export function Row({
 
   const body = (
     <View style={[styles.row, !last && { borderBottomColor: theme.separator, borderBottomWidth: StyleSheet.hairlineWidth }]}>
-      {(icon || emoji) && (
+      {leading !== undefined ? leading : (icon || emoji) && (
         <View style={[styles.lead, { backgroundColor: bg }]}>
           {emoji
             ? <Text style={styles.emoji}>{emoji}</Text>
