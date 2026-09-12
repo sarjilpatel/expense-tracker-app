@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet, Vibration,
-} from 'react-native';
+import { View, Text, StyleSheet, Vibration } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
+import { space, radius, type, tabular, icon as iconSize } from '@/constants/tokens';
+import { Touchable } from '@/components/ui';
 import { verifyPin, getBiometricEnabled, authenticateWithBiometric } from '@/src/services/lockService';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -155,27 +155,29 @@ export default function LockScreen({ onUnlock }: Props) {
             {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((key, i) => {
               if (!key) return <View key={i} style={styles.padKey} />;
               return (
-                <TouchableOpacity
+                <Touchable
                   key={i}
                   style={[styles.padKey, { backgroundColor: 'rgba(255,255,255,0.15)' }]}
                   onPress={() => key === '⌫' ? del() : press(key)}
-                  activeOpacity={0.6}
+                  haptic="selection"
+                  rippleColor="rgba(255,255,255,0.25)"
+                  accessibilityLabel={key === '⌫' ? 'Delete' : key}
                 >
                   {key === '⌫' ? (
-                    <Ionicons name="backspace-outline" size={24} color="#FFF" />
+                    <Ionicons name="backspace-outline" size={iconSize.lg} color="#FFF" />
                   ) : (
                     <Text style={styles.padText}>{key}</Text>
                   )}
-                </TouchableOpacity>
+                </Touchable>
               );
             })}
           </View>
 
           {biometricReady && (
-            <TouchableOpacity style={styles.bioBtn} onPress={promptBiometric} activeOpacity={0.7}>
-              <Ionicons name="finger-print" size={28} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.bioText}>Use Biometric</Text>
-            </TouchableOpacity>
+            <Touchable style={styles.bioBtn} onPress={promptBiometric} accessibilityLabel="Use biometric" rippleBorderless>
+              <Ionicons name="finger-print" size={iconSize.xl} color="rgba(255,255,255,0.85)" />
+              <Text style={styles.bioText}>Use biometric</Text>
+            </Touchable>
           )}
         </>
       )}
@@ -183,19 +185,21 @@ export default function LockScreen({ onUnlock }: Props) {
   );
 }
 
+// A fixed dark surface by design — the lock screen is the one place the app deliberately does not
+// follow the theme, so the whites here are correct. Sizes and radii still come from the tokens.
 const styles = StyleSheet.create({
-  wrap:         { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 20 },
-  logoCircle:   { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  title:        { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: 0.5 },
-  dotsRow:      { flexDirection: 'row', gap: 16, marginVertical: 8 },
-  dot:          { width: 16, height: 16, borderRadius: 8, borderWidth: 2 },
-  pad:          { width: 280, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16, marginTop: 16 },
-  padKey:       { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center' },
-  padText:      { fontSize: 24, fontWeight: '700', color: '#FFF' },
-  attemptsWarn: { fontSize: 13, color: '#FFF', fontWeight: '700' },
-  lockoutBox:   { alignItems: 'center', gap: 8 },
-  lockoutTimer: { fontSize: 48, fontWeight: '800', color: '#FFF', fontVariant: ['tabular-nums'] },
-  lockoutSub:   { fontSize: 14, color: 'rgba(255,255,255,0.7)' },
-  bioBtn:       { alignItems: 'center', gap: 6, marginTop: 8, padding: 12 },
-  bioText:      { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
+  wrap:         { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.lg },
+  logoCircle:   { width: 72, height: 72, borderRadius: radius.full, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: space.lg },
+  title:        { ...type.title, color: '#FFF' },
+  dotsRow:      { flexDirection: 'row', gap: space.lg, marginVertical: space.sm },
+  dot:          { width: 16, height: 16, borderRadius: radius.full, borderWidth: 2 },
+  pad:          { width: 280, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.lg, marginTop: space.lg },
+  padKey:       { width: 72, height: 72, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  padText:      { ...type.title, ...tabular, color: '#FFF' },
+  attemptsWarn: { ...type.label, color: '#FFF' },
+  lockoutBox:   { alignItems: 'center', gap: space.sm },
+  lockoutTimer: { ...type.display, color: '#FFF' },
+  lockoutSub:   { ...type.label, color: 'rgba(255,255,255,0.7)' },
+  bioBtn:       { alignItems: 'center', gap: space.xs, marginTop: space.sm, padding: space.md },
+  bioText:      { ...type.label, color: 'rgba(255,255,255,0.7)' },
 });
