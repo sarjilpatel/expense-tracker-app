@@ -317,7 +317,7 @@ const S = StyleSheet.create({
   chips:        { flexDirection: 'row', gap: space.sm, marginBottom: space.md },
   addRow:       { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   emojiBtn:     { width: 48, height: 48, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', alignItems: 'center' },
-  emoji:        { fontSize: 22 },
+  emoji:        { ...type.title },
   nameField:    { flex: 1 },
   actions:      { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   actionBtn:    { width: 32, height: 32, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },

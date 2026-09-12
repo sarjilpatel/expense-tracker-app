@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { Currency } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
+import { type, radius, space } from '@/constants/tokens';
 
 interface Props {
   label: string;
@@ -28,7 +29,7 @@ export function ComparisonCard({ label, current, previous, color, icon }: Props)
       {change !== null && (
         <View style={[styles.badge, { backgroundColor: theme.card }]}>
           <Ionicons name={isUp ? 'arrow-up' : 'arrow-down'} size={10} color={isUp ? color : theme.secondaryText} />
-          <Text style={{ color: isUp ? color : theme.secondaryText, fontSize: 10, fontWeight: '700' }}>
+          <Text style={{ color: isUp ? color : theme.secondaryText, ...type.label }}>
             {Math.abs(change).toFixed(1)}%
           </Text>
         </View>
@@ -41,40 +42,34 @@ export function ComparisonCard({ label, current, previous, color, icon }: Props)
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: radius.lg,
     padding: 16,
   },
   icon: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: space.md,
   },
   label: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    ...type.overline,
     marginBottom: 4,
   },
   value: {
-    fontSize: 16,
-    fontWeight: '900',
-    marginBottom: 6,
+    ...type.bodyStrong,
+    marginBottom: space.sm,
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8,
+    gap: space.xs,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.sm,
     alignSelf: 'flex-start',
     marginBottom: 4,
   },
-  sub: {
-    fontSize: 10,
-  },
+  sub: { ...type.label },
 });

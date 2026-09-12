@@ -66,5 +66,5 @@ const styles = StyleSheet.create({
   touch: { borderRadius: radius.full, overflow: 'hidden' },
   chip:  { flexDirection: 'row', alignItems: 'center', gap: space.xs, borderRadius: radius.full, paddingHorizontal: space.md, minHeight: 36 },
   sm:    { paddingHorizontal: space.sm, minHeight: 28 },
-  emoji: { fontSize: 14 },
+  emoji: { ...type.label },
 });

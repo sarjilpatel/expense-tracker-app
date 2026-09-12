@@ -26,7 +26,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
 import { hexToRGBA } from '@/constants/theme';
-import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import { space, radius, type, icon as iconSize, weight } from '@/constants/tokens';
 import {
   Screen, Card, Row, Touchable, Button, Sheet, Field, Amount, EmptyState, SectionHeader, Chip, Skeleton,
   type SheetHandle,
@@ -38,13 +38,8 @@ import {
 } from '@/src/services/dataService';
 import { isLocalTrip, toSettlementInput } from '@/src/services/tripService';
 import { computeSettlement, toMinorUnits, fromMinorUnits } from '@/src/utils/settlement';
+import { avatarColor } from '@/constants/palettes';
 
-// Palette for member avatars — cycles if more than 10 people
-const AVATAR_PALETTE = [
-  '#5856D6', '#FF6B6B', '#4ECDC4', '#45B7D1', '#F9CA24',
-  '#6C5CE7', '#00B894', '#E17055', '#A29BFE', '#FD79A8',
-];
-function avatarColor(index: number) { return AVATAR_PALETTE[index % AVATAR_PALETTE.length]; }
 
 /** Both halves of the service throw: the remote one a string, the local one an Error. */
 const msg = (e: any, fallback: string) =>
@@ -62,7 +57,7 @@ function MemberAvatar({ name, photo, color, size = 38 }: {
       style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: hexToRGBA(color, 0.18), justifyContent: 'center', alignItems: 'center' }}
       accessibilityLabel={name}
     >
-      <Text style={{ fontSize: size * 0.42, fontWeight: '600', color }}>
+      <Text style={{ fontSize: size * 0.42, fontWeight: weight.semibold, color }}>
         {(name || '?').charAt(0).toUpperCase()}
       </Text>
     </View>

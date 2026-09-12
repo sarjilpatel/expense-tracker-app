@@ -1,3 +1,4 @@
+/* eslint-disable local/design-tokens -- the lock screen is a fixed dark surface by design; the whites here are correct */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Vibration } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';

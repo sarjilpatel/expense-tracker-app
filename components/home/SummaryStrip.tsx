@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { radius, type } from '@/constants/tokens';
 
 interface Props {
   income: number;
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     paddingVertical: 12,
     marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
   },
   col: {
@@ -76,16 +77,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  val: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
+  label: { ...type.overline },
+  val: { ...type.bodyStrong },
   periodRow: {
     position: 'absolute',
     bottom: 5,
@@ -93,9 +86,5 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
   },
-  periodLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
+  periodLabel: { ...type.label },
 });

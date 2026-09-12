@@ -22,6 +22,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { hasPendingLocalData } from '@/src/services/syncService';
 import LockScreen from '@/app/lock';
 import { shouldLock, recordBackground, clearBackgroundTime } from '@/src/services/lockService';
+import { radius } from '@/constants/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -187,7 +188,7 @@ export default function RootLayout() {
 const loadingStyles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   iconWrap: {
-    width: 76, height: 76, borderRadius: 24,
+    width: 76, height: 76, borderRadius: radius.lg,
     backgroundColor: Colors.light.primary,
     justifyContent: 'center', alignItems: 'center',
     shadowColor: Colors.light.primary, shadowOffset: { width: 0, height: 10 },

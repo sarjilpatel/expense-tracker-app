@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/src/context/ThemeContext';
 import { getContrastText } from '@/constants/theme';
+import { type, radius, space } from '@/constants/tokens';
 
 type Frequency = 'daily' | 'weekly' | 'monthly';
 
@@ -77,25 +78,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  label: { ...type.label },
   hint: {
-    fontSize: 12,
+    ...type.label,
     marginTop: 2,
   },
   track: {
     width: 44,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radius.md,
     justifyContent: 'center',
   },
   knob: {
     width: 22,
     height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FFF',
+    borderRadius: radius.full,
+    // eslint-disable-next-line local/design-tokens -- a shadow is black by definition; this one floats over content
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -103,19 +101,16 @@ const styles = StyleSheet.create({
   },
   freqRow: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: 4,
     borderWidth: 1,
     gap: 4,
   },
   freqBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: space.md,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
-  freqText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  freqText: { ...type.label },
 });

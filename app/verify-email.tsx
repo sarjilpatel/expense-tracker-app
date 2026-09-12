@@ -6,7 +6,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { OtpInput, ResendButton } from '@/components/auth/otp-fields';
 import { AuthHero } from '@/components/auth/AuthHero';
 import { verifySignup, resendOtp } from '@/src/services/authApi';
-import { space, type } from '@/constants/tokens';
+import { space, type, weight } from '@/constants/tokens';
 import { Screen, Button, Touchable } from '@/components/ui';
 
 /**
@@ -69,7 +69,7 @@ export default function VerifyEmailScreen() {
     <Screen keyboard>
       <AuthHero icon="mail-unread-outline" title="Check your email" />
       <Text style={[type.body, S.sub, { color: theme.secondaryText }]}>
-        We sent a 6-digit code to <Text style={{ color: theme.text, fontWeight: '600' }}>{email}</Text>. It expires in 10 minutes.
+        We sent a 6-digit code to <Text style={{ color: theme.text, fontWeight: weight.semibold }}>{email}</Text>. It expires in 10 minutes.
       </Text>
 
       <OtpInput value={code} onChange={c => { setCode(c); setError(''); }} onSubmitEditing={handleVerify} invalid={!!error} />
@@ -81,7 +81,7 @@ export default function VerifyEmailScreen() {
 
       <Touchable onPress={() => router.replace('/login')} haptic="none" style={S.footer} accessibilityLabel="Already have an account? Log in">
         <Text style={[type.body, { color: theme.secondaryText }]}>
-          Already have an account? <Text style={{ color: theme.tint, fontWeight: '600' }}>Log in</Text>
+          Already have an account? <Text style={{ color: theme.tint, fontWeight: weight.semibold }}>Log in</Text>
         </Text>
       </Touchable>
     </Screen>

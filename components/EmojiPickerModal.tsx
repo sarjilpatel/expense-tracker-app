@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { space, radius, icon as iconSize } from '@/constants/tokens';
+import { space, radius, icon as iconSize, type } from '@/constants/tokens';
 import { Sheet, Touchable, Field, EmptyState, type SheetHandle } from '@/components/ui';
 
 const CATEGORIES: { id: string; icon: string; label: string; emojis: string[] }[] = [
@@ -207,8 +207,8 @@ const S = StyleSheet.create({
   tabRow:        { borderBottomWidth: StyleSheet.hairlineWidth, flexGrow: 0, flexShrink: 0, marginTop: space.md },
   tabRowContent: { paddingHorizontal: space.xs },
   tab:           { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent', borderRadius: radius.sm },
-  tabIcon:       { fontSize: 22 },
+  tabIcon:       { ...type.title },
   grid:          { flexDirection: 'row', flexWrap: 'wrap', paddingTop: space.sm },
   cell:          { alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
-  emoji:         { fontSize: 26 },
+  emoji:         { ...type.title },
 });

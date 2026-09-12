@@ -87,6 +87,6 @@ export default function AddBudgetScreen() {
 const S = StyleSheet.create({
   label:       { marginTop: space.md, marginBottom: space.xs, marginLeft: space.xs },
   pickerField: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: space.md },
-  emoji:       { fontSize: 18 },
+  emoji:       { ...type.heading },
   chips:       { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
 });

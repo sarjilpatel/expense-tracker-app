@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { TextInput, Text, StyleSheet, StyleProp, TextStyle } from 'react-native';
 import { Touchable } from '@/components/ui';
 import { useTheme } from '@/src/context/ThemeContext';
+import { radius, type } from '@/constants/tokens';
 
 /** Seconds the resend button stays disabled. The server enforces the same window (W1-32) — this
  *  only saves the user a round-trip to be told so. */
@@ -26,7 +27,7 @@ export function OtpInput({ value, onChange, onSubmitEditing, invalid, style }: O
     <TextInput
       style={[
         styles.otp,
-        { color: theme.text, borderColor: invalid ? '#F55345' : theme.border, backgroundColor: theme.card },
+        { color: theme.text, borderColor: invalid ? theme.expense : theme.border, backgroundColor: theme.card },
         style,
       ]}
       value={value}
@@ -78,13 +79,11 @@ export function ResendButton({ onPress, restartKey = 0, disabled }: ResendButton
 const styles = StyleSheet.create({
   otp: {
     height: 64,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    fontSize: 28,
-    fontWeight: '700',
-    letterSpacing: 12,
+    ...type.title,
     textAlign: 'center',
   },
   resend:     { alignItems: 'center', marginTop: 20, paddingVertical: 8 },
-  resendText: { fontSize: 15, fontWeight: '600' },
+  resendText: { ...type.bodyStrong },
 });

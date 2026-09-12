@@ -148,6 +148,6 @@ const S = StyleSheet.create({
   label:     { marginTop: space.lg, marginBottom: space.sm },
   grid:      { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   cell:      { width: '31%', flexGrow: 1, aspectRatio: 1.1, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', alignItems: 'center', gap: space.xs, padding: space.sm, overflow: 'hidden' },
-  emoji:     { fontSize: 24 },
+  emoji:     { ...type.title },
   cellLabel: { textAlign: 'center' },
 });

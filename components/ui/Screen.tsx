@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
-import { space, type, icon as iconSize } from '@/constants/tokens';
+import { space, type, icon as iconSize, radius } from '@/constants/tokens';
 import { Touchable } from './Touchable';
 
 /**
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   headerSide:  { width: 44, alignItems: 'flex-start' },
   headerRight: { alignItems: 'flex-end' },
-  headerBtn:   { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  headerBtn:   { width: 36, height: 36, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { flex: 1, textAlign: 'center' },
   footer:      { paddingHorizontal: space.lg, paddingTop: space.md, borderTopWidth: StyleSheet.hairlineWidth },
 });

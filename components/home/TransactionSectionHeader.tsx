@@ -4,6 +4,7 @@ import { Touchable } from '@/components/ui';
 import { router } from 'expo-router';
 import { Currency } from '@/constants/theme';
 import { DAY_NAMES } from '@/constants/maps';
+import { radius, space, type } from '@/constants/tokens';
 
 interface Section {
   dateObj: Date;
@@ -33,8 +34,8 @@ export function TransactionSectionHeader({ section, theme }: Props) {
         {
           backgroundColor: theme.cardAlt,
           borderColor: theme.border,
-          borderTopLeftRadius: 10,
-          borderTopRightRadius: 10,
+          borderTopLeftRadius: radius.md,
+          borderTopRightRadius: radius.md,
           borderWidth: StyleSheet.hairlineWidth,
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: theme.separator,
@@ -72,20 +73,20 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     alignItems:        'center',
     justifyContent:    'space-between',
-    paddingHorizontal: 10,
-    paddingVertical:   5,
+    paddingHorizontal: space.md,
+    paddingVertical:   space.xs,
   },
-  left: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  dayNum: { fontSize: 20, fontWeight: '700', lineHeight: 24, width: 28 },
+  left: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  dayNum: { ...type.heading, width: 28 },
   badge: {
-    paddingHorizontal: 5, paddingVertical: 1.5,
-    borderRadius: 6,
+    paddingHorizontal: space.xs, paddingVertical: 1.5,
+    borderRadius: radius.sm,
   },
-  badgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
-  dateLabel: { fontSize: 11, fontWeight: '400' },
-  right:  { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  badgeText: { ...type.label },
+  dateLabel: { ...type.label },
+  right:  { flexDirection: 'row', alignItems: 'center', gap: 20 },
   amt: {
-    fontSize: 13, fontWeight: '600',
-    letterSpacing: 0.2, minWidth: 66, textAlign: 'right',
+    ...type.label, 
+    minWidth: 66, textAlign: 'right',
   },
 });

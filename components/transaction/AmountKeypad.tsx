@@ -239,9 +239,9 @@ export function AmountKeypad({ visible, value, onClose, onDone, onChange, accent
 const styles = StyleSheet.create({
   content:       { paddingHorizontal: space.sm, paddingTop: 0 },
   display:       { paddingHorizontal: space.md, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 56, justifyContent: 'center' },
-  displayRow:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  displayRow:    { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   displayAmount: { ...type.display, ...tabular, flex: 1 },
-  cursor:        { width: 2, height: 32, borderRadius: 1, opacity: 0.9 },
+  cursor:        { width: 2, height: 32, borderRadius: radius.sm, opacity: 0.9 },
   keys:          { paddingTop: space.sm, gap: space.sm },
   row:           { flexDirection: 'row', gap: space.sm, height: KEY_HEIGHT },
   key:           { borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },

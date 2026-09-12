@@ -172,7 +172,7 @@ const S = StyleSheet.create({
   banner:     { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   list:       { gap: space.md, marginTop: space.lg },
   cardTop:    { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  emoji:      { fontSize: 22 },
+  emoji:      { ...type.title },
   trash:      { width: 28, height: 28, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
   track:      { height: 8, borderRadius: radius.full, overflow: 'hidden', marginTop: space.md },
   fill:       { height: '100%', borderRadius: radius.full },

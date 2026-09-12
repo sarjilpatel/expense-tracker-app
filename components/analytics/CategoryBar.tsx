@@ -12,6 +12,7 @@ import { Currency } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { CATEGORY_EMOJIS } from '@/constants/maps';
+import { space, radius, type } from '@/constants/tokens';
 
 interface Props {
   category: string;
@@ -65,16 +66,16 @@ export function CategoryBar({ category, amount, percentage, color, rank, onPress
 }
 
 const styles = StyleSheet.create({
-  item: { gap: 6 },
+  item: { gap: space.sm },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   left: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  iconChip: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  emoji: { fontSize: 16, lineHeight: 20, textAlign: 'center' },
-  name: { fontSize: 14, fontWeight: '600', flex: 1 },
+  iconChip: { width: 28, height: 28, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' },
+  emoji: { ...type.body, textAlign: 'center' },
+  name: { ...type.label, flex: 1 },
   right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pct: { fontSize: 12, fontWeight: '800' },
-  amt: { fontSize: 13, fontWeight: '700', minWidth: 72, textAlign: 'right' },
-  chevron: { fontSize: 20, fontWeight: '300', lineHeight: 22 },
-  track: { height: 7, borderRadius: 4, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 4 },
+  pct: { ...type.label },
+  amt: { ...type.label, minWidth: 72, textAlign: 'right' },
+  chevron: { ...type.heading },
+  track: { height: 7, borderRadius: radius.sm, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: radius.sm },
 });

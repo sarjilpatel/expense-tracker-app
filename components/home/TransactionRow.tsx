@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Currency } from '@/constants/theme';
 import { CURRENCY_META } from '@/src/services/preferencesService';
 import { CATEGORY_EMOJIS } from '@/constants/maps';
+import { radius, space, type } from '@/constants/tokens';
 
 interface Props {
   item: any;
@@ -52,8 +53,8 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
             borderTopWidth: isFirst ? StyleSheet.hairlineWidth : 0,
             borderBottomColor: isLast ? theme.border : theme.separator,
             marginHorizontal: marginHorizontal,
-            borderTopLeftRadius: 0,
-            borderTopRightRadius: 0,
+            borderTopLeftRadius: radius.sm,
+            borderTopRightRadius: radius.sm,
             borderBottomLeftRadius: isLast ? 10 : 0,
             borderBottomRightRadius: isLast ? 10 : 0,
             marginTop: 0,
@@ -101,33 +102,28 @@ const styles = StyleSheet.create({
   row: {
     flexDirection:     'row',
     alignItems:        'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: space.md,
     minHeight:         54,
   },
   iconChip: {
     width: 38,
     height: 38,
-    borderRadius: 11,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: space.md,
   },
   emoji: {
-    fontSize: 15,
-    lineHeight: 28,
+    ...type.body,
     textAlign: 'center',
   },
   middle: {
     flex: 1,
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  title: { ...type.label },
   catText: {
-    fontSize: 11,
-    fontWeight: '500',
+    ...type.label,
     marginTop: 2,
   },
   right: {
@@ -135,17 +131,11 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     justifyContent: 'center',
   },
-  amount: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  amount: { ...type.label },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
   },
-  timeLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
+  timeLabel: { ...type.label },
 });

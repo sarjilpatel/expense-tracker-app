@@ -5,6 +5,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Currency } from '@/constants/theme';
 import { MONTHS, CAL_DAY_LABELS } from '@/constants/maps';
+import { radius, type, space } from '@/constants/tokens';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -73,14 +74,14 @@ export function AnalyticsCalendar({ month, year, dailyBreakdown, theme }: Props)
               style={[
                 styles.cell,
                 { width: cellSize, height: cellSize + 10 },
-                isSelected && { backgroundColor: theme.card, borderRadius: 12 },
+                isSelected && { backgroundColor: theme.card, borderRadius: radius.md },
               ]}
             >
               {isValid && (
                 <>
                   <View style={[
                     styles.dayNumWrap,
-                    isToday && { backgroundColor: theme.tint, borderRadius: 14 },
+                    isToday && { backgroundColor: theme.tint, borderRadius: radius.lg },
                   ]}>
                     <Text style={[styles.dayNum, { color: isToday ? theme.tintText : theme.text }]}>
                       {dayNum}
@@ -133,7 +134,7 @@ export function AnalyticsCalendar({ month, year, dailyBreakdown, theme }: Props)
               </View>
             )}
             {!selectedData && (
-              <Text style={{ fontSize: 13, color: theme.text }}>No transactions this day</Text>
+              <Text style={{ ...type.label, color: theme.text }}>No transactions this day</Text>
             )}
           </View>
         </Animated.View>
@@ -144,20 +145,20 @@ export function AnalyticsCalendar({ month, year, dailyBreakdown, theme }: Props)
 
 const styles = StyleSheet.create({
   labelRow:   { flexDirection: 'row', marginBottom: 4 },
-  labelCell:  { alignItems: 'center', paddingBottom: 6 },
-  dayLabel:   { fontSize: 11, fontWeight: '700' },
+  labelCell:  { alignItems: 'center', paddingBottom: space.sm },
+  dayLabel:   { ...type.label },
   grid:       { flexDirection: 'row', flexWrap: 'wrap' },
   cell:       { alignItems: 'center', paddingVertical: 4 },
   dayNumWrap: { width: 26, height: 26, justifyContent: 'center', alignItems: 'center' },
-  dayNum:     { fontSize: 13, fontWeight: '600' },
+  dayNum:     { ...type.label },
   dots:       { flexDirection: 'row', gap: 2, marginTop: 2, height: 5 },
-  dot:        { width: 5, height: 5, borderRadius: 3 },
-  legend:     { flexDirection: 'row', gap: 16, marginTop: 14, paddingTop: 12, borderTopWidth: 1 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendText: { fontSize: 11, fontWeight: '600' },
-  detail:     { marginTop: 12, borderRadius: 16, padding: 14 },
-  detailTitle:{ fontSize: 14, fontWeight: '800', marginBottom: 8 },
+  dot:        { width: 5, height: 5, borderRadius: radius.full },
+  legend:     { flexDirection: 'row', gap: 16, marginTop: space.lg, paddingTop: 12, borderTopWidth: 1 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  legendText: { ...type.label },
+  detail:     { marginTop: 12, borderRadius: radius.lg, padding: space.lg },
+  detailTitle:{ ...type.label, marginBottom: 8 },
   detailRow:  { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },
-  detailItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  detailAmt:  { fontSize: 14, fontWeight: '800' },
+  detailItem: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  detailAmt:  { ...type.label },
 });

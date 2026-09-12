@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/src/context/ThemeContext';
+import { space, radius } from '@/constants/tokens';
 
 export interface SkeletonBarProps {
   width?: number | string;
@@ -20,9 +21,9 @@ export interface SkeletonBarProps {
 }
 
 export function SkeletonBar({ width = '100%', height = 16, borderRadius = 8, style, shimmerX }: SkeletonBarProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const baseColor    = theme.cardAlt;
-  const shimmerColor = theme.card === '#FFFFFF' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.07)';
+  const shimmerColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.95)';
 
   const shimmerStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: shimmerX.value }],
@@ -71,26 +72,26 @@ export function SkeletonLoader({ rows = 4, type = 'list' }: SkeletonLoaderProps)
   if (type === 'card') {
     return (
       <View style={[styles.card, { backgroundColor: theme.card }]}>
-        <SkeletonBar shimmerX={shimmerX} height={12} width="42%" borderRadius={6} style={{ marginBottom: 10 }} />
+        <SkeletonBar shimmerX={shimmerX} height={12} width="42%" borderRadius={6} style={{ marginBottom: space.md }} />
         <SkeletonBar shimmerX={shimmerX} height={34} width="68%" borderRadius={10} style={{ marginBottom: 24 }} />
         <View style={styles.row}>
           <View style={styles.halfRow}>
-            <SkeletonBar shimmerX={shimmerX} width={32} height={32} borderRadius={16} style={{ marginRight: 10 }} />
-            <View style={{ flex: 1, gap: 6 }}>
+            <SkeletonBar shimmerX={shimmerX} width={32} height={32} borderRadius={16} style={{ marginRight: space.md }} />
+            <View style={{ flex: 1, gap: space.sm }}>
               <SkeletonBar shimmerX={shimmerX} height={10} width="55%" borderRadius={5} />
               <SkeletonBar shimmerX={shimmerX} height={13} width="75%" borderRadius={6} />
             </View>
           </View>
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
           <View style={styles.halfRow}>
-            <SkeletonBar shimmerX={shimmerX} width={32} height={32} borderRadius={16} style={{ marginRight: 10 }} />
-            <View style={{ flex: 1, gap: 6 }}>
+            <SkeletonBar shimmerX={shimmerX} width={32} height={32} borderRadius={16} style={{ marginRight: space.md }} />
+            <View style={{ flex: 1, gap: space.sm }}>
               <SkeletonBar shimmerX={shimmerX} height={10} width="55%" borderRadius={5} />
               <SkeletonBar shimmerX={shimmerX} height={13} width="75%" borderRadius={6} />
             </View>
           </View>
         </View>
-        <SkeletonBar shimmerX={shimmerX} height={6} borderRadius={3} style={{ marginTop: 22 }} />
+        <SkeletonBar shimmerX={shimmerX} height={6} borderRadius={3} style={{ marginTop: space.xl }} />
       </View>
     );
   }
@@ -100,7 +101,7 @@ export function SkeletonLoader({ rows = 4, type = 'list' }: SkeletonLoaderProps)
       <View style={styles.chartContainer}>
         <SkeletonBar shimmerX={shimmerX} height={200} borderRadius={16} style={{ marginBottom: 24 }} />
         {Array.from({ length: 3 }).map((_, i) => (
-          <View key={i} style={[styles.row, { marginBottom: 14 }]}>
+          <View key={i} style={[styles.row, { marginBottom: space.lg }]}>
             <SkeletonBar shimmerX={shimmerX} height={14} width={14} borderRadius={7} style={{ marginRight: 12 }} />
             <SkeletonBar shimmerX={shimmerX} height={14} width="50%" borderRadius={7} />
             <View style={{ flex: 1 }} />
@@ -115,7 +116,7 @@ export function SkeletonLoader({ rows = 4, type = 'list' }: SkeletonLoaderProps)
     <View style={styles.list}>
       {Array.from({ length: rows }).map((_, i) => (
         <View key={i} style={styles.listItem}>
-          <SkeletonBar shimmerX={shimmerX} width={50} height={50} borderRadius={18} style={{ marginRight: 14 }} />
+          <SkeletonBar shimmerX={shimmerX} width={50} height={50} borderRadius={18} style={{ marginRight: space.lg }} />
           <View style={{ flex: 1, gap: 8 }}>
             <SkeletonBar shimmerX={shimmerX} height={14} width="52%" borderRadius={7} />
             <SkeletonBar shimmerX={shimmerX} height={11} width="33%" borderRadius={6} />
@@ -130,7 +131,7 @@ export function SkeletonLoader({ rows = 4, type = 'list' }: SkeletonLoaderProps)
 const styles = StyleSheet.create({
   list: {
     paddingHorizontal: 20,
-    gap: 14,
+    gap: space.lg,
     marginTop: 8,
   },
   listItem: {
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 20,
     padding: 24,
-    borderRadius: 28,
+    borderRadius: radius.lg,
     marginBottom: 20,
     minHeight: 158,
   },

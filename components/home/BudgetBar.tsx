@@ -4,6 +4,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { Currency } from '@/constants/theme';
+import { radius, space, type } from '@/constants/tokens';
 
 interface Props {
   budget: any;
@@ -65,42 +66,38 @@ export function BudgetBar({ budget, spent, progress, cardColor, borderColor, sec
 const styles = StyleSheet.create({
   bar: {
     marginHorizontal: 12,
-    borderRadius: 12,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
     marginBottom: 12,
   },
   meta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: space.sm,
   },
-  label: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
+  label: { ...type.label },
   track: {
     height: 4,
-    borderRadius: 2,
+    borderRadius: radius.sm,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: radius.sm,
   },
   alert: {
     marginHorizontal: 12,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-    borderRadius: 12,
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.md,
   },
   alertText: {
-    fontSize: 11,
-    fontWeight: '700',
+    ...type.label,
     flex: 1,
   },
 });

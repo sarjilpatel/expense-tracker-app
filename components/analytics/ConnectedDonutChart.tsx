@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { type, space, radius } from '@/constants/tokens';
 
 type DonutSlice = {
   value: number;
@@ -243,23 +244,17 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
   },
-  centerTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
+  centerTitle: { ...type.overline },
   centerValue: {
-    fontSize: 20,
-    fontWeight: '900',
-    marginTop: 3,
-    letterSpacing: -0.5,
+    ...type.heading,
+    marginTop: space.xs,
   },
   chipShadow: {
     position: 'absolute',
     width: LABEL_W,
     height: LABEL_H,
-    borderRadius: 12,
+    borderRadius: radius.md,
+    // eslint-disable-next-line local/design-tokens -- a shadow is black by definition; this one floats over content
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
@@ -270,29 +265,20 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 8,
-    gap: 5,
+    gap: space.xs,
     overflow: 'hidden',
   },
   emoji: {
-    fontSize: 14,
+    ...type.label,
     flexShrink: 0,
   },
   chipText: {
     flex: 1,
     overflow: 'hidden',
   },
-  cat: {
-    fontSize: 9.5,
-    fontWeight: '600',
-    lineHeight: 13,
-  },
-  pct: {
-    fontSize: 11,
-    fontWeight: '800',
-    lineHeight: 14,
-    letterSpacing: -0.2,
-  },
+  cat: { ...type.label },
+  pct: { ...type.label },
 });

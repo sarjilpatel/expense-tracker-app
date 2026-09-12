@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Touchable } from '@/components/ui';
 import { useTheme } from '@/src/context/ThemeContext';
+import { radius, space, type } from '@/constants/tokens';
 
 export type HomeViewMode = 'daily' | 'weekly' | 'calendar' | 'monthly' | 'total' | 'note';
 
@@ -52,23 +53,20 @@ export function ViewModeTabs({ active, onPress, tintColor, secondaryText }: Prop
 const styles = StyleSheet.create({
   track: {
     marginHorizontal: 0,
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: 2,
-    marginBottom: 6,
+    marginBottom: space.sm,
   },
   scrollContent: {
     flexDirection: 'row',
     gap: 2,
   },
   pill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 9,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
+    borderRadius: radius.sm,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  label: { ...type.label },
 });

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTheme } from '@/src/context/ThemeContext';
+import { type } from '@/constants/tokens';
 
 export function OfflineBanner() {
   const [offline, setOffline] = useState(false);
@@ -13,12 +15,13 @@ export function OfflineBanner() {
     return unsub;
   }, []);
 
+  const { theme } = useTheme();
   if (!offline) return null;
 
   return (
-    <View style={styles.banner}>
-      <Ionicons name="cloud-offline-outline" size={16} color="#FFF" />
-      <Text style={styles.text}>You&apos;re offline — changes will sync when reconnected</Text>
+    <View style={[styles.banner, { backgroundColor: theme.tint }]}>
+      <Ionicons name="cloud-offline-outline" size={16} color={theme.tintText} />
+      <Text style={[styles.text, { color: theme.tintText }]}>You&apos;re offline — changes will sync when reconnected</Text>
     </View>
   );
 }
@@ -28,9 +31,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#636366',
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  text: { flex: 1, color: '#FFF', fontSize: 13, fontWeight: '600' },
+  text: { flex: 1, ...type.label },
 });

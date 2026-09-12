@@ -45,7 +45,7 @@ function RowPlaceholder() {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56 }}>
       <SkeletonBar shimmerX={shimmer} width={38} height={38} borderRadius={radius.md} />
-      <View style={{ flex: 1, gap: 6 }}>
+      <View style={{ flex: 1, gap: space.sm }}>
         <SkeletonBar shimmerX={shimmer} height={14} width="60%" borderRadius={7} />
         <SkeletonBar shimmerX={shimmer} height={11} width="35%" borderRadius={6} />
       </View>

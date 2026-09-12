@@ -34,7 +34,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedView } from '@/components/themed-view';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
-import { space, type as text, icon as iconSize } from '@/constants/tokens';
+import { space, type as text, icon as iconSize, radius } from '@/constants/tokens';
 import { Card, Row, Touchable, Button, Sheet, Amount, type SheetHandle } from '@/components/ui';
 
 import { ViewModeTabs, HomeViewMode } from '@/components/home/ViewModeTabs';
@@ -729,8 +729,8 @@ const styles = StyleSheet.create({
   header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 36, marginBottom: 8 },
   monthSelector: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerIcons:   { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  headerIconBtn: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  notifDot:      { position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF3B30', borderWidth: 1.5 },
+  headerIconBtn: { width: 32, height: 32, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' },
+  notifDot:      { position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderRadius: radius.full, borderWidth: 1.5 },
 
   topBlock: {
     marginHorizontal: 8,
@@ -746,7 +746,7 @@ const styles = StyleSheet.create({
 
   budgetCard: {
     marginHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     marginBottom: 20,
@@ -756,46 +756,39 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  budgetLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  budgetPercent: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  budgetLabel: { ...text.label },
+  budgetPercent: { ...text.label },
   budgetTrack: {
     height: 6,
-    borderRadius: 3,
+    borderRadius: radius.sm,
     overflow: 'hidden',
   },
   budgetFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: radius.sm,
   },
 
-  undoToast:    { position: 'absolute', bottom: 100, left: 12, right: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
-  undoText:     { fontSize: 14, fontWeight: '500' },
+  // eslint-disable-next-line local/design-tokens -- a shadow is black by definition; this one floats over content
+  undoToast:    { position: 'absolute', bottom: 100, left: 12, right: 12, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: space.lg, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  undoText:     { ...text.label },
   undoBtn:      { paddingLeft: 16 },
-  undoBtnText:  { fontSize: 14, fontWeight: '800' },
-  guestBanner:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#18181B', paddingHorizontal: 20, paddingVertical: 10, marginHorizontal: 12, marginBottom: 8, borderRadius: 12 },
-  guestBannerText: { flex: 1, color: '#FFF', fontSize: 13, fontWeight: '600' },
-  swipeHint:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: 6, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  swipeHintText: { fontSize: 13 },
+  undoBtnText:  { ...text.label },
+  swipeHint:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: space.sm, borderRadius: radius.md, paddingHorizontal: space.lg, paddingVertical: 8 },
+  swipeHintText: { ...text.label },
 
   listContent:   { paddingBottom: 108, paddingTop: 4 },
   scrollContent: { paddingHorizontal: 8, paddingBottom: 108, paddingTop: 4 },
   empty:         { marginTop: 28, alignItems: 'center', paddingHorizontal: 16 },
-  emptyText:     { fontSize: 17, fontWeight: '700' },
-  emptySubText:  { fontSize: 14, marginTop: 6, textAlign: 'center' },
-  noteCard:      { flexDirection: 'row', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginBottom: 10 },
+  emptyText:     { ...text.heading },
+  emptySubText:  { ...text.label, marginTop: space.sm, textAlign: 'center' },
+  noteCard:      { flexDirection: 'row', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginBottom: space.md },
   noteColorBar:  { width: 4 },
-  noteBody:      { flex: 1, padding: 14, gap: 4 },
+  noteBody:      { flex: 1, padding: space.lg, gap: 4 },
   noteTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  noteCat:       { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  noteAmt:       { fontSize: 13, fontWeight: '800' },
-  noteText:      { fontSize: 14, fontWeight: '500', lineHeight: 20 },
-  noteDate:      { fontSize: 11, marginTop: 2 },
+  noteCat:       { ...text.overline },
+  noteAmt:       { ...text.label },
+  noteText:      { ...text.label },
+  noteDate:      { ...text.label, marginTop: 2 },
 
   emptyIllustrationWrap: {
     width: 140,
@@ -809,12 +802,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: radius.full,
   },
   emptyWalletBody: {
     width: 100,
     height: 64,
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 2,
     justifyContent: 'center',
     position: 'relative',
@@ -825,8 +818,8 @@ const styles = StyleSheet.create({
     top: 16,
     width: 44,
     height: 28,
-    borderTopLeftRadius: 6,
-    borderBottomLeftRadius: 6,
+    borderTopLeftRadius: radius.sm,
+    borderBottomLeftRadius: radius.sm,
   },
   emptyWalletSnap: {
     position: 'absolute',
@@ -834,7 +827,7 @@ const styles = StyleSheet.create({
     top: 26,
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: radius.full,
   },
 });
 

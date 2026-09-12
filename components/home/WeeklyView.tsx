@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { usePreferences } from '@/src/context/PreferencesContext';
+import { type, radius, space } from '@/constants/tokens';
 
 interface Props {
   transactions: any[];
@@ -24,7 +25,7 @@ export function WeeklyView({ transactions, month, year, theme }: Props) {
       return date.getFullYear() === year && date.getMonth() + 1 === month;
     });
 
-    const weeks: Array<{ start: Date; end: Date; income: number; expense: number; balance: number }> = [];
+    const weeks: { start: Date; end: Date; income: number; expense: number; balance: number }[] = [];
     const lastDay = new Date(year, month, 0).getDate();
     for (let day = 1; day <= lastDay; day += 7) {
       const start = new Date(year, month - 1, day);
@@ -117,36 +118,36 @@ export function WeeklyView({ transactions, month, year, theme }: Props) {
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 8, paddingTop: 4, paddingBottom: 12, gap: 12 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
-  title: { fontSize: 18, fontWeight: '800' },
-  subtitle: { fontSize: 12, marginTop: 4 },
+  title: { ...type.heading },
+  subtitle: { ...type.label, marginTop: 4 },
   totalPill: {
-    borderRadius: 14,
+    borderRadius: radius.lg,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'flex-end',
     minWidth: 104,
   },
-  totalLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  totalValue: { fontSize: 15, fontWeight: '800', marginTop: 2 },
+  totalLabel: { ...type.overline },
+  totalValue: { ...type.bodyStrong, marginTop: 2 },
   summaryRow: { flexDirection: 'row', gap: 8 },
   summaryCard: {
     flex: 1,
-    borderRadius: 14,
-    paddingVertical: 9,
+    borderRadius: radius.lg,
+    paddingVertical: space.sm,
     paddingHorizontal: 12,
   },
-  summaryLabel: { fontSize: 11, fontWeight: '600' },
-  summaryValue: { fontSize: 15, fontWeight: '800', marginTop: 2 },
-  list: { gap: 10 },
+  summaryLabel: { ...type.label },
+  summaryValue: { ...type.bodyStrong, marginTop: 2 },
+  list: { gap: space.md },
   weekCard: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 13,
+    padding: space.md,
   },
-  weekTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
-  weekLabel: { fontSize: 14, fontWeight: '800' },
-  weekRange: { fontSize: 11, fontWeight: '600' },
+  weekTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.md },
+  weekLabel: { ...type.label },
+  weekRange: { ...type.label },
   weekAmounts: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -154,7 +155,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   divider: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: 'rgba(127,127,127,0.2)' },
-  weekAmtLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  weekAmt: { fontSize: 14, fontWeight: '800', marginTop: 4 },
-  emptyText: { fontSize: 12, marginTop: 10 },
+  weekAmtLabel: { ...type.overline },
+  weekAmt: { ...type.label, marginTop: 4 },
+  emptyText: { ...type.label, marginTop: space.md },
 });

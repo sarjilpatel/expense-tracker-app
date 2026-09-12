@@ -470,7 +470,7 @@ const S = StyleSheet.create({
   chips:       { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
   hero:        { marginTop: space.md },
   heroRow:     { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
-  cursor:      { width: 2, height: 36, borderRadius: 1 },
+  cursor:      { width: 2, height: 36, borderRadius: radius.sm },
   dateRow:     { flexDirection: 'row', gap: space.xs },
   dateBtn:     { paddingHorizontal: space.md, paddingVertical: space.xs, borderRadius: radius.sm },
   inlineInput: { minWidth: 140, textAlign: 'right', paddingVertical: 0 },

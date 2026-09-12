@@ -6,6 +6,7 @@ import { Touchable } from '@/components/ui';
 import { HapticTab } from '@/components/haptic-tab';
 import { useTheme } from '@/src/context/ThemeContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { space, type, radius } from '@/constants/tokens';
 
 const TabBarBackground = ({ theme }: { theme: any }) => {
   return (
@@ -61,17 +62,12 @@ export default function TabLayout() {
             elevation: 0,
             height: Platform.OS === 'ios' ? 82 : 70,
             paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-            paddingTop: 6,
+            paddingTop: space.sm,
           },
           tabBarBackground: () => <TabBarBackground theme={theme} />,
-          tabBarLabelStyle: {
-            fontSize:      11,
-            fontWeight:    '600',
-            letterSpacing: 0.2,
-          },
+          tabBarLabelStyle: { ...type.label },
           tabBarItemStyle: { paddingTop: 2 },
         }}>
- 
         <Tabs.Screen
           name="index"
           options={{
@@ -131,9 +127,10 @@ const styles = StyleSheet.create({
     marginLeft: -28,
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: radius.full,
     justifyContent: 'center',
     alignItems: 'center',
+    // eslint-disable-next-line local/design-tokens -- a shadow is black by definition; this one floats over content
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,

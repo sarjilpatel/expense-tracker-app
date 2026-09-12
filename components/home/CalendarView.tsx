@@ -4,6 +4,7 @@ import { Touchable } from '@/components/ui';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Currency } from '@/constants/theme';
 import { MONTHS, DAY_NAMES, CATEGORY_EMOJIS } from '@/constants/maps';
+import { type, space, radius } from '@/constants/tokens';
 
 interface DayData { income: number; expense: number; items: any[] }
 
@@ -221,7 +222,7 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
                 <View style={[styles.txIcon, {
                   backgroundColor: theme.tint,
                 }]}>
-                  <Text style={{ fontSize: 16 }}>
+                  <Text style={{ ...type.body }}>
                     {CATEGORY_EMOJIS[tx.category] || '🏷️'}
                   </Text>
                 </View>
@@ -267,12 +268,9 @@ const styles = StyleSheet.create({
   headerCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 9,
+    paddingVertical: space.sm,
   },
-  headerLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
+  headerLabel: { ...type.label },
 
   // Week rows
   weekRow: {
@@ -282,25 +280,20 @@ const styles = StyleSheet.create({
   cell: {
     flex: 1,         // ← fills 1/7 of available width, no overflow
     height: 84,
-    padding: 5,
+    padding: space.xs,
     justifyContent: 'space-between',
   },
-  dateNum: {
-    fontSize: 11,
-  },
+  dateNum: { ...type.label },
   amtBlock: {
     alignItems: 'flex-end',
     gap: 1,
   },
-  amt: {
-    fontSize: 8.5,
-    fontWeight: '600',
-  },
+  amt: { ...type.label },
 
   // Detail panel
   panel: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
+    paddingHorizontal: space.lg,
     paddingTop: 12,
     paddingBottom: 8,
   },
@@ -308,50 +301,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: space.md,
   },
-  panelDate: {
-    fontSize: 14,
-    fontWeight: '800',
-  },
+  panelDate: { ...type.label },
   panelTotals: {
     flexDirection: 'row',
     gap: 12,
   },
-  panelTotal: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  panelTotal: { ...type.label },
   txRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    gap: 10,
+    paddingVertical: space.md,
+    gap: space.md,
   },
   txIcon: {
     width: 36,
     height: 36,
-    borderRadius: 11,
+    borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   txInfo: {
     flex: 1,
   },
-  txTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  txTitle: { ...type.label },
   txSub: {
-    fontSize: 11,
+    ...type.label,
     marginTop: 1,
   },
-  txAmt: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  txAmt: { ...type.label },
   noTx: {
-    fontSize: 12,
+    ...type.label,
     paddingVertical: 8,
     textAlign: 'center',
   },

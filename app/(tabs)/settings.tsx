@@ -10,6 +10,7 @@ import { getCurrentGroup } from '@/src/services/dataService';
 import { getMyGroups } from '@/src/services/groupApi';
 import { getLastSyncTime } from '@/src/services/syncService';
 import { GroupSection } from '@/components/settings/GroupSection';
+import { TILE_COLORS } from '@/constants/palettes';
 import { hexToRGBA } from '@/constants/theme';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
 import {
@@ -22,12 +23,12 @@ import {
  * accent — W2-29 keeps the accent for actions, and six accent tiles would be six primary buttons.
  */
 const GRID_TILES = [
-  { key: 'customize',  label: 'Customize',  sub: 'Theme, colors, language',  icon: 'color-palette-outline',      route: '/settings/customization', color: '#6366F1' },
-  { key: 'accounts',   label: 'Accounts',   sub: 'Cash, bank, cards',        icon: 'wallet-outline',             route: '/accounts',               color: '#10B981' },
-  { key: 'categories', label: 'Categories', sub: 'Income & expense types',   icon: 'grid-outline',               route: '/manage-categories',      color: '#F59E0B' },
-  { key: 'security',   label: 'Security',   sub: 'PIN lock, biometric',      icon: 'shield-checkmark-outline',   route: '/settings/security',      color: '#3B82F6' },
-  { key: 'data',       label: 'Data',       sub: 'Backup, export, import',   icon: 'server-outline',             route: '/settings/data',          color: '#0F766E' },
-  { key: 'help',       label: 'Help',       sub: 'Privacy, info, support',   icon: 'help-circle-outline',        route: '/settings/help',          color: '#71717A' },
+  { key: 'customize',  label: 'Customize',  sub: 'Theme, colors, language',  icon: 'color-palette-outline',      route: '/settings/customization', color: TILE_COLORS.customize },
+  { key: 'accounts',   label: 'Accounts',   sub: 'Cash, bank, cards',        icon: 'wallet-outline',             route: '/accounts',               color: TILE_COLORS.accounts },
+  { key: 'categories', label: 'Categories', sub: 'Income & expense types',   icon: 'grid-outline',               route: '/manage-categories',      color: TILE_COLORS.categories },
+  { key: 'security',   label: 'Security',   sub: 'PIN lock, biometric',      icon: 'shield-checkmark-outline',   route: '/settings/security',      color: TILE_COLORS.security },
+  { key: 'data',       label: 'Data',       sub: 'Backup, export, import',   icon: 'server-outline',             route: '/settings/data',          color: TILE_COLORS.data },
+  { key: 'help',       label: 'Help',       sub: 'Privacy, info, support',   icon: 'help-circle-outline',        route: '/settings/help',          color: TILE_COLORS.help },
 ] as const;
 
 export default function SettingsScreen() {

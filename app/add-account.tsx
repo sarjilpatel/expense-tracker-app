@@ -8,22 +8,9 @@ import { AccountType, ACCOUNT_TYPE_META } from '@/src/services/accountService';
 import { saveAccount, deleteAccount, getAccounts } from '@/src/services/dataService';
 import { getContrastText, Currency } from '@/constants/theme';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import { ACCOUNT_COLORS as COLORS } from '@/constants/palettes';
 import { Screen, Button, Field, Touchable, Chip } from '@/components/ui';
 
-const COLORS = [
-  '#18181B', // graphite
-  '#1E3A5F', // navy
-  '#134E4A', // teal
-  '#14532D', // forest
-  '#4C1D95', // plum
-  '#7C2D12', // rust
-  '#92400E', // amber
-  '#881337', // rose
-  '#374151', // slate
-  '#6B7280', // grey
-  '#0F4C75', // deep blue
-  '#3B4F6B', // denim
-];
 
 export default function AddAccountScreen() {
   const { theme } = useTheme();

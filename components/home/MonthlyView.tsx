@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Touchable } from '@/components/ui';
-import { Currency } from '@/constants/theme';
+import { Currency, hexToRGBA } from '@/constants/theme';
 import { MONTHS_SHORT } from '@/constants/maps';
+import { space, type } from '@/constants/tokens';
 
 interface Props {
   transactions: any[];
@@ -15,7 +16,7 @@ interface Props {
 const fmtDay = (d: Date) =>
   `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-function getWeeksForMonth(year: number, monthIdx: number): Array<{ start: Date; end: Date }> {
+function getWeeksForMonth(year: number, monthIdx: number): { start: Date; end: Date }[] {
   const firstDay = new Date(year, monthIdx, 1);
   const lastDay  = new Date(year, monthIdx + 1, 0);
 
@@ -23,7 +24,7 @@ function getWeeksForMonth(year: number, monthIdx: number): Array<{ start: Date; 
   const cur = new Date(firstDay);
   while (cur.getDay() !== 0) cur.setDate(cur.getDate() + 1);
 
-  const weeks: Array<{ start: Date; end: Date }> = [];
+  const weeks: { start: Date; end: Date }[] = [];
   // Only include weeks whose Sunday falls within this month
   while (cur <= lastDay) {
     const start = new Date(cur);
@@ -156,14 +157,14 @@ export function MonthlyView({ transactions, year, theme }: Props) {
                   key={rangeStr}
                   style={[
                     styles.weekRow,
-                    isCur && styles.curWeekBg,
+                    isCur && { backgroundColor: hexToRGBA(theme.expense, 0.12) },
                   ]}
                 >
                   {/* Left: date range */}
                   <View style={styles.colLeft}>
                     <Text style={[
                       styles.weekRange,
-                      { color: isCur ? '#eb5757' : theme.secondaryText },
+                      { color: isCur ? theme.expense : theme.secondaryText },
                     ]}>
                       {rangeStr}
                     </Text>
@@ -216,7 +217,7 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     alignItems:        'center',
     paddingHorizontal: 16,
-    paddingVertical:   14,
+    paddingVertical:   space.lg,
   },
   colLeft: {
     flex: 2.5,
@@ -225,28 +226,20 @@ const styles = StyleSheet.create({
     flex:        3,
     alignItems:  'flex-end',
   },
-  monthName: {
-    fontSize:   18,
-    fontWeight: '700',
-  },
+  monthName: { ...type.heading },
   monthSubtitle: {
-    fontSize:   11,
+    ...type.label,
     marginTop:  2,
   },
   incomeAmt: {
     flex:       3,
-    fontSize:   14,
-    fontWeight: '600',
+    ...type.label,
     textAlign:  'right',
     paddingRight: 16,
   },
-  expenseAmt: {
-    fontSize:   14,
-    fontWeight: '600',
-  },
+  expenseAmt: { ...type.label },
   balanceAmt: {
-    fontSize:   11,
-    fontWeight: '600',
+    ...type.label,
     marginTop:  2,
   },
 
@@ -255,30 +248,19 @@ const styles = StyleSheet.create({
     flexDirection:     'row',
     alignItems:        'center',
     paddingHorizontal: 16,
-    paddingVertical:   11,
+    paddingVertical:   space.md,
     paddingLeft:       20,
   },
-  curWeekBg: {
-    backgroundColor: '#2d1a1c',
-  },
-  weekRange: {
-    fontSize:   13,
-    fontWeight: '500',
-  },
+  weekRange: { ...type.label },
   wkIncomeAmt: {
     flex:       3,
-    fontSize:   13,
-    fontWeight: '600',
+    ...type.label,
     textAlign:  'right',
     paddingRight: 16,
   },
-  wkExpenseAmt: {
-    fontSize:   13,
-    fontWeight: '600',
-  },
+  wkExpenseAmt: { ...type.label },
   wkBalanceAmt: {
-    fontSize:   10,
-    fontWeight: '500',
+    ...type.label,
     marginTop:  2,
   },
 });

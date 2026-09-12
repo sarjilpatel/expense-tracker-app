@@ -6,23 +6,9 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/src/context/ThemeContext';
 import { THEME_PRESETS, ThemePreset, getContrastText } from '@/constants/theme';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import { ACCENT_COLORS, INCOME_COLORS, EXPENSE_COLORS } from '@/constants/palettes';
 import { Screen, Card, Row, Touchable, Button, Amount, SectionHeader, Chip } from '@/components/ui';
 
-const ACCENT_COLORS = [
-  { label: 'Graphite', value: '#18181B' }, // default — zinc-950
-  { label: 'Slate',    value: '#475569' }, // slate-600 — neutral with blue character
-  { label: 'Indigo',   value: '#4F46E5' }, // indigo-600 — classic indigo
-  { label: 'Ocean',    value: '#1D4ED8' }, // blue-700 — rich blue
-  { label: 'Teal',     value: '#0F766E' }, // teal-700 — deep teal
-  { label: 'Forest',   value: '#15803D' }, // green-700 — forest green
-  { label: 'Dusk',     value: '#6D28D9' }, // violet-700 — deep violet
-  { label: 'Rose',     value: '#BE185D' }, // pink-700 — deep rose
-  { label: 'Ember',    value: '#C2410C' }, // orange-700 — burnt orange
-  { label: 'Cloud',    value: '#E5E7EB' }, // light — reversed feel
-];
-
-const INCOME_COLORS  = [{ label: 'Blue', value: '#1999FC' }];
-const EXPENSE_COLORS = [{ label: 'Red',  value: '#F55345' }];
 
 const MODES = [
   { label: 'Light',  value: 'light',  icon: 'sunny-outline'    },

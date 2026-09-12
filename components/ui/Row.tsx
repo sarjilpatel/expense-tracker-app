@@ -84,7 +84,7 @@ export function Row({
 const styles = StyleSheet.create({
   row:   { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, minHeight: 56, paddingVertical: space.sm },
   lead:  { width: 38, height: 38, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' },
-  emoji: { fontSize: 20 },
+  emoji: { ...type.heading },
   mid:   { flex: 1, gap: 2 },
   right: { alignItems: 'flex-end', justifyContent: 'center' },
 });

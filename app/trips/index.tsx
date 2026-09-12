@@ -17,7 +17,7 @@ import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
 import { getTrips, createTrip, deleteTrip, Trip } from '@/src/services/dataService';
 import { toSettlementInput } from '@/src/services/tripService';
 import { computeSettlement } from '@/src/utils/settlement';
-import { space, type, icon as iconSize } from '@/constants/tokens';
+import { space, type, icon as iconSize, radius } from '@/constants/tokens';
 import {
   Screen, Card, Row, Touchable, Button, Sheet, Field, Amount, EmptyState, Chip, Skeleton,
   type SheetHandle,
@@ -182,7 +182,7 @@ export default function TripsListScreen() {
 }
 
 const S = StyleSheet.create({
-  headerAdd: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  headerAdd: { width: 36, height: 36, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
   tripRight: { alignItems: 'flex-end', gap: space.xs },
   hint:      { textAlign: 'center', marginTop: space.md },
   guestNote: { textAlign: 'center', marginTop: -space.xl, paddingHorizontal: space.xl },

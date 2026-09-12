@@ -6,7 +6,7 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { OtpInput, ResendButton } from '@/components/auth/otp-fields';
 import { AuthHero } from '@/components/auth/AuthHero';
 import { resetPassword, resendOtp } from '@/src/services/authApi';
-import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import { space, radius, type, icon as iconSize, weight } from '@/constants/tokens';
 import { Screen, Button, Field, Touchable, EmptyState } from '@/components/ui';
 
 function scorePassword(pw: string): { score: number; label: string } {
@@ -94,7 +94,7 @@ export default function ResetPasswordScreen() {
     <Screen keyboard>
       <AuthHero icon="key-outline" title="Reset password" />
       <Text style={[type.body, S.sub, { color: theme.secondaryText }]}>
-        Enter the 6-digit code we sent to <Text style={{ color: theme.text, fontWeight: '600' }}>{email}</Text> and choose a new password.
+        Enter the 6-digit code we sent to <Text style={{ color: theme.text, fontWeight: weight.semibold }}>{email}</Text> and choose a new password.
       </Text>
 
       <OtpInput value={code} onChange={c => { setCode(c); setError(''); }} invalid={!!error} />

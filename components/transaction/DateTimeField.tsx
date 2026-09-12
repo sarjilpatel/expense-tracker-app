@@ -5,6 +5,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/src/context/ThemeContext';
+import { radius, type } from '@/constants/tokens';
 
 interface Props {
   value: Date;
@@ -66,13 +67,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: 56,
-    borderRadius: 12,
+    borderRadius: radius.md,
     paddingHorizontal: 16,
     borderWidth: 1,
     gap: 12,
   },
-  text: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
+  text: { ...type.body },
 });

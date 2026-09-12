@@ -22,7 +22,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Currency } from '@/constants/theme';
-import { space, type as text, icon as iconSize } from '@/constants/tokens';
+import { space, type as text, icon as iconSize, weight, radius } from '@/constants/tokens';
 import { Card, Row, Touchable, Sheet, Amount, EmptyState, Chip, type SheetHandle } from '@/components/ui';
 import { CategoryBar } from '@/components/analytics/CategoryBar';
 import { ConnectedDonutChart } from '@/components/analytics/ConnectedDonutChart';
@@ -271,7 +271,7 @@ export default function AnalyticsScreen() {
       label: d.monthLabel,
       frontColor: d.net >= 0 ? theme.income : theme.expense,
       topLabelComponent: () => (
-        <Text style={{ fontSize: 8, color: theme.secondaryText, width: 30, textAlign: 'center' }}>
+        <Text style={{ ...text.label, color: theme.secondaryText, width: 30, textAlign: 'center' }}>
           {d.net >= 0 ? '+' : '-'}{Currency.format(Math.abs(d.net))}
         </Text>
       ),
@@ -376,7 +376,7 @@ export default function AnalyticsScreen() {
                     const catBudgets = budgets.filter((b: any) => !!b.category);
                     const totalSpent = data?.totalExpense || 0;
                     const mainPct = mainBudget ? Math.min((totalSpent / mainBudget.amount) * 100, 100) : 0;
-                    const mainColor = mainPct >= 100 ? theme.expense : mainPct >= 80 ? '#F59E0B' : theme.income;
+                    const mainColor = mainPct >= 100 ? theme.expense : mainPct >= 80 ? theme.warning : theme.income;
 
                     return (
                       <Animated.View entering={FadeIn.duration(250)}>
@@ -421,7 +421,7 @@ export default function AnalyticsScreen() {
                               {catBudgets.map((b: any, i: number) => {
                                 const catSpent = (data?.categoryBreakdown || []).find((c: any) => c.category === b.category)?.amount || 0;
                                 const pct = b.amount > 0 ? Math.min((catSpent / b.amount) * 100, 100) : 0;
-                                const bColor = pct >= 100 ? theme.expense : pct >= 80 ? '#F59E0B' : theme.income;
+                                const bColor = pct >= 100 ? theme.expense : pct >= 80 ? theme.warning : theme.income;
                                 return (
                                   <View key={i} style={styles.catBudgetRow}>
                                     <View style={styles.catBudgetTop}>
@@ -508,7 +508,7 @@ export default function AnalyticsScreen() {
                                   <Image source={{ uri: item.user.profilePhoto }} style={styles.memberPhoto} />
                                 ) : (
                                   <View style={[styles.memberPhotoPlaceholder, { backgroundColor: theme.card }]}>
-                                    <ThemedText style={{ color: theme.tint, fontWeight: '700' }}>{item.user?.name?.charAt(0)}</ThemedText>
+                                    <ThemedText style={{ color: theme.tint, fontWeight: weight.bold }}>{item.user?.name?.charAt(0)}</ThemedText>
                                   </View>
                                 )}
                                 <View>
@@ -533,7 +533,7 @@ export default function AnalyticsScreen() {
                         <ThemedText style={styles.insightTitle}>Daily average</ThemedText>
                         <ThemedText style={styles.insightBody}>
                           You {activeTab === 'total' ? 'transacted' : activeTab === 'expense' ? 'spent' : 'earned'}{' '}
-                          <Text style={{ color: theme.tint, fontWeight: '800' }}>
+                          <Text style={{ color: theme.tint, fontWeight: weight.bold }}>
                             {Currency.format((total || 0) / new Date(currentYear, currentMonth, 0).getDate())}
                           </Text>{' '}
                           per day this month.
@@ -596,8 +596,8 @@ export default function AnalyticsScreen() {
                             height={200}
                             noOfSections={4}
                             maxValue={maxTrend}
-                            yAxisTextStyle={{ color: theme.secondaryText, fontSize: 9 }}
-                            xAxisLabelTextStyle={{ color: theme.secondaryText, fontSize: 10 }}
+                            yAxisTextStyle={{ color: theme.secondaryText, ...text.label }}
+                            xAxisLabelTextStyle={{ color: theme.secondaryText, ...text.label }}
                             yAxisThickness={0}
                             xAxisThickness={1}
                             xAxisColor={theme.border}
@@ -620,13 +620,13 @@ export default function AnalyticsScreen() {
                           return (
                             <Animated.View key={i} entering={FadeInDown.delay(i * 50).duration(280)} style={[styles.monthlyItem, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }, isCurrentMonth && { borderLeftColor: theme.tint, borderLeftWidth: 3 }]}>
                               <View style={styles.monthlyLeft}>
-                                <ThemedText style={[styles.monthlyLabel, isCurrentMonth && { color: theme.tint, fontWeight: '800' }]}>
+                                <ThemedText style={[styles.monthlyLabel, isCurrentMonth && { color: theme.tint, fontWeight: weight.bold }]}>
                                   {d.monthLabel} {d.year}
                                 </ThemedText>
                                 <View style={styles.monthlySubRow}>
-                                  <Text style={{ color: theme.income,  fontSize: 11, fontWeight: '600' }}>+{Currency.format(d.income)}</Text>
-                                  <Text style={{ color: theme.secondaryText, fontSize: 11, marginHorizontal: 4 }}>·</Text>
-                                  <Text style={{ color: theme.expense, fontSize: 11, fontWeight: '600' }}>-{Currency.format(d.expense)}</Text>
+                                  <Text style={{ color: theme.income,  ...text.label }}>+{Currency.format(d.income)}</Text>
+                                  <Text style={{ color: theme.secondaryText, ...text.label, marginHorizontal: 4 }}>·</Text>
+                                  <Text style={{ color: theme.expense, ...text.label }}>-{Currency.format(d.expense)}</Text>
                                 </View>
                               </View>
                               <Text style={[styles.monthlyNet, { color: d.net >= 0 ? theme.income : theme.expense }]}>
@@ -654,8 +654,8 @@ export default function AnalyticsScreen() {
                             yAxisThickness={0}
                             xAxisThickness={0}
                             hideRules
-                            yAxisTextStyle={{ color: theme.secondaryText, fontSize: 9 }}
-                            xAxisLabelTextStyle={{ color: theme.secondaryText, fontSize: 10 }}
+                            yAxisTextStyle={{ color: theme.secondaryText, ...text.label }}
+                            xAxisLabelTextStyle={{ color: theme.secondaryText, ...text.label }}
                           />
                         </ErrorBoundary>
                       </View>
@@ -720,79 +720,79 @@ export default function AnalyticsScreen() {
 
 const styles = StyleSheet.create({
   container:    { flex: 1 },
-  header:       { paddingHorizontal: 8, marginBottom: 6, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header:       { paddingHorizontal: 8, marginBottom: space.sm, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   monthSelector:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title:        { fontSize: 17, lineHeight: 20, fontWeight: '800' },
-  viewToggle:   { flexDirection: 'row', borderRadius: 10, padding: 3, gap: 3 },
-  viewToggleBtn:{ width: 38, height: 30, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  title:        { ...text.heading },
+  viewToggle:   { flexDirection: 'row', borderRadius: radius.md, padding: space.xs, gap: space.xs },
+  viewToggleBtn:{ width: 38, height: 30, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' },
 
   scrollContent:{ paddingHorizontal: 8, paddingBottom: 96, paddingTop: 4 },
 
   compRow:      { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  netCard:      { borderRadius: 16, paddingVertical: 14, paddingHorizontal: 14, marginBottom: 10, alignItems: 'center', justifyContent: 'center' },
-  netLabel:     { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
-  netValue:     { fontSize: 28, fontWeight: '900', marginBottom: 6 },
-  savingsBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 18, borderWidth: 1 },
-  savingsText:  { fontSize: 11, fontWeight: '700' },
+  netCard:      { borderRadius: radius.lg, paddingVertical: space.lg, paddingHorizontal: space.lg, marginBottom: space.md, alignItems: 'center', justifyContent: 'center' },
+  netLabel:     { ...text.overline, marginBottom: space.sm },
+  netValue:     { ...text.title, marginBottom: space.sm },
+  savingsBadge: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, paddingVertical: 4, borderRadius: radius.lg, borderWidth: 1 },
+  savingsText:  { ...text.label },
 
-  tabBar:       { flexDirection: 'row', padding: 4, borderRadius: 12, marginHorizontal: 8, marginBottom: 8, gap: 4 },
-  tab:          { flex: 1, paddingVertical: 6, alignItems: 'center', borderRadius: 10 },
-  tabText:      { fontSize: 13, fontWeight: '600' },
-  tabSubText:   { fontSize: 11, fontWeight: '700', marginTop: 1 },
+  tabBar:       { flexDirection: 'row', padding: 4, borderRadius: radius.md, marginHorizontal: 8, marginBottom: 8, gap: 4 },
+  tab:          { flex: 1, paddingVertical: space.sm, alignItems: 'center', borderRadius: radius.md },
+  tabText:      { ...text.label },
+  tabSubText:   { ...text.label, marginTop: 1 },
 
-  donutWrap:          { alignItems: 'center', marginBottom: 10 },
+  donutWrap:          { alignItems: 'center', marginBottom: space.md },
 
-  sectionHeader:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 6 },
-  catSection:   { borderRadius: 14, padding: 13, gap: 12 },
+  sectionHeader:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: space.sm },
+  catSection:   { borderRadius: radius.lg, padding: space.md, gap: 12 },
 
   memberList:   { gap: 12 },
-  memberCard:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 14 },
+  memberCard:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: space.lg, borderRadius: radius.lg },
   memberInfo:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  memberPhoto:  { width: 40, height: 40, borderRadius: 20 },
-  memberPhotoPlaceholder: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  memberName:   { fontSize: 15, fontWeight: '600' },
-  memberMeta:   { fontSize: 12 },
-  memberAmount: { fontSize: 16, fontWeight: '800' },
+  memberPhoto:  { width: 40, height: 40, borderRadius: radius.full },
+  memberPhotoPlaceholder: { width: 40, height: 40, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  memberName:   { ...text.bodyStrong },
+  memberMeta:   { ...text.label },
+  memberAmount: { ...text.bodyStrong },
 
-  insightCard:  { flexDirection: 'row', alignItems: 'center', padding: 13, borderRadius: 14, marginTop: 8 },
-  insightTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
-  insightBody:  { fontSize: 13, lineHeight: 18 },
+  insightCard:  { flexDirection: 'row', alignItems: 'center', padding: space.md, borderRadius: radius.lg, marginTop: 8 },
+  insightTitle: { ...text.overline, marginBottom: 2 },
+  insightBody:  { ...text.label },
 
-  chartCard:    { borderRadius: 16, padding: 12, alignItems: 'center' },
-  trendLegend:  { flexDirection: 'row', gap: 12, alignSelf: 'flex-start', marginBottom: 10 },
-  trendLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  trendLegendDot:  { width: 10, height: 10, borderRadius: 5 },
-  trendLegendText: { fontSize: 12, fontWeight: '600' },
+  chartCard:    { borderRadius: radius.lg, padding: 12, alignItems: 'center' },
+  trendLegend:  { flexDirection: 'row', gap: 12, alignSelf: 'flex-start', marginBottom: space.md },
+  trendLegendItem: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  trendLegendDot:  { width: 10, height: 10, borderRadius: radius.full },
+  trendLegendText: { ...text.label },
 
-  monthlyList:  { gap: 9 },
-  monthlyItem:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 11, borderRadius: 14 },
+  monthlyList:  { gap: space.sm },
+  monthlyItem:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: space.md, borderRadius: radius.lg },
   monthlyLeft:  { gap: 4 },
-  monthlyLabel: { fontSize: 14, fontWeight: '700' },
+  monthlyLabel: { ...text.label },
   monthlySubRow:{ flexDirection: 'row', alignItems: 'center' },
-  monthlyNet:   { fontSize: 15, fontWeight: '900' },
+  monthlyNet:   { ...text.bodyStrong },
 
   emptyChart:   { alignItems: 'center', paddingVertical: 60 },
-  emptyText:    { textAlign: 'center', fontSize: 13, paddingVertical: 20 },
+  emptyText:    { textAlign: 'center', ...text.label, paddingVertical: 20 },
 
   // Budget tab styles
-  budgetCard:         { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 16, marginBottom: 12 },
-  budgetCardHeader:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  budgetCardTitle:    { flex: 1, fontSize: 15, fontWeight: '700' },
-  budgetAmountRow:    { flexDirection: 'row', alignItems: 'baseline', marginBottom: 10 },
-  budgetSpent:        { fontSize: 26, fontWeight: '900' },
-  budgetOf:           { fontSize: 14, fontWeight: '600' },
-  budgetTrack:        { height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 8 },
-  budgetFill:         { height: '100%', borderRadius: 4 },
+  budgetCard:         { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: 16, marginBottom: 12 },
+  budgetCardHeader:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: space.lg },
+  budgetCardTitle:    { flex: 1, ...text.bodyStrong },
+  budgetAmountRow:    { flexDirection: 'row', alignItems: 'baseline', marginBottom: space.md },
+  budgetSpent:        { ...text.title },
+  budgetOf:           { ...text.label },
+  budgetTrack:        { height: 8, borderRadius: radius.sm, overflow: 'hidden', marginBottom: 8 },
+  budgetFill:         { height: '100%', borderRadius: radius.sm },
   budgetMeta:         { flexDirection: 'row', justifyContent: 'space-between' },
-  budgetPct:          { fontSize: 13, fontWeight: '700' },
-  budgetRemain:       { fontSize: 12, fontWeight: '500' },
-  budgetEmpty:        { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 24, alignItems: 'center', gap: 12, marginBottom: 12 },
-  budgetEmptyText:    { fontSize: 14, fontWeight: '600' },
-  budgetSetBtn:       { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12 },
-  budgetSetBtnText:   { fontSize: 14, fontWeight: '700' },
-  catBudgetRow:       { gap: 6, marginBottom: 10 },
+  budgetPct:          { ...text.label },
+  budgetRemain:       { ...text.label },
+  budgetEmpty:        { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: 24, alignItems: 'center', gap: 12, marginBottom: 12 },
+  budgetEmptyText:    { ...text.label },
+  budgetSetBtn:       { paddingHorizontal: 20, paddingVertical: space.md, borderRadius: radius.md },
+  budgetSetBtnText:   { ...text.label },
+  catBudgetRow:       { gap: space.sm, marginBottom: space.md },
   catBudgetTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  catBudgetName:      { fontSize: 13, fontWeight: '600' },
-  catBudgetAmt:       { fontSize: 12, fontWeight: '700' },
+  catBudgetName:      { ...text.label },
+  catBudgetAmt:       { ...text.label },
 });
 

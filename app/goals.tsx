@@ -4,6 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { GOAL_COLORS as COLORS } from '@/constants/palettes';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { Currency, getContrastText, hexToRGBA } from '@/constants/theme';
@@ -21,11 +22,6 @@ const ICONS = [
   'cash-outline', 'business-outline', 'rocket-outline',
 ];
 
-// A goal's colour is its identity, like an account's — the one place a raw colour is chosen.
-const COLORS = [
-  '#18181B', '#1E3A5F', '#134E4A', '#14532D', '#4C1D95',
-  '#7C2D12', '#92400E', '#881337', '#374151', '#0F4C75',
-];
 
 type GoalStatus = 'completed' | 'on-track' | 'behind' | 'overdue' | 'active';
 

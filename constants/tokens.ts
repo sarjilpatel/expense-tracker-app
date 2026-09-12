@@ -53,6 +53,18 @@ export const type = {
 
 export type TypeRole = keyof typeof type;
 
+/**
+ * For the rare text that needs a weight without a role — an emphasised word inside a `body` run.
+ * Three steps, matching the roles: regular is the default, semibold the only emphasis, bold only
+ * where `display`/`title` already use it.
+ */
+export const weight = {
+  regular:  '400',
+  medium:   '500',
+  semibold: '600',
+  bold:     '700',
+} as const satisfies Record<string, TextStyle['fontWeight']>;
+
 /** Icon sizes that pair with the type roles above. */
 export const icon = {
   sm: 16,

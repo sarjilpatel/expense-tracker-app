@@ -1,7 +1,11 @@
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Touchable } from '@/components/ui';
+// A class component outside ThemeProvider — the boundary renders when the tree below it has
+// crashed, so it takes the static light palette rather than a hook.
+import { StaticThemes } from '@/constants/theme';
 import { router } from 'expo-router';
+import { type, radius } from '@/constants/tokens';
 
 interface Props {
   children: ReactNode;
@@ -52,38 +56,35 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: StaticThemes.light.background,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
   },
   icon: {
-    fontSize: 56,
+    ...type.display,
     marginBottom: 24,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1E293B',
+    ...type.title,
+    color: StaticThemes.light.text,
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
-    fontSize: 14,
-    color: '#71717A',
+    ...type.label,
+    color: StaticThemes.light.secondaryText,
     textAlign: 'center',
     marginBottom: 32,
-    lineHeight: 22,
   },
   button: {
-    backgroundColor: '#18181B',
+    backgroundColor: StaticThemes.light.tint,
     paddingHorizontal: 32,
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: radius.lg,
   },
   buttonText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 16,
+    color: StaticThemes.light.tintText,
+    ...type.bodyStrong,
   },
 });

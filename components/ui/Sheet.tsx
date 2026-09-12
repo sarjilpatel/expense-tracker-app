@@ -119,7 +119,7 @@ export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
 const styles = StyleSheet.create({
   header:  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth },
   title:   { flex: 1 },
-  close:   { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  close:   { width: 32, height: 32, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
   body:    { flexShrink: 1 },
   content: { paddingHorizontal: space.lg, paddingTop: space.md },
 });

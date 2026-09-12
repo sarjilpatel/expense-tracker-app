@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { Currency } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
+import { type } from '@/constants/tokens';
 
 interface Props {
   value: string;
@@ -14,6 +15,7 @@ export const AmountInput = forwardRef((
   { value, onChangeText, textColor, borderColor }: Props,
   ref: React.Ref<TextInput>
 ) => {
+    const { theme } = useTheme();
     return (
       <View style={styles.wrap}>
         <Text style={[styles.symbol, { color: textColor }]}>{Currency.symbol}</Text>
@@ -22,7 +24,7 @@ export const AmountInput = forwardRef((
           style={[styles.input, { color: textColor }]}
           keyboardType="decimal-pad"
           placeholder="0"
-          placeholderTextColor="#A0A0A0"
+          placeholderTextColor={theme.secondaryText}
           value={value}
           onChangeText={onChangeText}
           returnKeyType="done"
@@ -43,13 +45,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   symbol: {
-    fontSize: 28,
-    fontWeight: '800',
+    ...type.title,
     marginRight: 4,
   },
   input: {
-    fontSize: 48,
-    fontWeight: '800',
+    ...type.display,
     minWidth: 120,
   },
 });
