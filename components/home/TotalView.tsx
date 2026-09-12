@@ -1,16 +1,12 @@
-import React, { useState } from 'react';
-import {
-  View, Text, TouchableOpacity, Modal, FlatList,
-  StyleSheet, ActivityIndicator,
-} from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as XLSX from 'xlsx';
 import * as Sharing from 'expo-sharing';
-import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { Currency } from '@/constants/theme';
 import { getAllTransactions } from '@/src/services/dataService';
+import { space, type } from '@/constants/tokens';
+import { Sheet, Button, Card, Row, Amount, SectionHeader, type SheetHandle } from '@/components/ui';
 
 interface Props {
   transactions: any[];
@@ -77,7 +73,7 @@ function buildWorkbook(txList: any[], sheetName: string): string {
 }
 
 export function TotalView({ transactions, summary, budget, month, year, theme }: Props) {
-  const [showSheet,   setShowSheet]   = useState(false);
+  const sheet = useRef<SheetHandle>(null);
   const [exporting,   setExporting]   = useState(false);
 
   const dates    = transactions.map(tx => new Date(tx.date || tx.createdAt).getTime()).filter(Boolean);
@@ -92,9 +88,8 @@ export function TotalView({ transactions, summary, budget, month, year, theme }:
   const ranges = buildRanges(month, year);
 
   const handleRangeSelect = async (range: typeof ranges[0]) => {
-    setShowSheet(false);
+    sheet.current?.dismiss();
     setExporting(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       // Fetch the right transactions for this range
       let txList: any[];
@@ -149,183 +144,48 @@ export function TotalView({ transactions, summary, budget, month, year, theme }:
   };
 
   return (
-    <View style={styles.wrap}>
-      {/* ── Budget row ── */}
-      <View style={[styles.budgetRow, { borderBottomColor: theme.border }]}>
-        <View style={styles.rowLeft}>
-          <Ionicons name="create-outline" size={22} color={theme.text} />
-          <Text style={[styles.budgetTitle, { color: theme.text }]}>Budget</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => router.push('/budget')}
-          activeOpacity={0.75}
-          style={[styles.budgetBtn, { backgroundColor: theme.cardAlt }]}
-        >
-          <Text style={[styles.budgetBtnText, { color: theme.secondaryText }]}>Budget Setting</Text>
-          <Ionicons name="chevron-forward" size={13} color={theme.secondaryText} />
-        </TouchableOpacity>
-      </View>
+    <View style={S.wrap}>
+      <Card padded={false}>
+        <Row icon="create-outline" title="Budget" subtitle="Monthly limit and progress" onPress={() => router.push('/budget')} last />
+      </Card>
 
-      {/* ── Accounts header ── */}
-      <View style={styles.sectionHeader}>
-        <View style={styles.rowLeft}>
-          <Ionicons name="server-outline" size={20} color={theme.text} />
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Accounts</Text>
-        </View>
-        <Text style={[styles.dateRange, { color: theme.secondaryText }]}>{dateRange}</Text>
-      </View>
+      <SectionHeader title="Accounts" />
+      <Text style={[type.label, { color: theme.secondaryText, marginTop: -space.xs, marginBottom: space.sm }]}>{dateRange}</Text>
+      <Card padded={false}>
+        <Row title="Compared to budget"        right={<Text style={[type.bodyStrong, { color: theme.text }]}>{comparedValue}</Text>} />
+        <Row title="Expenses (cash, accounts)" right={<Amount value={summary.expense} kind="expense" />} />
+        <Row title="Expenses (card)"           right={<Amount value={0} />} />
+        <Row title="Transfers"                 right={<Amount value={0} />} last />
+      </Card>
 
-      {/* ── Stats card ── */}
-      <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
-        <StatRow label="Compared Expenses (Last month)" value={comparedValue}                    valueColor={theme.text}    theme={theme} />
-        <StatRow label="Expenses (Cash, Accounts)"      value={Currency.format(summary.expense)} valueColor={theme.text}    theme={theme} />
-        <StatRow label="Expenses (Card)"                value={Currency.format(0)}               valueColor={theme.text}    theme={theme} />
-        <StatRow label="Transfer (Cash, Accounts→ )"    value={Currency.format(0)}               valueColor={theme.text}    theme={theme} last />
-      </View>
-
-      {/* ── Export button ── */}
-      <TouchableOpacity
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowSheet(true); }}
-        activeOpacity={0.75}
+      <Button
+        label="Export to Excel"
+        icon="document-text-outline"
+        variant="secondary"
+        loading={exporting}
         disabled={exporting}
-        style={[styles.exportBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
-      >
-        {exporting ? (
-          <ActivityIndicator size="small" color={theme.tint} />
-        ) : (
-          <>
-            <Ionicons name="document-text-outline" size={18} color={theme.tint} />
-            <Text style={[styles.exportText, { color: theme.text }]}>Export data to Excel</Text>
-          </>
-        )}
-      </TouchableOpacity>
+        onPress={() => sheet.current?.present()}
+        style={{ marginTop: space.md }}
+      />
 
-      {/* ── Range picker sheet ── */}
-      <Modal visible={showSheet} transparent animationType="slide" statusBarTranslucent>
-        <View style={styles.overlay}>
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowSheet(false)} />
-          <View style={[styles.sheet, { backgroundColor: theme.card }]}>
-            {/* Sheet header */}
-            <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
-              <Text style={[styles.sheetTitle, { color: theme.text }]}>Money Manager - Excel</Text>
-              <TouchableOpacity onPress={() => setShowSheet(false)}>
-                <Ionicons name="close" size={22} color={theme.secondaryText} />
-              </TouchableOpacity>
-            </View>
-            {/* Options */}
-            <FlatList
-              data={ranges}
-              keyExtractor={r => r.label}
-              scrollEnabled={false}
-              renderItem={({ item, index }) => (
-                <TouchableOpacity
-                  onPress={() => handleRangeSelect(item)}
-                  activeOpacity={0.65}
-                  style={[
-                    styles.rangeRow,
-                    { borderBottomColor: theme.border },
-                    index === ranges.length - 1 && { borderBottomWidth: 0 },
-                  ]}
-                >
-                  <Text style={[styles.rangeLabel, { color: theme.text }]}>
-                    {item.label}
-                    {item.display !== 'All time' ? (
-                      <Text style={[styles.rangeSub, { color: theme.secondaryText }]}>
-                        {'  '}({item.display})
-                      </Text>
-                    ) : (
-                      <Text style={[styles.rangeSub, { color: theme.secondaryText }]}> </Text>
-                    )}
-                  </Text>
-                </TouchableOpacity>
-              )}
+      {/* Range picker, on the shared Sheet (W2-11). */}
+      <Sheet ref={sheet} title="Export to Excel" keyboard="none">
+        <Card padded={false}>
+          {ranges.map((r, i) => (
+            <Row
+              key={r.label}
+              title={r.label}
+              subtitle={r.display}
+              onPress={() => handleRangeSelect(r)}
+              last={i === ranges.length - 1}
             />
-          </View>
-        </View>
-      </Modal>
+          ))}
+        </Card>
+      </Sheet>
     </View>
   );
 }
 
-function StatRow({ label, value, valueColor, theme, last = false }: {
-  label: string; value: string; valueColor: string; theme: any; last?: boolean;
-}) {
-  return (
-    <View style={[
-      styles.statRow,
-      !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border },
-    ]}>
-      <Text style={[styles.statLabel, { color: theme.secondaryText }]}>{label}</Text>
-      <Text style={[styles.statValue, { color: valueColor }]}>{value}</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  wrap: {
-    paddingHorizontal: 8,
-    paddingTop: 4,
-    paddingBottom: 12,
-  },
-  budgetRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  rowLeft:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  budgetTitle:  { fontSize: 16, fontWeight: '700' },
-  budgetBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6,
-  },
-  budgetBtnText: { fontSize: 12, fontWeight: '500' },
-
-  sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
-    marginTop: 12,
-  },
-  sectionTitle: { fontSize: 16, fontWeight: '700' },
-  dateRange:    { fontSize: 12 },
-
-  card: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 2,
-    marginTop: 2,
-  },
-  statRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 11,
-  },
-  statLabel: { fontSize: 14, flex: 1, marginRight: 12 },
-  statValue: { fontSize: 14, fontWeight: '500' },
-
-  exportBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    marginTop: 14, paddingVertical: 13,
-    borderWidth: 1,
-    borderRadius: 12,
-    minHeight: 48,
-  },
-  exportText: { fontSize: 14, fontWeight: '500' },
-
-  // Sheet
-  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: {
-    borderTopLeftRadius: 16, borderTopRightRadius: 16,
-    overflow: 'hidden',
-  },
-  sheetHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  sheetTitle: { fontSize: 16, fontWeight: '700' },
-  rangeRow: {
-    paddingHorizontal: 20, paddingVertical: 18,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  rangeLabel: { fontSize: 15, fontWeight: '400' },
-  rangeSub:   { fontSize: 13, fontWeight: '400' },
+const S = StyleSheet.create({
+  wrap: { paddingHorizontal: space.md, paddingTop: space.xs, paddingBottom: space.md },
 });
