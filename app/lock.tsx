@@ -17,7 +17,7 @@ const MAX_ATTEMPTS = 3;
 const LOCKOUT_SECS = 5 * 60;
 
 export default function LockScreen({ onUnlock }: Props) {
-  const { theme } = useTheme();
+  const { isDark } = useTheme();
   const [pin, setPin]               = useState('');
   const [error, setError]           = useState(false);
   const [attempts, setAttempts]     = useState(0);
@@ -108,7 +108,7 @@ export default function LockScreen({ onUnlock }: Props) {
 
   return (
     <LinearGradient
-      colors={theme.background === '#09090B' ? ['#18181B', '#09090B'] : ['#18181B', '#3F3F46']}
+      colors={isDark ? ['#1C1C21', '#111114'] : ['#18181B', '#3F3F46']}
       style={styles.wrap}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}

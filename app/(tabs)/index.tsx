@@ -785,7 +785,6 @@ const styles = StyleSheet.create({
 
   listContent:   { paddingBottom: 108, paddingTop: 4 },
   scrollContent: { paddingHorizontal: 8, paddingBottom: 108, paddingTop: 4 },
-  card:          { borderRadius: 12, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
   empty:         { marginTop: 28, alignItems: 'center', paddingHorizontal: 16 },
   emptyText:     { fontSize: 17, fontWeight: '700' },
   emptySubText:  { fontSize: 14, marginTop: 6, textAlign: 'center' },

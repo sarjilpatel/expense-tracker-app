@@ -16,6 +16,9 @@ export interface ThemeOverrides {
 
 interface ThemeContextType {
   theme:       ThemeColors;
+  /** The scheme actually in force after the user's override and the system setting. */
+  scheme:      'light' | 'dark';
+  isDark:      boolean;
   overrides:   ThemeOverrides;
   setOverride: (key: keyof ThemeOverrides, value: any) => void;
   resetTheme:  () => void;
@@ -23,6 +26,8 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType>({
   theme:       withContrastText(Colors.light),
+  scheme:      'light',
+  isDark:      false,
   overrides:   {},
   setOverride: () => {},
   resetTheme:  () => {},
@@ -97,7 +102,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, overrides, setOverride, resetTheme }}>
+    <ThemeContext.Provider value={{ theme, scheme: activeScheme, isDark: activeScheme === 'dark', overrides, setOverride, resetTheme }}>
       {children}
     </ThemeContext.Provider>
   );
