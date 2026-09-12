@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet,
-} from 'react-native';
+import { View, Text, Alert, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
-
 import { useTheme } from '@/src/context/ThemeContext';
-import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
 import { DateTimeField } from '@/components/transaction/DateTimeField';
 import { addTransaction, getAccounts, setTxAccount } from '@/src/services/dataService';
 import type { Account } from '@/src/services/accountService';
 import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
+import { Currency } from '@/constants/theme';
+import { space, type, icon as iconSize } from '@/constants/tokens';
+import { Screen, Button, Field, Card, Chip } from '@/components/ui';
 
 export default function AddTransferScreen() {
   const { theme } = useTheme();
@@ -87,39 +84,20 @@ export default function AddTransferScreen() {
     }
   };
 
-  const AccountSelector = ({
-    label, selectedId, onSelect, excludeId,
-  }: { label: string; selectedId: string | null; onSelect: (id: string) => void; excludeId?: string | null }) => {
+  const fromName = accounts.find(a => a.id === fromAccountId)?.name || 'Select account';
+  const toName   = accounts.find(a => a.id === toAccountId)?.name   || 'Select account';
+
+  const selector = (label: string, selectedId: string | null, onSelect: (id: string) => void, excludeId: string | null) => {
     const options = accounts.filter(a => a.id !== excludeId);
     return (
-      <View style={styles.inputGroup}>
-        <ThemedText style={styles.label}>{label}</ThemedText>
-        <View style={styles.accountOptions}>
-          {options.map(acc => {
-            const selected = acc.id === selectedId;
-            return (
-              <TouchableOpacity
-                key={acc.id}
-                style={[
-                  styles.accountChip,
-                  {
-                    backgroundColor: selected ? theme.tint : theme.card,
-                    borderColor: selected ? theme.tint : theme.border,
-                  },
-                ]}
-                onPress={() => onSelect(acc.id)}
-                activeOpacity={0.75}
-              >
-                <Text style={[styles.accountChipText, { color: selected ? theme.tintText : theme.text }]}>
-                  {acc.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+      <View style={S.group}>
+        <Text style={[type.label, S.label, { color: theme.secondaryText }]}>{label}</Text>
+        <View style={S.chips}>
+          {options.map(acc => (
+            <Chip key={acc.id} label={acc.name} selected={acc.id === selectedId} onPress={() => onSelect(acc.id)} />
+          ))}
           {options.length === 0 && (
-            <Text style={[styles.noAccountsText, { color: theme.secondaryText }]}>
-              No accounts available — add one first
-            </Text>
+            <Text style={[type.label, { color: theme.secondaryText }]}>No accounts available — add one first</Text>
           )}
         </View>
       </View>
@@ -127,166 +105,50 @@ export default function AddTransferScreen() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <ThemedView style={styles.container}>
+    <Screen title="Transfer" keyboard>
+      <Field
+        label="Amount"
+        placeholder="0.00"
+        keyboardType="decimal-pad"
+        value={amount}
+        onChangeText={setAmount}
+        autoFocus
+        right={<Text style={[type.bodyStrong, { color: theme.secondaryText }]}>{Currency.symbol}</Text>}
+        style={{ marginTop: space.md }}
+      />
 
-        {/* Header */}
-        <View style={[styles.headerRow, { borderBottomColor: theme.border }]}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={24} color={theme.text} />
-          </TouchableOpacity>
-          <ThemedText type="title" style={styles.headerTitle}>Transfer</ThemedText>
-          <View style={{ width: 24 }} />
-        </View>
+      <Card tone="alt" style={S.banner}>
+        <Text style={[type.bodyStrong, S.bannerName, { color: theme.text }]} numberOfLines={1}>{fromName}</Text>
+        <Ionicons name="arrow-forward" size={iconSize.md} color={theme.tint} />
+        <Text style={[type.bodyStrong, S.bannerName, { color: theme.text, textAlign: 'right' }]} numberOfLines={1}>{toName}</Text>
+      </Card>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {selector('From account', fromAccountId, setFromAccountId, toAccountId)}
+      {selector('To account',   toAccountId,   setToAccountId,   fromAccountId)}
 
-          {/* Amount */}
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Amount</ThemedText>
-            <View style={[styles.amountRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Text style={[styles.currencySymbol, { color: theme.secondaryText }]}>₹</Text>
-              <TextInput
-                style={[styles.amountInput, { color: theme.text }]}
-                placeholder="0.00"
-                placeholderTextColor={theme.secondaryText}
-                keyboardType="decimal-pad"
-                value={amount}
-                onChangeText={setAmount}
-                autoFocus
-              />
-            </View>
-          </View>
+      <View style={S.group}>
+        <Text style={[type.label, S.label, { color: theme.secondaryText }]}>Date & time</Text>
+        <DateTimeField value={date} onChange={setDate} tintColor={theme.tint} borderColor={theme.border} />
+      </View>
 
-          {/* From → To visual */}
-          <View style={[styles.arrowBanner, { backgroundColor: theme.card }]}>
-            <Text style={[styles.arrowAccountName, { color: theme.text }]} numberOfLines={1}>
-              {accounts.find(a => a.id === fromAccountId)?.name || 'Select account'}
-            </Text>
-            <View style={[styles.arrowCircle, { backgroundColor: theme.tint }]}>
-              <Ionicons name="arrow-forward" size={16} color={theme.tintText} />
-            </View>
-            <Text style={[styles.arrowAccountName, { color: theme.text }]} numberOfLines={1}>
-              {accounts.find(a => a.id === toAccountId)?.name || 'Select account'}
-            </Text>
-          </View>
+      <Field
+        label="Note (optional)"
+        placeholder="What is this transfer for?"
+        value={note}
+        onChangeText={setNote}
+        multiline
+        style={S.group}
+      />
 
-          {/* From account */}
-          <AccountSelector
-            label="From Account"
-            selectedId={fromAccountId}
-            onSelect={setFromAccountId}
-            excludeId={toAccountId}
-          />
-
-          {/* To account */}
-          <AccountSelector
-            label="To Account"
-            selectedId={toAccountId}
-            onSelect={setToAccountId}
-            excludeId={fromAccountId}
-          />
-
-          {/* Date */}
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Date & Time</ThemedText>
-            <DateTimeField
-              value={date}
-              onChange={setDate}
-              tintColor={theme.tint}
-              borderColor={theme.border}
-            />
-          </View>
-
-          {/* Note */}
-          <View style={styles.inputGroup}>
-            <ThemedText style={styles.label}>Note (optional)</ThemedText>
-            <TextInput
-              style={[styles.noteInput, { color: theme.text, backgroundColor: theme.card, borderColor: theme.border }]}
-              placeholder="What is this transfer for?"
-              placeholderTextColor={theme.secondaryText}
-              multiline
-              numberOfLines={2}
-              value={note}
-              onChangeText={setNote}
-            />
-          </View>
-
-          {/* Submit */}
-          <TouchableOpacity
-            style={[styles.submitBtn, { backgroundColor: theme.tint }, loading && { opacity: 0.65 }]}
-            onPress={handleSubmit}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator color={theme.tintText} />
-            ) : (
-              <View style={styles.submitRow}>
-                <Ionicons name="swap-horizontal" size={22} color={theme.tintText} />
-                <Text style={[styles.submitText, { color: theme.tintText }]}>Transfer Funds</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-        </ScrollView>
-      </ThemedView>
-    </KeyboardAvoidingView>
+      <Button label="Record transfer" icon="swap-horizontal" onPress={handleSubmit} loading={loading} style={{ marginTop: space.xl }} />
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container:   { flex: 1, paddingTop: 56 },
-
-  headerRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 12, paddingBottom: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
-
-  content: { paddingHorizontal: 12, paddingTop: 16, paddingBottom: 60 },
-
-  inputGroup: { marginBottom: 24 },
-  label:      { fontSize: 14, fontWeight: '600', marginBottom: 10 },
-
-  amountRow: {
-    flexDirection: 'row', alignItems: 'center',
-    borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, height: 60,
-  },
-  currencySymbol: { fontSize: 22, fontWeight: '700', marginRight: 8 },
-  amountInput:    { flex: 1, fontSize: 28, fontWeight: '800' },
-
-  arrowBanner: {
-    flexDirection: 'row', alignItems: 'center',
-    borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16,
-    marginBottom: 24, gap: 10,
-  },
-  arrowAccountName: { flex: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  arrowCircle: {
-    width: 32, height: 32, borderRadius: 16,
-    justifyContent: 'center', alignItems: 'center',
-  },
-
-  accountOptions:  { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  accountChip: {
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 12, borderWidth: 1.5,
-  },
-  accountChipText: { fontSize: 13, fontWeight: '700' },
-  noAccountsText:  { fontSize: 13, marginTop: 4 },
-
-  noteInput: {
-    borderRadius: 16, padding: 14, fontSize: 15, height: 80,
-    textAlignVertical: 'top', borderWidth: 1,
-  },
-
-  submitBtn: {
-    height: 60, borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#5856D6', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
-  },
-  submitRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  submitText: { fontSize: 18, fontWeight: '800' },
+const S = StyleSheet.create({
+  group:      { marginTop: space.lg },
+  label:      { marginLeft: space.xs, marginBottom: space.sm },
+  chips:      { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  banner:     { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.lg, paddingVertical: space.md },
+  bannerName: { flex: 1 },
 });

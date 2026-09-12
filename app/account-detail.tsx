@@ -1,39 +1,31 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  RefreshControl, ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { Currency, getContrastText } from '@/constants/theme';
+import { getContrastText, hexToRGBA } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLanguage } from '@/src/i18n/LanguageContext';
-import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
 import { TransactionRow } from '@/components/home/TransactionRow';
 import { Account, ACCOUNT_TYPE_META, computeAccountBalance } from '@/src/services/accountService';
 import { getAllTransactions, getAccounts, getTxAccountMap } from '@/src/services/dataService';
 import { getCachedTransactions, setCachedTransactions } from '@/src/cache/transactionCache';
+import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import { Screen, Card, Touchable, Amount, EmptyState, SectionHeader, Skeleton } from '@/components/ui';
 
 export default function AccountDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { theme } = useTheme();
   const { t } = useLanguage();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { top } = useSafeAreaInsets();
 
-  const [account, setAccount]         = useState<Account | null>(null);
+  const [account, setAccount]           = useState<Account | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [txAccountMap, setTxAccountMap] = useState<Record<string, string>>({});
-  const [loading, setLoading]         = useState(true);
-  const [refreshing, setRefreshing]   = useState(false);
+  const [loading, setLoading]           = useState(true);
+  const [refreshing, setRefreshing]     = useState(false);
 
   const loadData = useCallback(async (silent = false) => {
     if (!id) return;
     if (!silent) setLoading(true);
-
     try {
       const [accounts, map] = await Promise.all([getAccounts(), getTxAccountMap()]);
       const acc = accounts.find(a => a.id === id);
@@ -41,7 +33,11 @@ export default function AccountDetailScreen() {
       setAccount(acc);
       setTxAccountMap(map);
 
-      // Try cache first
+      const forThis = (rows: any[]) => rows
+        .filter((tx: any) => map[tx._id] === id)
+        .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime());
+
+      // Cache first, then a silent refresh.
       const cached = await getCachedTransactions();
       const rawTx = cached ?? await getAllTransactions();
       const allTx: any[] = Array.isArray(rawTx) ? rawTx : [];
@@ -50,15 +46,10 @@ export default function AccountDetailScreen() {
         getAllTransactions().then(raw => {
           const fresh: any[] = Array.isArray(raw) ? raw : [];
           setCachedTransactions(fresh);
-          setTransactions(fresh.filter((tx: any) => map[tx._id] === id)
-            .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()));
+          setTransactions(forThis(fresh));
         }).catch(() => {});
       }
-      setTransactions(
-        allTx
-          .filter((tx: any) => map[tx._id] === id)
-          .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime())
-      );
+      setTransactions(forThis(allTx));
     } catch (err) {
       console.error(err);
     } finally {
@@ -67,172 +58,109 @@ export default function AccountDetailScreen() {
     }
   }, [id]);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  // Only the first load shows a skeleton; coming back to the screen refreshes silently (W2-13).
+  useFocusEffect(useCallback(() => { loadData(!!account); }, [loadData, account]));
 
-  const balance = useMemo(() => {
-    if (!account) return 0;
-    return computeAccountBalance(account, transactions, txAccountMap);
-  }, [account, transactions, txAccountMap]);
-
+  const balance = useMemo(() => account ? computeAccountBalance(account, transactions, txAccountMap) : 0, [account, transactions, txAccountMap]);
   const income  = useMemo(() => transactions.filter(tx => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0), [transactions]);
   const expense = useMemo(() => transactions.filter(tx => tx.type === 'expense').reduce((s, tx) => s + tx.amount, 0), [transactions]);
 
   if (loading && !account) {
     return (
-      <ThemedView style={[styles.container, { paddingTop: top + 8, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={theme.tint} />
-      </ThemedView>
+      <Screen title="Account">
+        <Skeleton.Group style={{ paddingTop: space.sm }}>
+          <Skeleton.Block height={160} round={radius.lg} />
+          <Skeleton.Row /><Skeleton.Row /><Skeleton.Row />
+        </Skeleton.Group>
+      </Screen>
     );
   }
-
   if (!account) return null;
 
   const meta      = ACCOUNT_TYPE_META[account.type];
   const onAccount = getContrastText(account.color);
+  const addTx     = () => router.push({ pathname: '/add-transaction', params: { prefillAccountId: account.id } });
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-          <Ionicons name="arrow-back" size={22} color={theme.text} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity
-          style={[styles.editBtn, { backgroundColor: theme.card }]}
-          onPress={() => router.push({ pathname: '/add-account', params: { id: account.id } })}
-        >
-          <Ionicons name="create-outline" size={18} color={theme.text} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.editBtn, { backgroundColor: account.color, marginLeft: 8 }]}
-          onPress={() => router.push({ pathname: '/add-transaction', params: { prefillAccountId: account.id } })}
-        >
-          <Ionicons name="add" size={20} color={onAccount} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(true); }} tintColor={theme.tint} />}
-      >
-
-        {/* Account card */}
-        <Animated.View entering={FadeInDown.duration(280)} style={[styles.accountCard, { backgroundColor: account.color, borderColor: account.color }]}>
-          <View style={styles.accountCardTop}>
-            <View style={[styles.iconCircle, { backgroundColor: theme.tint }]}>
-              <Ionicons name={meta.icon as any} size={28} color={theme.tintText} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.accountName, { color: onAccount }]}>{account.name}</Text>
-              <Text style={[styles.accountType, { color: onAccount }]}>{meta.label}</Text>
-            </View>
+    <Screen
+      title={account.name}
+      scroll
+      refreshing={refreshing}
+      onRefresh={() => { setRefreshing(true); loadData(true); }}
+      right={(
+        <View style={S.headerActions}>
+          <Touchable onPress={() => router.push({ pathname: '/add-account', params: { id: account.id } })} size={36} style={S.headerBtn} accessibilityLabel="Edit account" rippleBorderless>
+            <Ionicons name="create-outline" size={iconSize.md} color={theme.text} />
+          </Touchable>
+          <Touchable onPress={addTx} size={36} style={S.headerBtn} accessibilityLabel="Add transaction" rippleBorderless>
+            <Ionicons name="add" size={iconSize.lg} color={theme.tint} />
+          </Touchable>
+        </View>
+      )}
+    >
+      {/* The account's own colour is its identity — the one card in the app that is not a neutral
+          surface, because the colour is the thing the user chose to tell accounts apart. */}
+      <Card style={[S.accountCard, { backgroundColor: account.color, borderColor: account.color, marginTop: space.sm }]}>
+        <View style={S.accountTop}>
+          <View style={[S.iconCircle, { backgroundColor: hexToRGBA(onAccount, 0.18) }]}>
+            <Ionicons name={meta.icon as any} size={iconSize.xl} color={onAccount} />
           </View>
- 
-          <Text style={[styles.balanceLabel, { color: onAccount }]}>CURRENT BALANCE</Text>
-          <Text style={[styles.balanceAmt, { color: onAccount }]}>
-            {Currency.format(balance)}
-          </Text>
- 
-          <View style={[styles.statsRow, { borderTopColor: theme.border }]}>
-            <View style={styles.statItem}>
-              <Ionicons name="arrow-down-circle" size={16} color={onAccount} />
-              <Text style={[styles.statLabel, { color: onAccount }]}>Income</Text>
-              <Text style={[styles.statVal, { color: onAccount }]}>{Currency.format(income)}</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-            <View style={styles.statItem}>
-              <Ionicons name="arrow-up-circle" size={16} color={onAccount} />
-              <Text style={[styles.statLabel, { color: onAccount }]}>Expenses</Text>
-              <Text style={[styles.statVal, { color: onAccount }]}>{Currency.format(expense)}</Text>
-            </View>
-            <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
-            <View style={styles.statItem}>
-              <Ionicons name="receipt-outline" size={16} color={onAccount} />
-              <Text style={[styles.statLabel, { color: onAccount }]}>Records</Text>
-              <Text style={[styles.statVal, { color: onAccount }]}>{transactions.length}</Text>
-            </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[type.label, { color: onAccount, opacity: 0.8 }]}>{meta.label}</Text>
+            <Text style={[type.heading, { color: onAccount }]} numberOfLines={1}>{account.name}</Text>
           </View>
-        </Animated.View>
-
-        {/* Transactions */}
-        <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>TRANSACTIONS</Text>
-
-        {transactions.length === 0 ? (
-          <View style={styles.empty}>
-            <Ionicons name="receipt-outline" size={44} color={theme.secondaryText} style={{ marginBottom: 10 }} />
-            <Text style={[styles.emptyText, { color: theme.secondaryText }]}>No transactions yet</Text>
-            <TouchableOpacity
-              style={[styles.addFirstBtn, { backgroundColor: account.color }]}
-              onPress={() => router.push({ pathname: '/add-transaction', params: { prefillAccountId: account.id } })}
-            >
-              <Text style={[styles.addFirstText, { color: onAccount }]}>Add first transaction</Text>
-            </TouchableOpacity>
+        </View>
+        <Text style={[type.overline, { color: onAccount, opacity: 0.8, marginTop: space.lg }]}>Balance</Text>
+        <Amount value={balance} role="display" color={onAccount} />
+        <View style={[S.stats, { borderTopColor: hexToRGBA(onAccount, 0.25) }]}>
+          <View style={S.stat}>
+            <Text style={[type.label, { color: onAccount, opacity: 0.8 }]}>Income</Text>
+            <Amount value={income} kind="income" unsigned role="bodyStrong" color={onAccount} />
           </View>
-        ) : (
-          <View style={styles.txList}>
-            {transactions.map((item, index) => (
-              <TransactionRow
-                key={item._id}
-                item={item}
-                index={index}
-                theme={theme}
-                t={t}
-                accountName={account.name}
-                onPress={() => {}}
-                onLongPress={() => {}}
-                isFirst={index === 0}
-                isLast={index === transactions.length - 1}
-                marginHorizontal={8}
-              />
-            ))}
+          <View style={S.stat}>
+            <Text style={[type.label, { color: onAccount, opacity: 0.8 }]}>Expenses</Text>
+            <Amount value={expense} kind="expense" unsigned role="bodyStrong" color={onAccount} />
           </View>
-        )}
+          <View style={S.stat}>
+            <Text style={[type.label, { color: onAccount, opacity: 0.8 }]}>Records</Text>
+            <Text style={[type.bodyStrong, { color: onAccount }]}>{transactions.length}</Text>
+          </View>
+        </View>
+      </Card>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </ThemedView>
+      <SectionHeader title="Transactions" count={transactions.length} />
+      {transactions.length === 0 ? (
+        <Card><EmptyState compact icon="receipt-outline" title="No transactions yet" action={{ label: 'Add first transaction', onPress: addTx }} /></Card>
+      ) : (
+        <View style={S.txList}>
+          {transactions.map((item, index) => (
+            <TransactionRow
+              key={item._id}
+              item={item}
+              index={index}
+              theme={theme}
+              t={t}
+              accountName={account.name}
+              onPress={() => router.push({ pathname: '/edit-transaction', params: { id: item._id } })}
+              onLongPress={() => {}}
+              isFirst={index === 0}
+              isLast={index === transactions.length - 1}
+              marginHorizontal={0}
+            />
+          ))}
+        </View>
+      )}
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 8, marginBottom: 8, height: 36,
-  },
-  backBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  editBtn: { width: 36, height: 36, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-
-  scroll: { paddingBottom: 80 },
-
-  accountCard: {
-    marginHorizontal: 8, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth,
-    padding: 20, marginBottom: 8,
-  },
-  accountCardTop: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
-  iconCircle:     { width: 52, height: 52, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  accountName:    { fontSize: 20, fontWeight: '800' },
-  accountType:    { fontSize: 13, fontWeight: '600', marginTop: 2 },
-  balanceLabel:   { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
-  balanceAmt:     { fontSize: 32, fontWeight: '900', marginBottom: 20 },
-  statsRow:       { flexDirection: 'row', borderTopWidth: 1, paddingTop: 16 },
-  statItem:       { flex: 1, alignItems: 'center', gap: 4 },
-  statLabel:      { fontSize: 10, fontWeight: '600' },
-  statVal:        { fontSize: 13, fontWeight: '800' },
-  statDivider:    { width: 1 },
-
-  sectionLabel: {
-    fontSize: 11, fontWeight: '800', letterSpacing: 0.5,
-    marginBottom: 12, marginTop: 24, paddingHorizontal: 8,
-  },
-
-  txList: {},
-
-  empty:       { alignItems: 'center', paddingTop: 48 },
-  emptyText:   { fontSize: 14, marginBottom: 20 },
-  addFirstBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 },
-  addFirstText:{ fontWeight: '700', fontSize: 14 },
+const S = StyleSheet.create({
+  headerActions: { flexDirection: 'row', gap: space.xs },
+  headerBtn:     { width: 36, height: 36, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  accountCard:   { gap: space.xs },
+  accountTop:    { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  iconCircle:    { width: 52, height: 52, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  stats:         { flexDirection: 'row', marginTop: space.lg, paddingTop: space.md, borderTopWidth: StyleSheet.hairlineWidth },
+  stat:          { flex: 1, gap: 2 },
+  txList:        { gap: 0 },
 });
