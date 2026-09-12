@@ -1,19 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, Alert, KeyboardAvoidingView, Platform,
-} from 'react-native';
+import { View, Text, Alert, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
-
-
 import { useTheme } from '@/src/context/ThemeContext';
-import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
 import { AccountType, ACCOUNT_TYPE_META } from '@/src/services/accountService';
 import { saveAccount, deleteAccount, getAccounts } from '@/src/services/dataService';
-import { getContrastText } from '@/constants/theme';
+import { getContrastText, Currency } from '@/constants/theme';
+import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import { Screen, Button, Field, Touchable, Chip } from '@/components/ui';
 
 const COLORS = [
   '#18181B', // graphite
@@ -34,11 +29,12 @@ export default function AddAccountScreen() {
   const { theme } = useTheme();
   const params = useLocalSearchParams<{ id?: string }>();
 
-  const [name, setName]                   = useState('');
-  const [type, setType]                   = useState<AccountType>('bank');
+  const [name, setName]                     = useState('');
+  const [acctType, setAcctType]             = useState<AccountType>('bank');
   const [openingBalance, setOpeningBalance] = useState('0');
-  const [color, setColor]                 = useState(COLORS[1]);
-  const [saving, setSaving]               = useState(false);
+  const [color, setColor]                   = useState(COLORS[1]);
+  const [saving, setSaving]                 = useState(false);
+
   const isEdit = !!params.id;
 
   useEffect(() => {
@@ -47,7 +43,7 @@ export default function AddAccountScreen() {
       const acc = accounts.find(a => a.id === params.id);
       if (acc) {
         setName(acc.name);
-        setType(acc.type);
+        setAcctType(acc.type);
         setOpeningBalance(String(acc.openingBalance));
         setColor(acc.color);
       }
@@ -64,10 +60,10 @@ export default function AddAccountScreen() {
       await saveAccount({
         id: params.id || undefined,
         name: name.trim(),
-        type,
+        type: acctType,
         openingBalance: bal,
         color,
-        icon: ACCOUNT_TYPE_META[type].icon,
+        icon: ACCOUNT_TYPE_META[acctType].icon,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
@@ -94,137 +90,74 @@ export default function AddAccountScreen() {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <ThemedView style={styles.container}>
+    <Screen
+      title={isEdit ? 'Edit account' : 'Add account'}
+      keyboard
+      right={isEdit ? (
+        <Touchable onPress={handleDelete} size={36} style={S.headerBtn} accessibilityLabel="Delete account" rippleBorderless haptic="medium">
+          <Ionicons name="trash-outline" size={iconSize.md} color={theme.danger} />
+        </Touchable>
+      ) : undefined}
+    >
+      <Text style={[type.label, S.label, { color: theme.secondaryText }]}>Account type</Text>
+      <View style={S.chips}>
+        {(Object.keys(ACCOUNT_TYPE_META) as AccountType[]).map(k => {
+          const meta = ACCOUNT_TYPE_META[k];
+          return (
+            <Chip key={k} emoji={meta.emoji} label={meta.label} selected={acctType === k} onPress={() => { setAcctType(k); setColor(meta.color); }} />
+          );
+        })}
+      </View>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={theme.text} />
-          </TouchableOpacity>
-          <ThemedText type="subtitle">{isEdit ? 'Edit Account' : 'Add Account'}</ThemedText>
-          {isEdit ? (
-            <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
-              <Ionicons name="trash-outline" size={20} color="#F55345" />
-            </TouchableOpacity>
-          ) : (
-            <View style={{ width: 36 }} />
-          )}
-        </View>
+      <Field
+        label="Account name"
+        placeholder={`e.g. ${ACCOUNT_TYPE_META[acctType].label}`}
+        value={name}
+        onChangeText={setName}
+        autoCapitalize="words"
+        style={{ marginTop: space.lg }}
+      />
 
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <Field
+        label={isEdit ? 'Opening balance' : 'Current balance'}
+        placeholder="0.00"
+        value={openingBalance}
+        onChangeText={setOpeningBalance}
+        keyboardType="decimal-pad"
+        right={<Text style={[type.bodyStrong, { color: theme.secondaryText }]}>{Currency.symbol}</Text>}
+        help="Set the current balance. Transactions linked to this account update it automatically."
+        style={{ marginTop: space.lg }}
+      />
 
-          {/* Account type picker */}
-          <ThemedText style={styles.label}>Account Type</ThemedText>
-          <View style={styles.typeGrid}>
-            {(Object.keys(ACCOUNT_TYPE_META) as AccountType[]).map(k => {
-              const meta = ACCOUNT_TYPE_META[k];
-              const active = type === k;
-              return (
-                <TouchableOpacity
-                  key={k}
-                  style={[styles.typeCard, { borderColor: active ? meta.color : theme.border, backgroundColor: active ? meta.color : theme.card }]}
-                  onPress={() => { setType(k); setColor(meta.color); }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 22 }}>{meta.emoji}</Text>
-                  <Text style={[styles.typeLabel, { color: active ? getContrastText(meta.color) : theme.secondaryText }]}>{meta.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Account name */}
-          <ThemedText style={[styles.label, { marginTop: 24 }]}>Account Name</ThemedText>
-          <TextInput
-            style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
-            placeholder={`e.g. ${ACCOUNT_TYPE_META[type].label}`}
-            placeholderTextColor={theme.secondaryText}
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-          />
-
-          {/* Opening balance */}
-          <ThemedText style={[styles.label, { marginTop: 24 }]}>
-            {isEdit ? 'Opening Balance' : 'Current Balance'}
-          </ThemedText>
-          <TextInput
-            style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
-            placeholder="0.00"
-            placeholderTextColor={theme.secondaryText}
-            value={openingBalance}
-            onChangeText={setOpeningBalance}
-            keyboardType="decimal-pad"
-          />
-          <Text style={[styles.hint, { color: theme.secondaryText }]}>
-            Set the current balance. Future transactions linked to this account will update it automatically.
-          </Text>
-
-          {/* Color picker */}
-          <ThemedText style={[styles.label, { marginTop: 24 }]}>Color</ThemedText>
-          <View style={styles.colorRow}>
-            {COLORS.map(c => (
-              <TouchableOpacity
-                key={c}
-                style={[styles.colorDot, { backgroundColor: c }, color === c && [styles.colorDotActive, { borderColor: theme.text }]]}
-                onPress={() => setColor(c)}
-                activeOpacity={0.8}
-              >
-                {color === c && <Ionicons name="checkmark" size={14} color={getContrastText(c)} />}
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Save button */}
-          <TouchableOpacity
-            style={[styles.saveBtn, { backgroundColor: color }, saving && { opacity: 0.7 }]}
-            onPress={handleSave}
-            disabled={saving}
-            activeOpacity={0.8}
+      {/* The account colour is the one place a raw colour is picked on purpose — it is how the user
+          tells accounts apart, so the wells paint the colour itself. */}
+      <Text style={[type.label, S.label, { color: theme.secondaryText, marginTop: space.lg }]}>Colour</Text>
+      <View style={S.colors}>
+        {COLORS.map(c => (
+          <Touchable
+            key={c}
+            onPress={() => setColor(c)}
+            haptic="selection"
+            size={36}
+            style={[S.colorDot, { backgroundColor: c }, color === c && { borderColor: theme.text, borderWidth: 2 }]}
+            accessibilityLabel={`Colour ${c}`}
+            accessibilityState={{ selected: color === c }}
+            rippleBorderless
           >
-            <Ionicons name="checkmark-circle" size={22} color={getContrastText(color)} />
-            <Text style={[styles.saveBtnText, { color: getContrastText(color) }]}>{isEdit ? 'Update Account' : 'Add Account'}</Text>
-          </TouchableOpacity>
+            {color === c && <Ionicons name="checkmark" size={iconSize.sm} color={getContrastText(c)} />}
+          </Touchable>
+        ))}
+      </View>
 
-        </ScrollView>
-      </ThemedView>
-    </KeyboardAvoidingView>
+      <Button label={isEdit ? 'Save changes' : 'Add account'} onPress={handleSave} loading={saving} style={{ marginTop: space.xl }} />
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 12, marginBottom: 20,
-  },
-  backBtn:   { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  deleteBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  scroll:    { paddingHorizontal: 12, paddingBottom: 60 },
-
-  label: { fontSize: 13, fontWeight: '700', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
-
-  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  typeCard: {
-    width: '30%', alignItems: 'center', gap: 6, paddingVertical: 12,
-    borderRadius: 14, borderWidth: 1.5,
-  },
-  typeLabel: { fontSize: 11, fontWeight: '700' },
-
-  input: {
-    height: 52, borderRadius: 14, paddingHorizontal: 16,
-    fontSize: 16, borderWidth: 1,
-  },
-  hint: { fontSize: 12, marginTop: 8, lineHeight: 18 },
-
-  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  colorDot: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
-  colorDotActive: { borderWidth: 3 },
-
-  saveBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    height: 56, borderRadius: 18, marginTop: 32,
-  },
-  saveBtnText: { fontSize: 17, fontWeight: '800' },
+const S = StyleSheet.create({
+  headerBtn: { width: 36, height: 36, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  label:     { marginTop: space.md, marginBottom: space.sm, marginLeft: space.xs },
+  chips:     { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  colors:    { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  colorDot:  { width: 36, height: 36, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
 });
