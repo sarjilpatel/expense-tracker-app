@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal,
-} from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
-import { ThemedText } from '@/components/themed-text';
+import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import { Sheet, Button, Card, SectionHeader, type SheetHandle } from '@/components/ui';
 import { getInsights } from '@/src/services/dataService';
 import { getCachedInsights, setCachedInsights } from '@/src/cache/transactionCache';
 import { updateAiConsent } from '@/src/services/authApi';
@@ -35,12 +34,12 @@ const TYPE_CONFIG = {
 export function AIInsightCard({ month, year, hasData }: Props) {
   const { theme } = useTheme();
   const { user, isGuest, updateUser } = useAuth();
+  const consentSheet = useRef<SheetHandle>(null);
 
   const [loading,       setLoading]       = useState(false);
   const [insights,      setInsights]      = useState<Insight[]>([]);
   const [revealed,      setRevealed]      = useState(false);
   const [error,         setError]         = useState<string | null>(null);
-  const [showConsent,   setShowConsent]   = useState(false);
   const [consentGiven,  setConsentGiven]  = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -101,80 +100,63 @@ export function AIInsightCard({ month, year, hasData }: Props) {
     }
   };
 
+  const acceptConsent = async () => {
+    setConsentGiven(true);
+    consentSheet.current?.dismiss();
+    if (!isGuest) {
+      updateAiConsent(true).catch(() => {});
+      updateUser({ aiConsentGiven: true });
+    } else {
+      await AsyncStorage.setItem(AI_CONSENT_KEY, 'true');
+    }
+    fetchInsights();
+  };
+
   if (!hasData) return null;
 
   return (
-    <View style={styles.root}>
-      <View style={styles.header}>
-        <ThemedText type="subtitle">AI Insights</ThemedText>
-        <View style={styles.badgeRow}>
-          <Ionicons name="sparkles-outline" size={13} color={theme.tint} />
-          <ThemedText style={[styles.badge, { color: theme.secondaryText }]}>Claude</ThemedText>
-        </View>
-      </View>
+    <View style={S.root}>
+      <SectionHeader title="AI insights" style={{ marginTop: 0 }} />
 
-      {/* One-time consent modal */}
-      <Modal visible={showConsent} transparent animationType="fade">
-        <View style={styles.consentOverlay}>
-          <View style={[styles.consentCard, { backgroundColor: theme.card }]}>
-            <View style={[styles.consentIcon, { backgroundColor: theme.tint + '22' }]}>
-              <Ionicons name="shield-checkmark-outline" size={28} color={theme.tint} />
-            </View>
-            <Text style={[styles.consentTitle, { color: theme.text }]}>AI Insights — Data Notice</Text>
-            <Text style={[styles.consentBody, { color: theme.secondaryText }]}>
-              To generate insights, your monthly spending totals and category percentages are sent to Anthropic AI (Claude).{'\n\n'}
-              No individual transaction details, notes, or personal information are included.{'\n\n'}
-              Anthropic may retain inputs for up to 30 days per their privacy policy.
-            </Text>
-            <TouchableOpacity
-              style={[styles.consentAccept, { backgroundColor: theme.tint }]}
-              onPress={async () => {
-                setConsentGiven(true);
-                setShowConsent(false);
-                if (!isGuest) {
-                  updateAiConsent(true).catch(() => {});
-                  updateUser({ aiConsentGiven: true });
-                } else {
-                  await AsyncStorage.setItem(AI_CONSENT_KEY, 'true');
-                }
-                fetchInsights();
-              }}
-            >
-              <Text style={[styles.consentAcceptText, { color: theme.tintText }]}>I understand — Continue</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.consentDecline} onPress={() => setShowConsent(false)}>
-              <Text style={[styles.consentDeclineText, { color: theme.secondaryText }]}>No thanks</Text>
-            </TouchableOpacity>
+      {/* One-time consent, on the shared Sheet (W2-11). */}
+      <Sheet ref={consentSheet} title="Before we analyze" keyboard="none">
+        <View style={S.consent}>
+          <View style={[S.consentIcon, { backgroundColor: theme.tint + '1F' }]}>
+            <Ionicons name="shield-checkmark-outline" size={iconSize.xl} color={theme.tint} />
+          </View>
+          <Text style={[type.body, S.center, { color: theme.secondaryText }]}>
+            To generate insights, your monthly spending totals and category percentages are sent to Anthropic AI (Claude).{'\n\n'}
+            No individual transaction details, notes, or personal information are included.{'\n\n'}
+            Anthropic may retain inputs for up to 30 days per their privacy policy.
+          </Text>
+          <View style={S.actions}>
+            <Button label="I understand — continue" icon="sparkles-outline" onPress={acceptConsent} />
+            <Button label="No thanks" variant="ghost" size="sm" onPress={() => consentSheet.current?.dismiss()} />
           </View>
         </View>
-      </Modal>
+      </Sheet>
 
       {!revealed && !loading && !error && (
-        <TouchableOpacity
-          style={[styles.revealBtn, { backgroundColor: theme.tint }]}
-          onPress={() => consentGiven ? fetchInsights() : setShowConsent(true)}
-          activeOpacity={0.82}
-        >
-          <Ionicons name="sparkles-outline" size={17} color={theme.tintText} />
-          <Text style={[styles.revealText, { color: theme.tintText }]}>Analyze My Spending</Text>
-        </TouchableOpacity>
+        <Button
+          label="Analyze my spending"
+          icon="sparkles-outline"
+          onPress={() => consentGiven ? fetchInsights() : consentSheet.current?.present()}
+        />
       )}
 
       {loading && (
-        <View style={[styles.loadingCard, { backgroundColor: theme.card }]}>
+        <Card style={S.inline}>
           <ActivityIndicator size="small" color={theme.tint} />
-          <ThemedText style={styles.loadingText}>Analyzing your spending patterns…</ThemedText>
-        </View>
+          <Text style={[type.body, { flex: 1, color: theme.text }]}>Analyzing your spending patterns…</Text>
+        </Card>
       )}
 
       {error && !loading && (
-        <View style={[styles.errorCard, { backgroundColor: theme.card }]}>
-          <Ionicons name="alert-circle-outline" size={18} color={theme.expense} />
-          <ThemedText style={styles.errorText}>{error}</ThemedText>
-          <TouchableOpacity onPress={() => fetchInsights(true)} style={styles.retryBtn}>
-            <Text style={[styles.retryText, { color: theme.tint }]}>Retry</Text>
-          </TouchableOpacity>
-        </View>
+        <Card style={S.inline}>
+          <Ionicons name="alert-circle-outline" size={iconSize.md} color={theme.expense} />
+          <Text style={[type.body, { flex: 1, color: theme.text }]}>{error}</Text>
+          <Button label="Retry" variant="ghost" size="sm" onPress={() => fetchInsights(true)} />
+        </Card>
       )}
 
       {revealed && insights.length > 0 && (
@@ -183,99 +165,34 @@ export function AIInsightCard({ month, year, hasData }: Props) {
             const cfg   = TYPE_CONFIG[insight.type] || TYPE_CONFIG.neutral;
             const color = theme[cfg.colorKey];
             return (
-              <Animated.View
-                key={i}
-                entering={FadeInDown.delay(i * 90).duration(280)}
-                style={[styles.insightItem, { backgroundColor: theme.card }]}
-              >
-                <View style={[styles.iconCircle, { backgroundColor: color + '22' }]}>
-                  <Ionicons name={cfg.icon} size={17} color={color} />
-                </View>
-                <View style={styles.insightContent}>
-                  <Text style={[styles.insightTitle, { color }]}>{insight.title}</Text>
-                  <ThemedText style={styles.insightBody}>{insight.body}</ThemedText>
-                </View>
+              <Animated.View key={i} entering={FadeInDown.delay(i * 90).duration(280)}>
+                <Card style={S.insight}>
+                  <View style={[S.iconCircle, { backgroundColor: color + '22' }]}>
+                    <Ionicons name={cfg.icon} size={iconSize.md} color={color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[type.overline, { color, marginBottom: space.xs }]}>{insight.title}</Text>
+                    <Text style={[type.body, { color: theme.text }]}>{insight.body}</Text>
+                  </View>
+                </Card>
               </Animated.View>
             );
           })}
 
-          <TouchableOpacity
-            style={styles.regenRow}
-            onPress={() => fetchInsights(true)}
-            disabled={loading}
-          >
-            <Ionicons name="refresh-outline" size={13} color={theme.secondaryText} />
-            <ThemedText style={[styles.regenText, { color: theme.secondaryText }]}>Regenerate</ThemedText>
-          </TouchableOpacity>
+          <Button label="Regenerate" icon="refresh-outline" variant="ghost" size="sm" onPress={() => fetchInsights(true)} disabled={loading} />
         </>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { marginTop: 12 },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 12,
-  },
-  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  badge: { fontSize: 11, fontWeight: '600' },
-
-  revealBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 8, paddingVertical: 14, borderRadius: 16,
-  },
-  revealText: { fontSize: 15, fontWeight: '700' },
-
-  loadingCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    padding: 18, borderRadius: 20,
-  },
-  loadingText: { fontSize: 13, flex: 1 },
-
-  errorCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 16, borderRadius: 20,
-  },
-  errorText: { fontSize: 13, flex: 1 },
-  retryBtn: { paddingHorizontal: 8 },
-  retryText: { fontSize: 13, fontWeight: '700' },
-
-  insightItem: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    padding: 16, borderRadius: 20, marginBottom: 10,
-  },
-  iconCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  insightContent: { flex: 1, marginLeft: 12 },
-  insightTitle: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 4 },
-  insightBody: { fontSize: 13, lineHeight: 19 },
-
-  regenRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 5, paddingVertical: 8,
-  },
-  regenText: { fontSize: 12, fontWeight: '600' },
-
-  consentOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center', alignItems: 'center', padding: 24,
-  },
-  consentCard: {
-    width: '100%', borderRadius: 24, padding: 24, alignItems: 'center',
-  },
-  consentIcon: {
-    width: 56, height: 56, borderRadius: 18,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 14,
-  },
-  consentTitle: { fontSize: 17, fontWeight: '800', marginBottom: 12, textAlign: 'center' },
-  consentBody: { fontSize: 13, lineHeight: 20, textAlign: 'center', marginBottom: 20 },
-  consentAccept: {
-    width: '100%', paddingVertical: 14, borderRadius: 14,
-    alignItems: 'center', marginBottom: 10,
-  },
-  consentAcceptText: { fontSize: 15, fontWeight: '700' },
-  consentDecline: { paddingVertical: 8 },
-  consentDeclineText: { fontSize: 13 },
+const S = StyleSheet.create({
+  root:        { marginTop: space.md, gap: space.sm },
+  inline:      { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  insight:     { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  iconCircle:  { width: 36, height: 36, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  consent:     { alignItems: 'center', gap: space.md, paddingTop: space.sm },
+  consentIcon: { width: 56, height: 56, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' },
+  center:      { textAlign: 'center' },
+  actions:     { alignSelf: 'stretch', gap: space.sm, marginTop: space.sm },
 });
