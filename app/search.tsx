@@ -1,19 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, ActivityIndicator, Keyboard,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, TextInput, FlatList, Keyboard, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as Haptics from 'expo-haptics';
-
 import { useTheme } from '@/src/context/ThemeContext';
-import { usePreferences } from '@/src/context/PreferencesContext';
-import { ThemedView } from '@/components/themed-view';
 import { searchAllTransactions } from '@/src/services/dataService';
 import { CATEGORY_EMOJIS } from '@/constants/maps';
+import { space, radius, icon as iconSize } from '@/constants/tokens';
+import { Screen, Card, Row, Touchable, Field, Amount, EmptyState, SectionHeader, Chip, Skeleton } from '@/components/ui';
 
 const RECENT_KEY   = '@recent_searches';
 const MAX_RECENT   = 8;
@@ -38,16 +32,14 @@ function relativeDate(iso: string): string {
 }
 
 export default function SearchScreen() {
-  const { theme }              = useTheme();
-  const { formatAmount }       = usePreferences();
-  const { top }                = useSafeAreaInsets();
-  const inputRef               = useRef<TextInput>(null);
+  const { theme } = useTheme();
+  const inputRef  = useRef<TextInput>(null);
 
-  const [query,          setQuery]        = useState('');
-  const [results,        setResults]      = useState<any[]>([]);
-  const [loading,        setLoading]      = useState(false);
-  const [searched,       setSearched]     = useState(false);
-  const [filter,         setFilter]       = useState<FilterType>('all');
+  const [query,          setQuery]          = useState('');
+  const [results,        setResults]        = useState<any[]>([]);
+  const [loading,        setLoading]        = useState(false);
+  const [searched,       setSearched]       = useState(false);
+  const [filter,         setFilter]         = useState<FilterType>('all');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,7 +113,6 @@ export default function SearchScreen() {
   };
 
   const handleResultPress = (item: any) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: '/edit-transaction',
       params: {
@@ -138,272 +129,122 @@ export default function SearchScreen() {
     });
   };
 
+  const clear = () => { setQuery(''); setResults([]); setSearched(false); inputRef.current?.focus(); };
+
   // Client-side type filter
-  const visible = filter === 'all'
-    ? results
-    : results.filter(tx => tx.type === filter);
+  const visible  = filter === 'all' ? results : results.filter(tx => tx.type === filter);
+  const incCount = results.filter(t => t.type === 'income').length;
+  const expCount = results.filter(t => t.type === 'expense').length;
 
-  // ── Render helpers ────────────────────────────────────────────────────────
-
-  const renderResult = ({ item, index }: { item: any; index: number }) => {
-    const isExpense = item.type === 'expense';
-    const amtColor  = isExpense ? theme.expense : theme.income;
-    const sign      = isExpense ? '-' : '+';
-    const dateStr   = relativeDate(item.date ?? item.createdAt);
-    const hasNote   = !!item.note?.trim();
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.resultRow,
-          { borderBottomColor: theme.separator },
-          index === 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.separator },
-        ]}
-        onPress={() => handleResultPress(item)}
-        activeOpacity={0.65}
-      >
-        {/* Left color bar */}
-        <View style={[styles.colorBar, { backgroundColor: amtColor }]} />
-
-        {/* Emoji */}
-        <Text style={styles.emoji}>{getEmoji(item.category)}</Text>
-
-        {/* Middle: category + note */}
-        <View style={styles.resultMid}>
-          <Text style={[styles.resultCat, { color: theme.text }]} numberOfLines={1}>
-            {item.category}
-          </Text>
-          {hasNote && (
-            <Text style={[styles.resultNote, { color: theme.secondaryText }]} numberOfLines={1}>
-              {item.note}
-            </Text>
-          )}
-          <Text style={[styles.resultDate, { color: theme.secondaryText }]}>{dateStr}</Text>
-        </View>
-
-        {/* Right: amount + type chip */}
-        <View style={styles.resultRight}>
-          <Text style={[styles.resultAmt, { color: amtColor }]}>
-            {sign}{formatAmount(item.amount)}
-          </Text>
-          <View style={[styles.typePill, { backgroundColor: amtColor }]}>
-            <Text style={[styles.typePillText, { color: isExpense ? theme.expenseText : theme.incomeText }]}>
-              {isExpense ? 'Exp' : 'Inc'}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const renderResult = ({ item, index }: { item: any; index: number }) => (
+    <Row
+      emoji={getEmoji(item.category)}
+      iconBg="transparent"
+      title={item.category}
+      subtitle={[item.note?.trim(), relativeDate(item.date ?? item.createdAt)].filter(Boolean).join(' · ')}
+      right={<Amount value={item.amount} kind={item.type === 'expense' ? 'expense' : 'income'} />}
+      onPress={() => handleResultPress(item)}
+      last={index === visible.length - 1}
+    />
+  );
 
   const renderEmpty = () => {
-    if (loading) return null;
+    if (loading) {
+      return <Skeleton.Group style={{ paddingTop: space.md }}><Skeleton.Row /><Skeleton.Row /><Skeleton.Row /></Skeleton.Group>;
+    }
     if (!searched) {
-      // Show recent searches
       if (recentSearches.length === 0) {
-        return (
-          <View style={styles.hintBox}>
-            <Ionicons name="search" size={40} color={theme.secondaryText} style={{ marginBottom: 12 }} />
-            <Text style={[styles.hintTitle, { color: theme.text }]}>Search Transactions</Text>
-            <Text style={[styles.hintSub, { color: theme.secondaryText }]}>
-              Search by category, note, or amount — across all time
-            </Text>
-          </View>
-        );
+        return <EmptyState icon="search" title="Search transactions" body="Search by category, note, or amount — across all time." />;
       }
       return (
-        <View style={styles.recentWrap}>
-          <View style={styles.recentHeader}>
-            <Text style={[styles.recentTitle, { color: theme.secondaryText }]}>RECENT</Text>
-            <TouchableOpacity onPress={clearAllRecent} hitSlop={8}>
-              <Text style={[styles.clearAll, { color: theme.tint }]}>Clear all</Text>
-            </TouchableOpacity>
-          </View>
-          {recentSearches.map(item => (
-            <View key={item} style={[styles.recentRow, { borderBottomColor: theme.separator }]}>
-              <TouchableOpacity
-                style={styles.recentLeft}
+        <>
+          <SectionHeader title="Recent" action={{ label: 'Clear all', onPress: clearAllRecent }} />
+          <Card padded={false}>
+            {recentSearches.map((item, i) => (
+              <Row
+                key={item}
+                icon="time-outline"
+                iconBg="transparent"
+                iconColor={theme.secondaryText}
+                title={item}
                 onPress={() => handleRecentTap(item)}
-                activeOpacity={0.6}
-              >
-                <Ionicons name="time-outline" size={16} color={theme.secondaryText} />
-                <Text style={[styles.recentText, { color: theme.text }]}>{item}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => removeRecent(item)} hitSlop={10}>
-                <Ionicons name="close" size={16} color={theme.secondaryText} />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
+                chevron={false}
+                last={i === recentSearches.length - 1}
+                right={(
+                  <Touchable onPress={() => removeRecent(item)} size={28} style={S.removeBtn} accessibilityLabel={`Remove ${item}`} rippleBorderless>
+                    <Ionicons name="close" size={iconSize.sm} color={theme.secondaryText} />
+                  </Touchable>
+                )}
+              />
+            ))}
+          </Card>
+        </>
       );
     }
-    // No results
     return (
-      <View style={styles.hintBox}>
-        <Ionicons name="search-circle-outline" size={48} color={theme.secondaryText} style={{ marginBottom: 12 }} />
-        <Text style={[styles.hintTitle, { color: theme.text }]}>No results</Text>
-        <Text style={[styles.hintSub, { color: theme.secondaryText }]}>
-          {`Nothing matched "${query}" — try a whole word from a note, or a category`}
-        </Text>
-      </View>
+      <EmptyState
+        icon="search-circle-outline"
+        title="No results"
+        body={`Nothing matched "${query}" — try a whole word from a note, or a category.`}
+      />
     );
   };
 
-  const incCount  = results.filter(t => t.type === 'income').length;
-  const expCount  = results.filter(t => t.type === 'expense').length;
-
   return (
-    <ThemedView style={[styles.container, { paddingTop: top }]}>
-
-      {/* Search bar */}
-      <View style={[styles.searchBar, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={theme.text} />
-        </TouchableOpacity>
-        <TextInput
-          ref={inputRef}
-          style={[styles.input, { color: theme.text }]}
-          placeholder="Search all transactions..."
-          placeholderTextColor={theme.secondaryText}
-          value={query}
-          onChangeText={handleQueryChange}
-          onSubmitEditing={handleSubmit}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-          autoCorrect={false}
-          autoCapitalize="none"
-        />
-        {query.length > 0 && (
-          <TouchableOpacity
-            onPress={() => { setQuery(''); setResults([]); setSearched(false); inputRef.current?.focus(); }}
-            hitSlop={10}
-            style={styles.clearBtn}
-          >
-            <Ionicons name="close-circle" size={18} color={theme.secondaryText} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Filter chips — shown only when there are results */}
-      {searched && results.length > 0 && (
-        <View style={[styles.filterRow, { borderBottomColor: theme.separator }]}>
-          {([
-            ['all',     `All (${results.length})`],
-            ['income',  `Income (${incCount})`],
-            ['expense', `Expenses (${expCount})`],
-          ] as [FilterType, string][]).map(([key, label]) => (
-            <TouchableOpacity
-              key={key}
-              style={[
-                styles.filterChip,
-                filter === key && { backgroundColor: theme.tint },
-                filter !== key && { backgroundColor: theme.card, borderColor: theme.border },
-              ]}
-              onPress={() => setFilter(key)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.filterChipText, { color: filter === key ? theme.tintText : theme.secondaryText }]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+    <Screen
+      title="Search"
+      scroll={false}
+      gutter={0}
+      subheader={(
+        <View style={S.bar}>
+          <Field
+            ref={inputRef}
+            icon="search"
+            placeholder="Search all transactions…"
+            value={query}
+            onChangeText={handleQueryChange}
+            onSubmitEditing={handleSubmit}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            accessibilityLabel="Search transactions"
+            right={query.length > 0 ? (
+              <Touchable onPress={clear} size={28} style={S.removeBtn} accessibilityLabel="Clear search" rippleBorderless>
+                <Ionicons name="close-circle" size={iconSize.md} color={theme.secondaryText} />
+              </Touchable>
+            ) : undefined}
+          />
+          {searched && results.length > 0 && (
+            <View style={S.chips}>
+              <Chip label={`All · ${results.length}`}    selected={filter === 'all'}     onPress={() => setFilter('all')} size="sm" />
+              <Chip label={`Income · ${incCount}`}      selected={filter === 'income'}  onPress={() => setFilter('income')} size="sm" />
+              <Chip label={`Expenses · ${expCount}`}    selected={filter === 'expense'} onPress={() => setFilter('expense')} size="sm" />
+            </View>
+          )}
         </View>
       )}
-
-      {/* Loading spinner */}
-      {loading && (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="small" color={theme.tint} />
-          <Text style={[styles.loadingText, { color: theme.secondaryText }]}>Searching…</Text>
-        </View>
-      )}
-
-      {/* Results list */}
+    >
       <FlatList
         data={visible}
         keyExtractor={item => item._id}
         renderItem={renderResult}
         ListEmptyComponent={renderEmpty}
+        // The content view is one View, so a card frame on it encloses every rendered row — the
+        // list stays virtualized and still reads as a Card.
+        contentContainerStyle={[S.list, visible.length > 0 && [S.frame, { backgroundColor: theme.card, borderColor: theme.border }]]}
+        style={S.scroll}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={visible.length === 0 ? styles.emptyContent : styles.listContent}
+        keyboardDismissMode="on-drag"
       />
-
-      {/* Results count footer */}
-      {searched && !loading && visible.length > 0 && (
-        <View style={[styles.footer, { borderTopColor: theme.separator }]}>
-          <Text style={[styles.footerText, { color: theme.secondaryText }]}>
-            {visible.length} result{visible.length !== 1 ? 's' : ''}
-          </Text>
-        </View>
-      )}
-    </ThemedView>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  backBtn:   { padding: 2 },
-  input:     { flex: 1, fontSize: 16, fontWeight: '500', paddingVertical: 8 },
-  clearBtn:  { padding: 2 },
-
-  filterRow: {
-    flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  filterChip: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  filterChipText: { fontSize: 12, fontWeight: '700' },
-
-  loadingWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingTop: 32 },
-  loadingText: { fontSize: 14 },
-
-  listContent:  { paddingBottom: 80 },
-  emptyContent: { flexGrow: 1 },
-
-  // Result rows
-  resultRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 0,
-    paddingRight: 16, paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  colorBar:   { width: 3, alignSelf: 'stretch', marginRight: 12 },
-  emoji:      { fontSize: 22, width: 36, textAlign: 'center' },
-  resultMid:  { flex: 1, gap: 2, marginLeft: 8 },
-  resultCat:  { fontSize: 14, fontWeight: '600' },
-  resultNote: { fontSize: 12 },
-  resultDate: { fontSize: 11, marginTop: 1 },
-  resultRight:{ alignItems: 'flex-end', gap: 4, minWidth: 80 },
-  resultAmt:  { fontSize: 14, fontWeight: '800' },
-  typePill:   { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  typePillText: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
-
-  // Hint / empty
-  hintBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 40 },
-  hintTitle: { fontSize: 17, fontWeight: '700', marginBottom: 6 },
-  hintSub:   { fontSize: 13, textAlign: 'center', lineHeight: 20 },
-
-  // Recent searches
-  recentWrap:   { paddingHorizontal: 16, paddingTop: 8 },
-  recentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 },
-  recentTitle:  { fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
-  clearAll:     { fontSize: 13, fontWeight: '700' },
-  recentRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  recentLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  recentText: { fontSize: 15 },
-
-  // Footer
-  footer:     { paddingHorizontal: 20, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, alignItems: 'center' },
-  footerText: { fontSize: 12 },
+const S = StyleSheet.create({
+  bar:        { paddingHorizontal: space.lg, paddingBottom: space.sm, gap: space.sm },
+  chips:      { flexDirection: 'row', gap: space.sm },
+  removeBtn:  { width: 28, height: 28, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  scroll:     { paddingHorizontal: space.lg },
+  list:       { paddingBottom: space.xxl, flexGrow: 1 },
+  frame:      { flexGrow: 0, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
 });
