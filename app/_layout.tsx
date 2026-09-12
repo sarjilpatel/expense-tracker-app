@@ -22,6 +22,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { hasPendingLocalData } from '@/src/services/syncService';
 import LockScreen from '@/app/lock';
 import { shouldLock, recordBackground, clearBackgroundTime } from '@/src/services/lockService';
+import { hasSeenWelcome } from '@/src/services/onboardingService';
 import { radius } from '@/constants/tokens';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
@@ -49,7 +50,7 @@ const PUSH_SCREENS = [
   'settings/customization', 'settings/security', 'settings/data', 'settings/help',
 ];
 const EDIT_SCREENS = ['add-transaction', 'edit-transaction', 'add-budget', 'add-account', 'add-transfer', 'edit-profile'];
-const FLOW_SCREENS = ['login', 'signup', 'forgot-password', 'verify-email', 'reset-password', 'group-setup'];
+const FLOW_SCREENS = ['welcome', 'login', 'signup', 'forgot-password', 'verify-email', 'reset-password', 'group-setup'];
 
 
 function RootLayoutNav() {
@@ -61,6 +62,7 @@ function RootLayoutNav() {
   const [showSync, setShowSync] = useState(false);
   const [locked, setLocked]     = useState(false);
   const [lockChecked, setLockChecked] = useState(false);
+  const [welcomeSeen, setWelcomeSeen] = useState<boolean | null>(null);
   const prevIsGuest = useRef<boolean | null>(null);
 
   // Inject logout into apiClient for 401 handling
@@ -68,12 +70,14 @@ function RootLayoutNav() {
     apiClient.injectLogout(logout);
   }, [logout]);
 
-  // Cold-start lock check
+  // Cold-start lock check, and whether this device has been through the first run (W2-32) —
+  // both read in parallel so neither adds a hop to startup (W2-18).
   useEffect(() => {
     shouldLock().then(lock => {
       if (lock) setLocked(true);
       setLockChecked(true);
     });
+    hasSeenWelcome().then(setWelcomeSeen);
   }, []);
 
   // AppState-based lock
@@ -108,13 +112,16 @@ function RootLayoutNav() {
     if (user && inAuthGroup) {
       // Logged-in user landed on auth screen → push to tabs
       router.replace('/(tabs)');
+    } else if (!user && welcomeSeen === false && segments[0] !== 'welcome') {
+      // First run on this device: the welcome flow, which ends in guest mode or an account.
+      router.replace('/welcome');
     }
-    // No forced redirects for guests — they go directly to tabs
+    // Otherwise no forced redirects — guests go directly to tabs
 
     SplashScreen.hideAsync();
-  }, [user, loading, segments, router]);
+  }, [user, loading, segments, router, welcomeSeen]);
 
-  if (loading || !lockChecked) {
+  if (loading || !lockChecked || welcomeSeen === null) {
     const bg = colorScheme === 'dark' ? Colors.dark.background : Colors.light.background;
     return (
       <View style={[loadingStyles.container, { backgroundColor: bg }]}>
