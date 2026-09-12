@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Modal, View, Text, TouchableOpacity,
-  StyleSheet, ActivityIndicator,
-} from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
+import { space, radius, type, tabular, icon as iconSize } from '@/constants/tokens';
+import { Sheet, Button, Card, Row, type SheetHandle } from '@/components/ui';
 import { getSyncSummary, syncLocalToServer, discardLocalData, SyncSummary } from '@/src/services/syncService';
 
 interface Props {
@@ -15,8 +14,13 @@ interface Props {
 
 type Step = 'confirm' | 'syncing' | 'done' | 'partial' | 'error';
 
+/**
+ * First-login upload of guest data, on the shared `Sheet` (W2-11). The sheet is locked while an
+ * upload is in flight — dismissing it mid-write would leave the user unsure what landed.
+ */
 export function SyncModal({ visible, onDone }: Props) {
   const { theme } = useTheme();
+  const sheet = useRef<SheetHandle>(null);
   const [summary,   setSummary]   = useState<SyncSummary | null>(null);
   const [step,      setStep]      = useState<Step>('confirm');
   const [progress,  setProgress]  = useState({ label: '', done: 0, total: 0 });
@@ -33,6 +37,9 @@ export function SyncModal({ visible, onDone }: Props) {
       setProgress({ label: '', done: 0, total: 0 });
       progressAnim.value = 0;
       getSyncSummary().then(setSummary).catch(() => setSummary(null));
+      sheet.current?.present();
+    } else {
+      sheet.current?.dismiss();
     }
   }, [visible]);
 
@@ -64,183 +71,111 @@ export function SyncModal({ visible, onDone }: Props) {
 
   const handleDiscard = async () => {
     await discardLocalData();
-    onDone();
+    sheet.current?.dismiss();
   };
 
+  const close = () => sheet.current?.dismiss();
+
+  const hero = (icon: React.ComponentProps<typeof Ionicons>['name'], color: string, title: string, body: string) => (
+    <>
+      <View style={[S.iconWrap, { backgroundColor: color + '1F' }]}>
+        <Ionicons name={icon} size={iconSize.xl} color={color} />
+      </View>
+      <Text style={[type.title, S.center, { color: theme.text }]}>{title}</Text>
+      <Text style={[type.body, S.center, { color: theme.secondaryText }]}>{body}</Text>
+    </>
+  );
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: theme.card }]}>
+    <Sheet ref={sheet} keyboard="none" dismissable={step !== 'syncing'} onDismiss={onDone}>
+      <View style={S.body}>
+        {step === 'confirm' && (
+          <>
+            {hero('cloud-upload-outline', theme.tint, 'Sync local data', 'You have data from guest mode. Upload it to your account?')}
 
-          {step === 'confirm' && (
-            <>
-              <View style={[styles.iconWrap, { backgroundColor: theme.tint }]}>
-                <Ionicons name="cloud-upload-outline" size={32} color={theme.tintText} />
-              </View>
-              <Text style={[styles.title, { color: theme.text }]}>Sync Local Data</Text>
-              <Text style={[styles.sub, { color: theme.secondaryText }]}>
-                You have local data from guest mode. Sync it to your account?
-              </Text>
+            {summary && (summary.transactions + summary.categories + summary.accounts + summary.budgets > 0) && (
+              <Card padded={false} style={S.summary}>
+                {summary.transactions > 0 && <Row icon="receipt-outline" iconColor={theme.tint}    title="Transactions"      right={<Count n={summary.transactions} />} />}
+                {summary.categories   > 0 && <Row icon="grid-outline"    iconColor={theme.income}  title="Custom categories" right={<Count n={summary.categories} />} />}
+                {summary.accounts     > 0 && <Row icon="card-outline"    iconColor={theme.expense} title="Accounts"          right={<Count n={summary.accounts} />} />}
+                {summary.budgets      > 0 && <Row icon="wallet-outline"  iconColor={theme.warning} title="Budgets"           right={<Count n={summary.budgets} />} last />}
+              </Card>
+            )}
 
-              {summary && (
-                <View style={[styles.summaryBox, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                  {summary.transactions > 0 && (
-                    <SummaryRow icon="receipt-outline" label="Transactions" count={summary.transactions} color={theme.tint} />
-                  )}
-                  {summary.categories > 0 && (
-                    <SummaryRow icon="grid-outline" label="Custom categories" count={summary.categories} color={theme.income} />
-                  )}
-                  {summary.accounts > 0 && (
-                    <SummaryRow icon="card-outline" label="Accounts" count={summary.accounts} color={theme.expense} />
-                  )}
-                  {summary.budgets > 0 && (
-                    <SummaryRow icon="wallet-outline" label="Budgets" count={summary.budgets} color={theme.warning} />
-                  )}
-                </View>
-              )}
+            <View style={S.actions}>
+              <Button label="Sync now" icon="cloud-upload-outline" onPress={handleSync} />
+              <Button label="Start fresh — discard local data" variant="secondary" onPress={handleDiscard} />
+              <Button label="Skip for now" variant="ghost" size="sm" onPress={close} />
+            </View>
+          </>
+        )}
 
-              <TouchableOpacity style={[styles.btn, { backgroundColor: theme.tint }]} onPress={handleSync}>
-                <Ionicons name="cloud-upload-outline" size={18} color={theme.tintText} />
-                <Text style={[styles.btnText, { color: theme.tintText }]}>Sync Now</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btnSecondary, { borderColor: theme.border }]} onPress={handleDiscard}>
-                <Text style={[styles.btnSecondaryText, { color: theme.secondaryText }]}>Start Fresh — discard local data</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onDone} style={styles.skipBtn}>
-                <Text style={[styles.skipText, { color: theme.secondaryText }]}>Skip for now</Text>
-              </TouchableOpacity>
-            </>
-          )}
+        {step === 'syncing' && (
+          <>
+            <ActivityIndicator size="large" color={theme.tint} />
+            <Text style={[type.title, S.center, { color: theme.text }]}>Syncing…</Text>
+            <Text style={[type.body, S.center, { color: theme.secondaryText }]}>
+              {progress.label ? `Uploading ${progress.label}` : 'Preparing…'}
+            </Text>
+            <View style={[S.track, { backgroundColor: theme.border }]}>
+              <Animated.View style={[S.fill, { backgroundColor: theme.tint }, progressStyle]} />
+            </View>
+            {progress.total > 0 && (
+              <Text style={[type.label, tabular, { color: theme.secondaryText }]}>{progress.done} / {progress.total}</Text>
+            )}
+          </>
+        )}
 
-          {step === 'syncing' && (
-            <>
-              <ActivityIndicator size="large" color={theme.tint} style={{ marginBottom: 20 }} />
-              <Text style={[styles.title, { color: theme.text }]}>Syncing…</Text>
-              <Text style={[styles.sub, { color: theme.secondaryText }]}>
-                {progress.label ? `Uploading ${progress.label}` : 'Preparing…'}
-              </Text>
-              <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
-                <Animated.View style={[styles.progressFill, { backgroundColor: theme.tint }, progressStyle]} />
-              </View>
-              {progress.total > 0 && (
-                <Text style={[styles.progressLabel, { color: theme.secondaryText }]}>
-                  {progress.done} / {progress.total}
-                </Text>
-              )}
-            </>
-          )}
+        {step === 'done' && (
+          <>
+            {hero('checkmark-circle-outline', theme.income, 'All synced', 'Your data has been uploaded to your account.')}
+            <View style={S.actions}>
+              <Button label="Continue" onPress={close} />
+            </View>
+          </>
+        )}
 
-          {step === 'done' && (
-            <>
-              <View style={[styles.iconWrap, { backgroundColor: theme.tint }]}>
-                <Ionicons name="checkmark-circle-outline" size={32} color={theme.tintText} />
-              </View>
-              <Text style={[styles.title, { color: theme.text }]}>All Synced!</Text>
-              <Text style={[styles.sub, { color: theme.secondaryText }]}>
-                Your data has been uploaded to your account.
-              </Text>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: theme.income }]} onPress={onDone}>
-                <Text style={[styles.btnText, { color: theme.incomeText }]}>Continue</Text>
-              </TouchableOpacity>
-            </>
-          )}
+        {step === 'partial' && (
+          <>
+            {hero('cloud-offline-outline', theme.warning, 'Partly synced',
+              `${outcome.synced} item${outcome.synced === 1 ? '' : 's'} uploaded.\n${outcome.failed} still on this device — nothing was lost. Retry to finish.`)}
+            <View style={S.actions}>
+              <Button label="Retry remaining" icon="refresh-outline" onPress={handleSync} />
+              <Button label="Later" variant="secondary" onPress={close} />
+            </View>
+          </>
+        )}
 
-          {step === 'partial' && (
-            <>
-              <View style={[styles.iconWrap, { backgroundColor: theme.warning }]}>
-                <Ionicons name="cloud-offline-outline" size={32} color={theme.tintText} />
-              </View>
-              <Text style={[styles.title, { color: theme.text }]}>Partly Synced</Text>
-              <Text style={[styles.sub, { color: theme.secondaryText }]}>
-                {outcome.synced} item{outcome.synced === 1 ? '' : 's'} uploaded.{'\n'}
-                {outcome.failed} still on this device — nothing was lost. Retry to finish.
-              </Text>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: theme.tint }]} onPress={handleSync}>
-                <Text style={[styles.btnText, { color: theme.tintText }]}>Retry Remaining</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btnSecondary, { borderColor: theme.border }]} onPress={onDone}>
-                <Text style={[styles.btnSecondaryText, { color: theme.secondaryText }]}>Later</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {step === 'error' && (
-            <>
-              <View style={[styles.iconWrap, { backgroundColor: theme.tint }]}>
-                <Ionicons name="alert-circle-outline" size={32} color={theme.tintText} />
-              </View>
-              <Text style={[styles.title, { color: theme.text }]}>Sync Failed</Text>
-              <Text style={[styles.sub, { color: theme.secondaryText }]}>
-                {errorMsg}{'\n'}Your local data is still on this device.
-              </Text>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: theme.tint }]} onPress={handleSync}>
-                <Text style={[styles.btnText, { color: theme.tintText }]}>Retry</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btnSecondary, { borderColor: theme.border }]} onPress={onDone}>
-                <Text style={[styles.btnSecondaryText, { color: theme.secondaryText }]}>Skip for now</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-        </View>
+        {step === 'error' && (
+          <>
+            {hero('alert-circle-outline', theme.expense, 'Sync failed', `${errorMsg}\nYour local data is still on this device.`)}
+            <View style={S.actions}>
+              <Button label="Retry" icon="refresh-outline" onPress={handleSync} />
+              <Button label="Skip for now" variant="secondary" onPress={close} />
+            </View>
+          </>
+        )}
       </View>
-    </Modal>
+    </Sheet>
   );
 }
 
-function SummaryRow({ icon, label, count, color }: { icon: any; label: string; count: number; color: string }) {
+function Count({ n }: { n: number }) {
   const { theme } = useTheme();
   return (
-    <View style={styles.summaryRow}>
-      <Ionicons name={icon} size={16} color={color} />
-      <Text style={[styles.summaryLabel, { color: theme.text }]}>{label}</Text>
-      <View style={[styles.countBadge, { backgroundColor: theme.cardAlt ?? theme.border }]}>
-        <Text style={[styles.countText, { color }]}>{count}</Text>
-      </View>
+    <View style={[S.badge, { backgroundColor: theme.cardAlt }]}>
+      <Text style={[type.label, tabular, { color: theme.text }]}>{n}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center', alignItems: 'center', padding: 24,
-  },
-  card: {
-    width: '100%', borderRadius: 24,
-    padding: 28, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.15, shadowRadius: 30, elevation: 20,
-  },
-  iconWrap: {
-    width: 64, height: 64, borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
-  },
-  title: { fontSize: 20, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
-  sub:   { fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
-  summaryBox: {
-    width: '100%', borderRadius: 12, borderWidth: 1,
-    padding: 14, marginBottom: 20, gap: 10,
-  },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  summaryLabel: { flex: 1, fontSize: 14, fontWeight: '500' },
-  countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 },
-  countText:  { fontSize: 12, fontWeight: '800' },
-  btn: {
-    width: '100%', height: 52, borderRadius: 14,
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    gap: 8, marginBottom: 10,
-  },
-  btnText: { fontSize: 16, fontWeight: '700' },
-  btnSecondary: {
-    width: '100%', height: 48, borderRadius: 14, borderWidth: 1,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 8,
-  },
-  btnSecondaryText: { fontSize: 14, fontWeight: '600' },
-  skipBtn: { paddingVertical: 8 },
-  skipText: { fontSize: 13 },
-  progressTrack: { width: '100%', height: 6, borderRadius: 3, marginBottom: 8, overflow: 'hidden' },
-  progressFill:  { height: '100%', borderRadius: 3 },
-  progressLabel: { fontSize: 12 },
+const S = StyleSheet.create({
+  body:     { alignItems: 'center', gap: space.md, paddingTop: space.sm },
+  center:   { textAlign: 'center' },
+  iconWrap: { width: 64, height: 64, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' },
+  summary:  { alignSelf: 'stretch' },
+  actions:  { alignSelf: 'stretch', gap: space.sm, marginTop: space.sm },
+  badge:    { paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.sm },
+  track:    { alignSelf: 'stretch', height: 6, borderRadius: radius.full, overflow: 'hidden' },
+  fill:     { height: '100%', borderRadius: radius.full },
 });

@@ -45,11 +45,13 @@ export interface SheetProps {
   contentStyle?: StyleProp<ViewStyle>;
   /** A sheet holding inputs grows with the keyboard; a picker does not need to. Default `form`. */
   keyboard?: 'form' | 'none';
+  /** False locks the sheet open: no drag-down, no backdrop tap, no ×. For a flow mid-write. */
+  dismissable?: boolean;
   children?: React.ReactNode;
 }
 
 export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
-  { title, snapPoints, scroll = false, onDismiss, handle = true, closeButton, contentStyle, keyboard = 'form', children },
+  { title, snapPoints, scroll = false, onDismiss, handle = true, closeButton, contentStyle, keyboard = 'form', dismissable = true, children },
   ref,
 ) {
   const { theme } = useTheme();
@@ -66,10 +68,10 @@ export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
   // The scrim: tap to dismiss, fades with the sheet. `appearsOnIndex={0}` so it is there from the
   // first snap point — the default of 1 leaves a content-height sheet with no backdrop at all.
   const backdrop = useCallback((props: BottomSheetBackdropProps) => (
-    <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.5} pressBehavior="close" />
-  ), []);
+    <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.5} pressBehavior={dismissable ? 'close' : 'none'} />
+  ), [dismissable]);
 
-  const showClose = closeButton ?? !!title;
+  const showClose = (closeButton ?? !!title) && dismissable;
   const header = (title || showClose) && (
     <View style={[styles.header, { borderBottomColor: theme.separator }]}>
       <Text style={[type.heading, styles.title, { color: theme.text }]} numberOfLines={1} accessibilityRole="header">
@@ -90,7 +92,7 @@ export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
       ref={modal}
       snapPoints={points}
       enableDynamicSizing={!points}
-      enablePanDownToClose
+      enablePanDownToClose={dismissable}
       backdropComponent={backdrop}
       onDismiss={onDismiss}
       handleComponent={handle ? undefined : null}
