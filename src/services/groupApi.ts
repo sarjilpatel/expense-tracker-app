@@ -66,6 +66,44 @@ export const switchGroup = async (groupId: string) => {
   }
 };
 
+// ── Join requests (owner only) ─────────────────────────────────────────────
+// Joining is a request the owner approves. The backend has carried these three routes since the
+// approval flow was introduced; the app had no way to call them, so a request could be sent from
+// group-setup and then never answered from anywhere.
+
+export interface PendingRequest {
+  userId: { _id: string; name: string; email?: string; profilePhoto?: string };
+  requestedAt: string;
+}
+
+export const getPendingRequests = async (groupId: string): Promise<PendingRequest[]> => {
+  try {
+    const response = await apiClient.get(`/group/${groupId}/pending`);
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to fetch join requests';
+  }
+};
+
+export const approveJoinRequest = async (groupId: string, userId: string) => {
+  try {
+    const response = await apiClient.post(`/group/${groupId}/approve/${userId}`);
+    invalidateCachedGroup();
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to approve request';
+  }
+};
+
+export const rejectJoinRequest = async (groupId: string, userId: string) => {
+  try {
+    const response = await apiClient.post(`/group/${groupId}/reject/${userId}`);
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to reject request';
+  }
+};
+
 export const addCategory = async (name: string, icon: string, type: 'income' | 'expense' | 'both' = 'expense', emoji?: string) => {
   try {
     const response = await apiClient.post('/group/categories', { name, icon, type, ...(emoji ? { emoji } : {}) });

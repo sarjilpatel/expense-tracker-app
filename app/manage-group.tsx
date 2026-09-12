@@ -1,25 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  StyleSheet, Text, View, TouchableOpacity, ActivityIndicator,
-  Alert, ScrollView, Share, TextInput, KeyboardAvoidingView, Platform,
-} from 'react-native';
+import { StyleSheet, Text, View, Alert, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter, Stack } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { ThemedView } from '@/components/themed-view';
-import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
 import {
-  getCurrentGroup,
-  getMyGroups,
-  switchGroup,
-  createGroup,
-  joinGroup,
-  leaveGroup,
-  deleteGroup,
+  getCurrentGroup, getMyGroups, switchGroup, createGroup, joinGroup, leaveGroup, deleteGroup,
+  getPendingRequests, approveJoinRequest, rejectJoinRequest, type PendingRequest,
 } from '@/src/services/groupApi';
 import { getAllTransactions } from '@/src/services/dataService';
+import { hexToRGBA } from '@/constants/theme';
+import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import {
+  Screen, Card, Row, Button, Field, Amount, EmptyState, SectionHeader, Chip, Skeleton,
+} from '@/components/ui';
 
 export default function ManageGroupScreen() {
   const { user, updateUser } = useAuth();
@@ -28,6 +23,7 @@ export default function ManageGroupScreen() {
 
   const [group, setGroup] = useState<any>(null);
   const [myGroups, setMyGroups] = useState<any[]>([]);
+  const [pending, setPending] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [monthlyExpense, setMonthlyExpense] = useState(0);
@@ -36,6 +32,12 @@ export default function ManageGroupScreen() {
   const [addMode, setAddMode] = useState<'create' | 'join'>('create');
   const [groupName, setGroupName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+
+  const isOwner = group && (group.createdBy === user?._id || group.owner === user?._id);
+  // The active group can be the user's personal one — they land here from settings to reach the
+  // switcher. Nothing about sharing applies to it: there is no join code, no one to invite, and
+  // leaving or deleting your own space is not a thing to offer.
+  const isPersonal = !!group?.isPersonal;
 
   const loadData = useCallback(async () => {
     try {
@@ -46,12 +48,17 @@ export default function ManageGroupScreen() {
       const txs = (await getAllTransactions(now.getMonth() + 1, now.getFullYear())) as any[];
       const total = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
       setMonthlyExpense(total);
+
+      // Only the owner can see or answer requests; anyone else gets an empty list without a call.
+      const owner = grpDetail && !grpDetail.isPersonal &&
+        (grpDetail.createdBy === user?._id || grpDetail.owner === user?._id);
+      setPending(owner ? await getPendingRequests(grpDetail._id).catch(() => []) : []);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?._id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -99,12 +106,24 @@ export default function ManageGroupScreen() {
     setActionLoading(true);
     try {
       // Joining is a request the owner has to approve, so there is no group to switch into yet.
-      // This used to write `groupId: g._id` from a response that carries no `_id` — putting
-      // `undefined` into the auth context rather than leaving the user where they were.
       const result = await joinGroup(inviteCode.trim().toUpperCase());
       setShowAddGroup(false);
       setInviteCode('');
       Alert.alert('Request sent', result?.message || 'Waiting for the group owner to approve you.');
+    } catch (err: any) {
+      Alert.alert('Error', err.toString());
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const answerRequest = async (req: PendingRequest, approve: boolean) => {
+    if (!group) return;
+    setActionLoading(true);
+    try {
+      if (approve) await approveJoinRequest(group._id, req.userId._id);
+      else         await rejectJoinRequest(group._id, req.userId._id);
+      await loadData();
     } catch (err: any) {
       Alert.alert('Error', err.toString());
     } finally {
@@ -160,426 +179,204 @@ export default function ManageGroupScreen() {
     );
   };
 
-  const isOwner = group && (group.createdBy === user?._id || group.owner === user?._id);
-  // The active group can be the user's personal one — they land here from settings to reach the
-  // switcher. Nothing about sharing applies to it: there is no join code, no one to invite, and
-  // leaving or deleting your own space is not a thing to offer.
-  const isPersonal = !!group?.isPersonal;
-
   const formatDate = (d?: string) =>
     d ? new Date(d).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
-
-  const getInitials = (name?: string) => name?.charAt(0)?.toUpperCase() ?? '?';
+  const initial = (name?: string) => name?.charAt(0)?.toUpperCase() ?? '?';
 
   if (loading) {
     return (
-      <ThemedView style={[styles.container, styles.center]}>
+      <Screen title="Group">
         <Stack.Screen options={{ headerShown: false }} />
-        <ActivityIndicator size="large" color={theme.tint} />
-      </ThemedView>
+        <Skeleton.Group style={{ paddingTop: space.sm }}>
+          <Skeleton.Block height={120} round={radius.lg} />
+          <Skeleton.Row /><Skeleton.Row />
+        </Skeleton.Group>
+      </Screen>
     );
   }
 
+  const members: any[] = group?.members || [];
+
   return (
-    <ThemedView style={styles.container}>
+    <Screen title={group?.name || 'Group'} keyboard>
       <Stack.Screen options={{ headerShown: false }} />
-      {/* Custom header with back button */}
-      <View style={[styles.topBar, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
-          <Ionicons name="arrow-back" size={22} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, { color: theme.text }]}>{group?.name || 'Group'}</Text>
-        <View style={styles.backBtn} />
-      </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-
-          {/* ── Group Info Card ── */}
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <View style={styles.groupHeader}>
-              <View style={[styles.groupAvatar, { backgroundColor: theme.tint }]}>
-                <Text style={[styles.groupAvatarText, { color: theme.tintText }]}>{getInitials(group?.name)}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.groupName, { color: theme.text }]}>{group?.name}</Text>
-                <Text style={[styles.groupSubtitle, { color: theme.secondaryText }]}>
-                  {isPersonal
-                    ? 'Your own space'
-                    : `${group?.members?.length || 0} member${(group?.members?.length || 0) !== 1 ? 's' : ''}`}
-                  {group?.createdAt ? `  ·  Since ${formatDate(group.createdAt)}` : ''}
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.statsRow, { borderTopColor: theme.separator }]}>
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: theme.expense }]}>
-                  ₹{monthlyExpense.toLocaleString('en-IN')}
-                </Text>
-                <Text style={[styles.statLabel, { color: theme.secondaryText }]}>
-                  {isPersonal ? 'Spent this month' : 'Shared this month'}
-                </Text>
-              </View>
-              <View style={[styles.statDivider, { backgroundColor: theme.separator }]} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: theme.tint }]}>
-                  {group?.members?.length || 0}
-                </Text>
-                <Text style={[styles.statLabel, { color: theme.secondaryText }]}>Total members</Text>
-              </View>
-            </View>
+      {/* ── Group ── */}
+      <Card style={{ marginTop: space.sm }}>
+        <View style={S.groupHead}>
+          <View style={[S.groupAvatar, { backgroundColor: hexToRGBA(theme.tint, 0.15) }]}>
+            <Text style={[type.title, { color: theme.tint }]}>{initial(group?.name)}</Text>
           </View>
-
-          {/* ── Members ── */}
-          <ThemedText style={styles.sectionLabel}>Members</ThemedText>
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            {(group?.members || []).length === 0 ? (
-              <View style={styles.emptyRow}>
-                <Text style={[styles.emptyRowText, { color: theme.secondaryText }]}>No member data available</Text>
-              </View>
-            ) : (
-              (group.members as any[]).map((member: any, index: number) => {
-                const memberId   = member._id ?? member.userId ?? member;
-                const memberName = member.name ?? member.username ?? `Member ${index + 1}`;
-                const memberEmail = member.email ?? '';
-                const isGroupOwner = group.createdBy === memberId || group.owner === memberId;
-                const isMe = memberId === user?._id;
-                return (
-                  <React.Fragment key={String(memberId)}>
-                    {index > 0 && <View style={[styles.sep, { backgroundColor: theme.separator }]} />}
-                    <View style={styles.memberRow}>
-                      <View style={[
-                        styles.memberAvatar,
-                        { backgroundColor: isGroupOwner ? theme.tint : theme.card },
-                      ]}>
-                        <Text style={[
-                          styles.memberAvatarText,
-                          { color: isGroupOwner ? theme.tintText : theme.secondaryText },
-                        ]}>
-                          {getInitials(memberName)}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.memberName, { color: theme.text }]}>
-                          {memberName}{isMe ? ' (You)' : ''}
-                        </Text>
-                        {memberEmail ? (
-                          <Text style={[styles.memberEmail, { color: theme.secondaryText }]}>{memberEmail}</Text>
-                        ) : null}
-                      </View>
-                      <View style={[
-                        styles.roleBadge,
-                        { backgroundColor: isGroupOwner ? theme.tint : theme.card },
-                      ]}>
-                        <Text style={[
-                          styles.roleText,
-                          { color: isGroupOwner ? theme.tintText : theme.secondaryText },
-                        ]}>
-                          {isGroupOwner ? 'Owner' : 'Member'}
-                        </Text>
-                      </View>
-                    </View>
-                  </React.Fragment>
-                );
-              })
-            )}
+          <View style={{ flex: 1 }}>
+            <Text style={[type.heading, { color: theme.text }]} numberOfLines={1}>{group?.name}</Text>
+            <Text style={[type.label, { color: theme.secondaryText }]}>
+              {isPersonal ? 'Your own space' : `${members.length} member${members.length !== 1 ? 's' : ''}`}
+              {group?.createdAt ? `  ·  Since ${formatDate(group.createdAt)}` : ''}
+            </Text>
           </View>
-
-          {/* ── Invite: a personal group has no join code and no one to invite ── */}
-          {!isPersonal && <>
-          <ThemedText style={styles.sectionLabel}>Invite Members</ThemedText>
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <View style={styles.inviteContent}>
-              <Text style={[styles.codeCaption, { color: theme.secondaryText }]}>JOIN CODE</Text>
-              <Text style={[styles.codeValue, { color: theme.text }]}>{group?.joinCode ?? '—'}</Text>
-              <View style={styles.inviteButtons}>
-                <TouchableOpacity
-                  style={[styles.inviteBtn, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}
-                  onPress={handleCopyCode}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="copy-outline" size={17} color={theme.tint} />
-                  <Text style={[styles.inviteBtnText, { color: theme.tint }]}>Copy</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.inviteBtn, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}
-                  onPress={handleShare}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="share-outline" size={17} color={theme.tint} />
-                  <Text style={[styles.inviteBtnText, { color: theme.tint }]}>Share</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-          </>}
-
-          {/* ── My Groups (switch) ── */}
-          <ThemedText style={styles.sectionLabel}>My Groups</ThemedText>
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            {myGroups.map((g: any, index: number) => {
-              const isActive = g._id === user?.groupId;
-              return (
-                <React.Fragment key={g._id}>
-                  {index > 0 && <View style={[styles.sep, { backgroundColor: theme.separator }]} />}
-                  <TouchableOpacity
-                    style={styles.groupRow}
-                    onPress={() => handleSwitch(g._id)}
-                    disabled={isActive || actionLoading}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[
-                      styles.groupRowIcon,
-                      { backgroundColor: isActive ? theme.tint : theme.card },
-                    ]}>
-                      <Ionicons
-                        name={g.isPersonal ? 'person' : 'people'}
-                        size={17}
-                        color={isActive ? theme.tintText : theme.tint}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.groupRowName, { color: isActive ? theme.tint : theme.text }]}>
-                        {g.name}
-                      </Text>
-                      <Text style={[styles.groupRowMeta, { color: theme.secondaryText }]}>
-                        {/* Everyone has a personal group — "1 member" would read as a group that
-                            never filled up rather than as your own space. */}
-                        {g.isPersonal
-                          ? 'Just you'
-                          : `${g.members?.length || 0} member${(g.members?.length || 0) !== 1 ? 's' : ''}`}
-                      </Text>
-                    </View>
-                    {isActive
-                      ? (
-                        <View style={[styles.activeCheck, { backgroundColor: theme.tint }]}>
-                          <Ionicons name="checkmark" size={13} color={theme.tintText} />
-                        </View>
-                      )
-                      : <Ionicons name="chevron-forward" size={16} color={theme.icon} />
-                    }
-                  </TouchableOpacity>
-                </React.Fragment>
-              );
-            })}
-
-            <View style={[styles.sep, { backgroundColor: theme.separator }]} />
-            <TouchableOpacity
-              style={styles.groupRow}
-              onPress={() => setShowAddGroup(v => !v)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.groupRowIcon, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1 }]}>
-                <Ionicons name={showAddGroup ? 'remove' : 'add'} size={17} color={theme.tint} />
-              </View>
-              <Text style={[styles.groupRowName, { color: theme.tint }]}>Add Another Group</Text>
-              <Ionicons name={showAddGroup ? 'chevron-up' : 'chevron-down'} size={16} color={theme.tint} />
-            </TouchableOpacity>
-
-            {showAddGroup && (
-              <View style={[styles.addGroupPanel, { borderTopColor: theme.separator }]}>
-                <View style={[styles.addModeTabs, { backgroundColor: theme.cardAlt ?? theme.border }]}>
-                  {(['create', 'join'] as const).map(m => (
-                    <TouchableOpacity
-                      key={m}
-                      style={[styles.addModeTab, addMode === m && { backgroundColor: theme.tint }]}
-                      onPress={() => setAddMode(m)}
-                    >
-                      <Text style={[styles.addModeTabText, { color: addMode === m ? theme.tintText : theme.secondaryText }]}>
-                        {m === 'create' ? 'Create New' : 'Join with Code'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <TextInput
-                  style={[styles.addInput, { color: theme.text, borderColor: theme.border }]}
-                  placeholder={addMode === 'create' ? 'Group name (e.g. My Family)' : 'Invite code'}
-                  placeholderTextColor={theme.secondaryText}
-                  value={addMode === 'create' ? groupName : inviteCode}
-                  onChangeText={addMode === 'create' ? setGroupName : setInviteCode}
-                  autoCapitalize={addMode === 'join' ? 'characters' : 'words'}
-                />
-                <TouchableOpacity
-                  style={[styles.addBtn, { backgroundColor: theme.tint }, actionLoading && { opacity: 0.6 }]}
-                  onPress={addMode === 'create' ? handleCreate : handleJoin}
-                  disabled={actionLoading}
-                  activeOpacity={0.85}
-                >
-                  {actionLoading
-                    ? <ActivityIndicator color={theme.tintText} size="small" />
-                    : <Text style={[styles.addBtnText, { color: theme.tintText }]}>{addMode === 'create' ? 'Create Group' : 'Join Group'}</Text>
-                  }
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-
-          {/* ── Danger Zone: nothing here applies to your own space ── */}
-          {!isPersonal && <>
-          <ThemedText style={styles.sectionLabel}>Danger Zone</ThemedText>
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            {isOwner ? (
-              <TouchableOpacity style={styles.dangerRow} onPress={handleDelete} activeOpacity={0.7}>
-                <View style={[styles.dangerIcon, { backgroundColor: theme.danger }]}>
-                  <Ionicons name="trash-outline" size={20} color={theme.expenseText} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.dangerTitle, { color: theme.danger }]}>Delete Group</Text>
-                  <Text style={[styles.dangerSub, { color: theme.secondaryText }]}>
-                    Permanently removes group for all members
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={theme.danger} />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.dangerRow} onPress={handleLeave} activeOpacity={0.7}>
-                <View style={[styles.dangerIcon, { backgroundColor: theme.danger }]}>
-                  <Ionicons name="exit-outline" size={20} color={theme.expenseText} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.dangerTitle, { color: theme.danger }]}>Leave Group</Text>
-                  <Text style={[styles.dangerSub, { color: theme.secondaryText }]}>
-                    {"You'll lose access to shared expenses"}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={theme.danger} />
-              </TouchableOpacity>
-            )}
-          </View>
-          </>}
-
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      {actionLoading && (
-        <View style={styles.overlay}>
-          <ActivityIndicator size="large" color="#FFF" />
         </View>
+        <View style={[S.stats, { borderTopColor: theme.separator }]}>
+          <View style={S.stat}>
+            <Amount value={monthlyExpense} kind="expense" unsigned role="heading" />
+            <Text style={[type.label, { color: theme.secondaryText }]}>{isPersonal ? 'Spent this month' : 'Shared this month'}</Text>
+          </View>
+          {!isPersonal && (
+            <View style={S.stat}>
+              <Text style={[type.heading, { color: theme.text }]}>{members.length}</Text>
+              <Text style={[type.label, { color: theme.secondaryText }]}>Total members</Text>
+            </View>
+          )}
+        </View>
+      </Card>
+
+      {/* ── Join requests (owner only) ── */}
+      {pending.length > 0 && (
+        <>
+          <SectionHeader title="Join requests" count={pending.length} />
+          <Card padded={false}>
+            {pending.map((req, i) => (
+              <Row
+                key={req.userId._id}
+                title={req.userId.name}
+                subtitle={req.userId.email || 'wants to join'}
+                icon="person-add-outline"
+                last={i === pending.length - 1}
+                right={(
+                  <View style={S.reqActions}>
+                    <Button size="sm" variant="secondary" label="Decline" onPress={() => answerRequest(req, false)} disabled={actionLoading} />
+                    <Button size="sm" label="Approve" onPress={() => answerRequest(req, true)} disabled={actionLoading} />
+                  </View>
+                )}
+              />
+            ))}
+          </Card>
+        </>
       )}
-    </ThemedView>
+
+      {/* ── Members ── */}
+      <SectionHeader title="Members" />
+      {members.length === 0 ? (
+        <Card><EmptyState compact icon="people-outline" title="No member data" /></Card>
+      ) : (
+        <Card padded={false}>
+          {members.map((member: any, index: number) => {
+            const memberId    = member._id ?? member.userId ?? member;
+            const memberName  = member.name ?? member.username ?? `Member ${index + 1}`;
+            const isGroupOwner = group.createdBy === memberId || group.owner === memberId;
+            const isMe = memberId === user?._id;
+            return (
+              <Row
+                key={String(memberId)}
+                title={isMe ? `${memberName} (You)` : memberName}
+                subtitle={member.email ?? undefined}
+                leading={(
+                  <View style={[S.memberAvatar, { backgroundColor: hexToRGBA(isGroupOwner ? theme.tint : theme.text, 0.12) }]}>
+                    <Text style={[type.bodyStrong, { color: isGroupOwner ? theme.tint : theme.secondaryText }]}>{initial(memberName)}</Text>
+                  </View>
+                )}
+                right={<Chip size="sm" label={isGroupOwner ? 'Owner' : 'Member'} selected={isGroupOwner} />}
+                last={index === members.length - 1}
+              />
+            );
+          })}
+        </Card>
+      )}
+
+      {/* ── Invite: a personal group has no join code and no one to invite ── */}
+      {!isPersonal && (
+        <>
+          <SectionHeader title="Invite members" />
+          <Card>
+            <Text style={[type.overline, { color: theme.secondaryText }]}>Join code</Text>
+            <Text style={[type.display, { color: theme.text, marginTop: space.xs }]} selectable accessibilityLabel={`Join code ${group?.joinCode ?? ''}`}>
+              {group?.joinCode ?? '—'}
+            </Text>
+            <View style={S.inviteBtns}>
+              <Button size="sm" variant="secondary" icon="copy-outline" label="Copy" onPress={handleCopyCode} />
+              <Button size="sm" variant="secondary" icon="share-outline" label="Share" onPress={handleShare} />
+            </View>
+          </Card>
+        </>
+      )}
+
+      {/* ── My groups (switch) ── */}
+      <SectionHeader title="My groups" />
+      <Card padded={false}>
+        {myGroups.map((g: any, index: number) => {
+          const isActive = g._id === user?.groupId;
+          const n = g.members?.length || 0;
+          return (
+            <Row
+              key={g._id}
+              icon={g.isPersonal ? 'person' : 'people'}
+              title={g.name}
+              // Everyone has a personal group — "1 member" would read as a group that never
+              // filled up rather than as your own space.
+              subtitle={g.isPersonal ? 'Just you' : `${n} member${n !== 1 ? 's' : ''}`}
+              right={isActive ? <Chip size="sm" selected icon="checkmark" label="Active" /> : undefined}
+              chevron={!isActive}
+              onPress={isActive ? undefined : () => handleSwitch(g._id)}
+              disabled={actionLoading}
+              last={false}
+            />
+          );
+        })}
+        <Row
+          icon={showAddGroup ? 'remove' : 'add'}
+          title="Add another group"
+          onPress={() => setShowAddGroup(v => !v)}
+          chevron={false}
+          right={<Ionicons name={showAddGroup ? 'chevron-up' : 'chevron-down'} size={iconSize.sm} color={theme.secondaryText} />}
+          last
+        />
+        {showAddGroup && (
+          <View style={[S.addPanel, { borderTopColor: theme.separator }]}>
+            <View style={S.chips}>
+              <Chip label="Create new" selected={addMode === 'create'} onPress={() => setAddMode('create')} />
+              <Chip label="Join with code" selected={addMode === 'join'} onPress={() => setAddMode('join')} />
+            </View>
+            <Field
+              placeholder={addMode === 'create' ? 'Group name (e.g. My Family)' : 'Invite code'}
+              value={addMode === 'create' ? groupName : inviteCode}
+              onChangeText={addMode === 'create' ? setGroupName : setInviteCode}
+              autoCapitalize={addMode === 'join' ? 'characters' : 'words'}
+              style={{ marginTop: space.md }}
+            />
+            <Button
+              label={addMode === 'create' ? 'Create group' : 'Send join request'}
+              onPress={addMode === 'create' ? handleCreate : handleJoin}
+              loading={actionLoading}
+              style={{ marginTop: space.md }}
+            />
+          </View>
+        )}
+      </Card>
+
+      {/* ── Danger zone: nothing here applies to your own space ── */}
+      {!isPersonal && (
+        <>
+          <SectionHeader title="Danger zone" />
+          <Card padded={false}>
+            {isOwner ? (
+              <Row danger icon="trash-outline" title="Delete group" subtitle="Permanently removes the group for all members" onPress={handleDelete} last />
+            ) : (
+              <Row danger icon="exit-outline" title="Leave group" subtitle="You'll lose access to shared expenses" onPress={handleLeave} last />
+            )}
+          </Card>
+        </>
+      )}
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container:   { flex: 1 },
-  center:      { justifyContent: 'center', alignItems: 'center' },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  topBarTitle: { fontSize: 17, fontWeight: '700' },
-  backBtn:     { width: 36, alignItems: 'center' },
-  content:     { padding: 20, paddingBottom: 60 },
-
-  sectionLabel: {
-    fontSize: 12, fontWeight: '700', color: '#8E8E93',
-    textTransform: 'uppercase', letterSpacing: 1,
-    marginBottom: 10, paddingLeft: 4, marginTop: 8,
-  },
-
-  card: { borderRadius: 16, borderWidth: 1, overflow: 'hidden', marginBottom: 24 },
-  sep:  { height: StyleSheet.hairlineWidth, marginLeft: 64 },
-
-  // Group header
-  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
-  groupAvatar: {
-    width: 52, height: 52, borderRadius: 16,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  groupAvatarText: { fontSize: 22, fontWeight: '800' },
-  groupName:     { fontSize: 18, fontWeight: '800' },
-  groupSubtitle: { fontSize: 12, marginTop: 3 },
-
-  statsRow: {
-    flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 14,
-  },
-  statItem:    { flex: 1, alignItems: 'center' },
-  statValue:   { fontSize: 18, fontWeight: '800' },
-  statLabel:   { fontSize: 11, marginTop: 3 },
-  statDivider: { width: StyleSheet.hairlineWidth },
-
-  // Members
-  emptyRow:     { padding: 16, alignItems: 'center' },
-  emptyRowText: { fontSize: 14 },
-  memberRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 13,
-  },
-  memberAvatar: {
-    width: 40, height: 40, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  memberAvatarText: { fontSize: 16, fontWeight: '800' },
-  memberName:       { fontSize: 14, fontWeight: '600' },
-  memberEmail:      { fontSize: 12, marginTop: 1 },
-  roleBadge:        { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
-  roleText:         { fontSize: 11, fontWeight: '800' },
-
-  // Invite
-  inviteContent: { padding: 20, alignItems: 'center', gap: 6 },
-  codeCaption:   { fontSize: 10, fontWeight: '800', letterSpacing: 2 },
-  codeValue:     { fontSize: 32, fontWeight: '900', letterSpacing: 6 },
-  inviteButtons: { flexDirection: 'row', gap: 12, marginTop: 10 },
-  inviteBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    paddingHorizontal: 20, paddingVertical: 11, borderRadius: 12,
-  },
-  inviteBtnText: { fontSize: 14, fontWeight: '700' },
-
-  // My Groups rows
-  groupRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 13,
-  },
-  groupRowIcon: {
-    width: 38, height: 38, borderRadius: 10,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  groupRowName: { fontSize: 14, fontWeight: '600' },
-  groupRowMeta: { fontSize: 12, marginTop: 1 },
-  activeCheck:  {
-    width: 22, height: 22, borderRadius: 11,
-    justifyContent: 'center', alignItems: 'center',
-  },
-
-  // Add group panel
-  addGroupPanel: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    padding: 16, gap: 12,
-  },
-  addModeTabs: { flexDirection: 'row', borderRadius: 12, padding: 4 },
-  addModeTab:  { flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center' },
-  addModeTabText: { fontSize: 13, fontWeight: '700' },
-  addInput: {
-    height: 50, borderRadius: 12, borderWidth: 1,
-    paddingHorizontal: 14, fontSize: 14,
-    backgroundColor: 'transparent',
-  },
-  addBtn: {
-    height: 48, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  addBtnText: { fontWeight: '800', fontSize: 15 },
-
-  // Danger zone
-  dangerRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: 14, paddingVertical: 14,
-  },
-  dangerIcon: {
-    width: 40, height: 40, borderRadius: 11,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  dangerTitle: { fontSize: 14, fontWeight: '700' },
-  dangerSub:   { fontSize: 12, marginTop: 2 },
-
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center', alignItems: 'center', zIndex: 99,
-  },
+const S = StyleSheet.create({
+  groupHead:    { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  groupAvatar:  { width: 56, height: 56, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' },
+  stats:        { flexDirection: 'row', marginTop: space.lg, paddingTop: space.lg, borderTopWidth: StyleSheet.hairlineWidth, gap: space.lg },
+  stat:         { flex: 1, gap: 2 },
+  reqActions:   { flexDirection: 'row', gap: space.xs },
+  memberAvatar: { width: 38, height: 38, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  inviteBtns:   { flexDirection: 'row', gap: space.sm, marginTop: space.lg },
+  addPanel:     { padding: space.lg, borderTopWidth: StyleSheet.hairlineWidth },
+  chips:        { flexDirection: 'row', gap: space.sm },
 });
