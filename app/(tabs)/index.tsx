@@ -543,6 +543,18 @@ export default function HomeScreen() {
       );
     }
 
+    if (viewMode === 'note') {
+      return (
+        <NoteView
+          transactions={filteredTransactions}
+          theme={theme}
+          t={t}
+          onTransactionPress={handleEdit}
+          refreshControl={commonScrollProps.refreshControl}
+        />
+      );
+    }
+
     return (
       <ScrollView {...commonScrollProps}>
         {viewMode === 'weekly' && (
@@ -576,14 +588,6 @@ export default function HomeScreen() {
             year={currentYear}
             theme={theme}
             t={t}
-          />
-        )}
-        {viewMode === 'note' && (
-          <NoteView
-            transactions={filteredTransactions}
-            theme={theme}
-            t={t}
-            onTransactionPress={handleEdit}
           />
         )}
       </ScrollView>
