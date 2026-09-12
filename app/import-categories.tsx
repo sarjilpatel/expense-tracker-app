@@ -1,46 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-
-import { useTheme } from '@/src/context/ThemeContext';
-import { getMyGroups, importCategories } from '@/src/services/groupApi';
+import { Text, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useAuth } from '@/src/context/AuthContext';
 import { useLanguage } from '@/src/i18n/LanguageContext';
+import { getMyGroups, importCategories } from '@/src/services/groupApi';
+import { space, type, icon as iconSize } from '@/constants/tokens';
+import { Screen, Card, Row, EmptyState, Skeleton } from '@/components/ui';
 
 export default function ImportCategoriesScreen() {
-  const { t } = useLanguage();
   const { theme } = useTheme();
+  const { t } = useLanguage();
+  const { user } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams();
   const filterType = params.type as string;
 
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState(false);
 
   useEffect(() => {
-    fetchGroups();
-  }, []);
-
-  const fetchGroups = async () => {
-    try {
-      const data = await getMyGroups();
-      setGroups(data || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    (async () => {
+      try {
+        const data = await getMyGroups();
+        // The active group is the one being imported *into*; offering it as a source is a no-op
+        // the server refuses anyway.
+        setGroups((data || []).filter((g: any) => g._id !== user?.groupId));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [user?.groupId]);
 
   const handleImport = async (groupId: string, groupName: string) => {
     Alert.alert(
@@ -48,131 +42,57 @@ export default function ImportCategoriesScreen() {
       `Import additional categories from "${groupName}"? Existing categories in your current group will be kept.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Import', 
+        {
+          text: 'Import',
           onPress: async () => {
-            setLoading(true);
+            setWorking(true);
             try {
               await importCategories(groupId, filterType);
-              Alert.alert('Success', `Imported ${filterType !== 'both' ? filterType : ''} categories successfully!`);
+              Alert.alert('Success', `Imported ${filterType && filterType !== 'both' ? `${filterType} ` : ''}categories successfully!`);
               router.back();
-            } catch (error) {
+            } catch {
               Alert.alert('Error', 'Failed to import categories');
             } finally {
-              setLoading(false);
+              setWorking(false);
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
   if (loading) {
     return (
-      <View style={[styles.loading, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.tint} />
-      </View>
+      <Screen title={t('import_categories')}>
+        <Skeleton.Group style={{ paddingTop: space.lg }}><Skeleton.Row /><Skeleton.Row /></Skeleton.Group>
+      </Screen>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={28} color={theme.text} />
-        </TouchableOpacity>
-        <ThemedText type="subtitle">{t('import_categories')}</ThemedText>
-        <View style={{ width: 44 }} />
-      </View>
+    <Screen title={t('import_categories')}>
+      <Text style={[type.label, { color: theme.secondaryText, marginTop: space.md, marginBottom: space.lg }]}>
+        {t('select_group')} to import categories from. New categories are added to your current group; existing ones are kept.
+      </Text>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <ThemedText style={styles.description}>
-          {t('select_group')} to import categories from. This will add new categories to your current group without deleting existing ones.
-        </ThemedText>
-
-        {groups.length === 0 ? (
-          <View style={styles.empty}>
-              <ThemedText style={{ color: theme.secondaryText }}>You are not part of any other groups.</ThemedText>
-          </View>
-        ) : (
-          groups.map((group) => (
-            <TouchableOpacity 
-              key={group._id} 
-              style={[styles.groupItem, { backgroundColor: theme.card }]}
+      {groups.length === 0 ? (
+        <EmptyState icon="people-outline" title="No other groups" body="You are not part of any other groups to import from." />
+      ) : (
+        <Card padded={false}>
+          {groups.map((group, i) => (
+            <Row
+              key={group._id}
+              icon={group.isPersonal ? 'person' : 'people'}
+              title={group.name}
+              subtitle={group.isPersonal ? 'Your personal categories' : `${group.members?.length || 0} members`}
+              right={<Ionicons name="download-outline" size={iconSize.md} color={theme.tint} />}
               onPress={() => handleImport(group._id, group.name)}
-            >
-              <View style={styles.groupLeft}>
-                <View style={[styles.groupIcon, { backgroundColor: theme.tint }]}>
-                    <Ionicons name="people" size={20} color={theme.tintText} />
-                </View>
-                <ThemedText style={styles.groupName}>{group.name}</ThemedText>
-              </View>
-              <Ionicons name="download-outline" size={20} color={theme.tint} />
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
-    </ThemedView>
+              disabled={working}
+              last={i === groups.length - 1}
+            />
+          ))}
+        </Card>
+      )}
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 60,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  backBtn: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  description: {
-    fontSize: 14,
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  groupItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderRadius: 18,
-    marginBottom: 12,
-  },
-  groupLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  groupIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  groupName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  empty: {
-    paddingTop: 60,
-    alignItems: 'center',
-  }
-});
