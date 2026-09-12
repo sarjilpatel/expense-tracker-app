@@ -1,8 +1,5 @@
-import React from 'react';
-import { View, Modal, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { ThemedText } from '@/components/themed-text';
+import React, { useEffect, useRef } from 'react';
+import { Sheet, Card, Row, EmptyState, type SheetHandle } from '@/components/ui';
 
 export interface Notification {
   id: string;
@@ -19,105 +16,33 @@ interface Props {
   theme: any;
 }
 
+/** Recent activity, on the shared `Sheet` (W2-11). `visible` drives present/dismiss. */
 export function NotificationsModal({ visible, onClose, notifications, theme }: Props) {
+  const sheet = useRef<SheetHandle>(null);
+
+  useEffect(() => {
+    if (visible) sheet.current?.present();
+    else sheet.current?.dismiss();
+  }, [visible]);
+
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
-      <View style={styles.overlay}>
-        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <Animated.View entering={FadeInDown} style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1, borderBottomWidth: 0 }]}>
-          <View style={styles.header}>
-            <ThemedText type="subtitle">Notifications</ThemedText>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={theme.text} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {notifications.length === 0 ? (
-              <View style={styles.empty}>
-                <Ionicons name="notifications-off-outline" size={52} color={theme.secondaryText} />
-                <ThemedText style={styles.emptyText}>Everything caught up!</ThemedText>
-              </View>
-            ) : (
-              notifications.map(notif => (
-                <TouchableOpacity key={notif.id} style={[styles.item, { borderBottomColor: theme.border }]}>
-                  <View style={[styles.iconWrap, {
-                    backgroundColor: theme.tint,
-                  }]}>
-                    <Ionicons
-                      name={notif.type === 'income' ? 'arrow-down' : 'arrow-up'}
-                      size={16}
-                      color={theme.tintText}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <ThemedText type="defaultSemiBold" style={styles.title}>{notif.title}</ThemedText>
-                    <ThemedText style={styles.message}>{notif.message}</ThemedText>
-                    <ThemedText style={styles.time}>{notif.time}</ThemedText>
-                  </View>
-                </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
+    <Sheet ref={sheet} title="Notifications" scroll snapPoints={['70%']} keyboard="none" onDismiss={onClose}>
+      {notifications.length === 0 ? (
+        <EmptyState compact icon="notifications-off-outline" title="Everything caught up" body="New activity in your group shows up here." />
+      ) : (
+        <Card padded={false}>
+          {notifications.map((notif, i) => (
+            <Row
+              key={notif.id}
+              icon={notif.type === 'income' ? 'arrow-down' : 'arrow-up'}
+              iconColor={notif.type === 'income' ? theme.income : theme.expense}
+              title={notif.title}
+              subtitle={`${notif.message} · ${notif.time}`}
+              last={i === notifications.length - 1}
+            />
+          ))}
+        </Card>
+      )}
+    </Sheet>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  card: {
-    height: '72%',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 22,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  empty: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 90,
-  },
-  emptyText: {
-    marginTop: 14,
-    fontSize: 13,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    gap: 14,
-  },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 13,
-  },
-  message: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  time: {
-    fontSize: 10,
-    marginTop: 3,
-    fontWeight: '600',
-  },
-});
