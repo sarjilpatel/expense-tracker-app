@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
@@ -165,7 +165,7 @@ export function AIInsightCard({ month, year, hasData }: Props) {
             const cfg   = TYPE_CONFIG[insight.type] || TYPE_CONFIG.neutral;
             const color = theme[cfg.colorKey];
             return (
-              <Animated.View key={i} entering={FadeInDown.delay(i * 90).duration(280)}>
+              <Animated.View key={i} entering={FadeIn.duration(200)}>
                 <Card style={S.insight}>
                   <View style={[S.iconCircle, { backgroundColor: color + '22' }]}>
                     <Ionicons name={cfg.icon} size={iconSize.md} color={color} />

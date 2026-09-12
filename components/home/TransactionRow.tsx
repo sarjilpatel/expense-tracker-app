@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Touchable } from '@/components/ui';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Currency } from '@/constants/theme';
 import { CURRENCY_META } from '@/src/services/preferencesService';
@@ -40,7 +39,7 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
   const rowBg = theme.card;
 
   return (
-    <Animated.View entering={FadeInDown.delay(Math.min(index * 25, 150)).duration(200)}>
+    <View>
       <Touchable
         style={[
           styles.row,
@@ -94,7 +93,7 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
           </View>
         </View>
       </Touchable>
-    </Animated.View>
+    </View>
   );
 });
 

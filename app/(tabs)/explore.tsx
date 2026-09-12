@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, router } from 'expo-router';
 import { LineChart, BarChart } from 'react-native-gifted-charts';
 import Animated, {
-  FadeInDown, FadeIn,
+  FadeIn,
   useSharedValue, useAnimatedStyle, withTiming, runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -502,7 +502,7 @@ export default function AnalyticsScreen() {
                         </View>
                         <View style={styles.memberList}>
                           {filtered.map((item: any, index: number) => (
-                            <Animated.View key={index} entering={FadeInDown.delay(index * 80).duration(300)} style={[styles.memberCard, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
+                            <View key={index} style={[styles.memberCard, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
                               <View style={styles.memberInfo}>
                                 {item.user?.profilePhoto ? (
                                   <Image source={{ uri: item.user.profilePhoto }} style={styles.memberPhoto} />
@@ -519,7 +519,7 @@ export default function AnalyticsScreen() {
                               <Text style={[styles.memberAmount, { color: activeTab === 'expense' ? theme.expense : theme.income }]}>
                                 {Currency.format(item.amount)}
                               </Text>
-                            </Animated.View>
+                            </View>
                           ))}
                         </View>
                       </>
@@ -527,7 +527,7 @@ export default function AnalyticsScreen() {
                   })()}
 
                   {activeTab !== 'budget' && (total || 0) > 0 && (
-                    <Animated.View entering={FadeInDown.delay(200).duration(300)} style={[styles.insightCard, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
+                    <View style={[styles.insightCard, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
                       <Ionicons name="bulb-outline" size={20} color={theme.tint} />
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <ThemedText style={styles.insightTitle}>Daily average</ThemedText>
@@ -539,7 +539,7 @@ export default function AnalyticsScreen() {
                           per day this month.
                         </ThemedText>
                       </View>
-                    </Animated.View>
+                    </View>
                   )}
 
                 </>
@@ -618,7 +618,7 @@ export default function AnalyticsScreen() {
                         {[...trendData].reverse().map((d: any, i: number) => {
                           const isCurrentMonth = d.month === currentMonth && d.year === currentYear;
                           return (
-                            <Animated.View key={i} entering={FadeInDown.delay(i * 50).duration(280)} style={[styles.monthlyItem, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }, isCurrentMonth && { borderLeftColor: theme.tint, borderLeftWidth: 3 }]}>
+                            <View key={i} style={[styles.monthlyItem, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }, isCurrentMonth && { borderLeftColor: theme.tint, borderLeftWidth: 3 }]}>
                               <View style={styles.monthlyLeft}>
                                 <ThemedText style={[styles.monthlyLabel, isCurrentMonth && { color: theme.tint, fontWeight: weight.bold }]}>
                                   {d.monthLabel} {d.year}
@@ -632,7 +632,7 @@ export default function AnalyticsScreen() {
                               <Text style={[styles.monthlyNet, { color: d.net >= 0 ? theme.income : theme.expense }]}>
                                 {d.net >= 0 ? '+' : ''}{Currency.format(d.net)}
                               </Text>
-                            </Animated.View>
+                            </View>
                           );
                         })}
                       </View>

@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Touchable } from '@/components/ui';
 import Animated, {
-  FadeInDown,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
@@ -37,7 +36,7 @@ export function CategoryBar({ category, amount, percentage, color, rank, onPress
   }));
 
   return (
-    <Animated.View entering={FadeInDown.delay(rank * 60).duration(300)}>
+    <View>
       <Touchable
         style={styles.item}
         onPress={onPress}
@@ -61,7 +60,7 @@ export function CategoryBar({ category, amount, percentage, color, rank, onPress
           <Animated.View style={[styles.fill, { backgroundColor: color }, barStyle]} />
         </View>
       </Touchable>
-    </Animated.View>
+    </View>
   );
 }
 
