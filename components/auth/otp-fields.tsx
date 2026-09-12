@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { TextInput, TouchableOpacity, Text, StyleSheet, StyleProp, TextStyle } from 'react-native';
+import { TextInput, Text, StyleSheet, StyleProp, TextStyle } from 'react-native';
+import { Touchable } from '@/components/ui';
 import { useTheme } from '@/src/context/ThemeContext';
 
 /** Seconds the resend button stays disabled. The server enforces the same window (W1-32) — this
@@ -66,11 +67,11 @@ export function ResendButton({ onPress, restartKey = 0, disabled }: ResendButton
   const waiting = left > 0;
 
   return (
-    <TouchableOpacity onPress={() => onPress()} disabled={waiting || disabled} style={styles.resend}>
+    <Touchable onPress={() => onPress()} disabled={waiting || disabled} style={styles.resend} rippleBorderless accessibilityLabel="Resend code">
       <Text style={[styles.resendText, { color: waiting || disabled ? theme.secondaryText : theme.tint }]}>
         {waiting ? `Resend code in ${left}s` : 'Resend code'}
       </Text>
-    </TouchableOpacity>
+    </Touchable>
   );
 }
 

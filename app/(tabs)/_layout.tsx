@@ -1,7 +1,7 @@
 import { Tabs, router, usePathname } from 'expo-router';
 import React from 'react';
-import { Platform, StyleSheet, View, TouchableOpacity } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { Platform, StyleSheet, View } from 'react-native';
+import { Touchable } from '@/components/ui';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -26,16 +26,15 @@ const TabBarBackground = ({ theme }: { theme: any }) => {
 
 const CustomAddButton = ({ theme }: { theme: any }) => {
   return (
-    <TouchableOpacity
+    <Touchable
       style={[styles.floatingAddBtn, { backgroundColor: theme.tint, shadowColor: theme.tint }]}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.push('/add-transaction');
-      }}
-      activeOpacity={0.85}
+      onPress={() => router.push('/add-transaction')}
+      haptic="medium"
+      rippleColor="rgba(255,255,255,0.3)"
+      accessibilityLabel="Add transaction"
     >
       <Ionicons name="add" size={28} color={theme.tintText} />
-    </TouchableOpacity>
+    </Touchable>
   );
 };
 

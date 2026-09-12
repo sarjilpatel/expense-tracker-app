@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import Animated, {
   FadeInDown,
   useSharedValue,
@@ -36,10 +37,10 @@ export function CategoryBar({ category, amount, percentage, color, rank, onPress
 
   return (
     <Animated.View entering={FadeInDown.delay(rank * 60).duration(300)}>
-      <TouchableOpacity
+      <Touchable
         style={styles.item}
         onPress={onPress}
-        activeOpacity={onPress ? 0.6 : 1}
+        haptic="selection"
         disabled={!onPress}
       >
         <View style={styles.top}>
@@ -58,7 +59,7 @@ export function CategoryBar({ category, amount, percentage, color, rank, onPress
         <View style={[styles.track, { backgroundColor: `${color}20` }]}>
           <Animated.View style={[styles.fill, { backgroundColor: color }, barStyle]} />
         </View>
-      </TouchableOpacity>
+      </Touchable>
     </Animated.View>
   );
 }

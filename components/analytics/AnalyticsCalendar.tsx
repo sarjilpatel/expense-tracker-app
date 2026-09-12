@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { Touchable } from '@/components/ui';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Currency } from '@/constants/theme';
@@ -62,10 +63,13 @@ export function AnalyticsCalendar({ month, year, dailyBreakdown, theme }: Props)
             new Date().getFullYear()  === year;
 
           return (
-            <TouchableOpacity
+            <Touchable
               key={idx}
               onPress={() => isValid && setSelectedDay(dayNum === selectedDay ? null : dayNum)}
-              activeOpacity={0.7}
+              haptic="selection"
+              disabled={!isValid}
+              accessibilityLabel={isValid ? `${dayNum}` : undefined}
+              accessibilityState={{ selected: isSelected }}
               style={[
                 styles.cell,
                 { width: cellSize, height: cellSize + 10 },
@@ -88,7 +92,7 @@ export function AnalyticsCalendar({ month, year, dailyBreakdown, theme }: Props)
                   </View>
                 </>
               )}
-            </TouchableOpacity>
+            </Touchable>
           );
         })}
       </View>

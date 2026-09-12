@@ -1,5 +1,6 @@
 import React, { Component, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import { router } from 'expo-router';
 
 interface Props {
@@ -38,9 +39,9 @@ export class ErrorBoundary extends Component<Props, State> {
           <Text style={styles.icon}>⚠️</Text>
           <Text style={styles.title}>Something went wrong</Text>
           <Text style={styles.message}>{this.state.errorMessage}</Text>
-          <TouchableOpacity style={styles.button} onPress={this.handleRestart}>
+          <Touchable style={styles.button} onPress={this.handleRestart} accessibilityLabel="Restart app">
             <Text style={styles.buttonText}>Restart App</Text>
-          </TouchableOpacity>
+          </Touchable>
         </View>
       );
     }
