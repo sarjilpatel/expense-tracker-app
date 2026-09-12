@@ -663,30 +663,17 @@ export default function HomeScreen() {
         </Animated.View>
 
         {/* Month/Year Picker */}
-        {showDatePicker && (
-          <>
-            <Touchable
-              style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', zIndex: 999 }]}
-              onPress={() => setShowDatePicker(false)}
-              haptic="none"
-              accessibilityLabel="Close month picker"
-            />
-            <View style={[styles.pickerWrap, { top: top + 48 }]}>
-              <MonthYearPicker
-                visible={showDatePicker}
-                onClose={() => setShowDatePicker(false)}
-                selectedMonth={currentMonth}
-                selectedYear={currentYear}
-                onSelect={(month, year) => {
-                  setCurrentMonth(month);
-                  setCurrentYear(year);
-                }}
-                theme={theme}
-                showYearOnly={viewMode === 'monthly'}
-              />
-            </View>
-          </>
-        )}
+        <MonthYearPicker
+          visible={showDatePicker}
+          onClose={() => setShowDatePicker(false)}
+          selectedMonth={currentMonth}
+          selectedYear={currentYear}
+          onSelect={(month, year) => {
+            setCurrentMonth(month);
+            setCurrentYear(year);
+          }}
+          showYearOnly={viewMode === 'monthly'}
+        />
 
         {/* Notifications */}
         <NotificationsModal
@@ -795,7 +782,6 @@ const styles = StyleSheet.create({
   guestBannerText: { flex: 1, color: '#FFF', fontSize: 13, fontWeight: '600' },
   swipeHint:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginBottom: 6, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   swipeHintText: { fontSize: 13 },
-  pickerWrap:    { position: 'absolute', left: 12, right: 12, zIndex: 1000 },
 
   listContent:   { paddingBottom: 108, paddingTop: 4 },
   scrollContent: { paddingHorizontal: 8, paddingBottom: 108, paddingTop: 4 },

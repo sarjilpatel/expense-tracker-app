@@ -702,29 +702,16 @@ export default function AnalyticsScreen() {
         </Sheet>
 
         {/* Month/Year Picker */}
-        {showDatePicker && (
-          <>
-            <Touchable
-              style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', zIndex: 999 }]}
-              onPress={() => setShowDatePicker(false)}
-              haptic="none"
-              accessibilityLabel="Close month picker"
-            />
-            <View style={[styles.pickerWrap, { top: top + 48 }]}>
-              <MonthYearPicker
-                visible={showDatePicker}
-                onClose={() => setShowDatePicker(false)}
-                selectedMonth={currentMonth}
-                selectedYear={currentYear}
-                onSelect={(month, year) => {
-                  setCurrentMonth(month);
-                  setCurrentYear(year);
-                }}
-                theme={theme}
-              />
-            </View>
-          </>
-        )}
+        <MonthYearPicker
+          visible={showDatePicker}
+          onClose={() => setShowDatePicker(false)}
+          selectedMonth={currentMonth}
+          selectedYear={currentYear}
+          onSelect={(month, year) => {
+            setCurrentMonth(month);
+            setCurrentYear(year);
+          }}
+        />
 
       </ThemedView>
     </GestureDetector>
@@ -786,7 +773,6 @@ const styles = StyleSheet.create({
 
   emptyChart:   { alignItems: 'center', paddingVertical: 60 },
   emptyText:    { textAlign: 'center', fontSize: 13, paddingVertical: 20 },
-  pickerWrap:   { position: 'absolute', left: 12, right: 12, zIndex: 1000 },
 
   // Budget tab styles
   budgetCard:         { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 16, marginBottom: 12 },
