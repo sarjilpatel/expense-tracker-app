@@ -21,8 +21,8 @@ export function ComparisonCard({ label, current, previous, color, icon }: Props)
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
-      <View style={[styles.icon, { backgroundColor: theme.tint }]}>
-        <Ionicons name={icon as any} size={18} color={theme.tintText} />
+      <View style={[styles.icon, { backgroundColor: theme.cardAlt }]}>
+        <Ionicons name={icon as any} size={18} color={theme.text} />
       </View>
       <ThemedText style={styles.label}>{label}</ThemedText>
       <Text style={[styles.value, { color }]}>{Currency.format(current)}</Text>

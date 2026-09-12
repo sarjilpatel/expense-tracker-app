@@ -19,9 +19,9 @@ export function OfflineBanner() {
   if (!offline) return null;
 
   return (
-    <View style={[styles.banner, { backgroundColor: theme.tint }]}>
-      <Ionicons name="cloud-offline-outline" size={16} color={theme.tintText} />
-      <Text style={[styles.text, { color: theme.tintText }]}>You&apos;re offline — changes will sync when reconnected</Text>
+    <View style={[styles.banner, { backgroundColor: theme.text }]}>
+      <Ionicons name="cloud-offline-outline" size={16} color={theme.background} />
+      <Text style={[styles.text, { color: theme.background }]}>You&apos;re offline — changes will sync when reconnected</Text>
     </View>
   );
 }
