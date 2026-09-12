@@ -1,70 +1,25 @@
-import React, { useState, useCallback } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Alert, Modal, ActivityIndicator, Platform,
-} from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-// expo-file-system 19 moved the whole function API (documentDirectory, writeAsStringAsync,
-// EncodingType, ...) behind /legacy; the main entry now exports only Paths/File/Directory.
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
 import * as DocumentPicker from 'expo-document-picker';
-import { getContrastText } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
-import { ThemedView } from '@/components/themed-view';
 import { getAllTransactions, getCurrentGroup as getCategoryData } from '@/src/services/dataService';
 import { getLastSyncTime } from '@/src/services/syncService';
 import apiClient from '@/src/services/apiClient';
 import { generateMonthlyPDF } from '@/src/services/reportService';
 import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
-
-function Row({
-  icon, iconBg, iconColor = getContrastText(iconBg), title, sub, right, onPress, danger,
-}: {
-  icon: string; iconBg: string; iconColor?: string;
-  title: string; sub?: string;
-  right?: React.ReactNode; onPress?: () => void; danger?: boolean;
-}) {
-  const { theme } = useTheme();
-  const content = (
-    <View style={S.row}>
-      <View style={[S.iconBox, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon as any} size={18} color={iconColor} />
-      </View>
-      <View style={S.rowMid}>
-        <Text style={[S.rowTitle, { color: danger ? (theme.danger ?? '#F55345') : theme.text }]}>{title}</Text>
-        {sub ? <Text style={[S.rowSub, { color: theme.secondaryText }]}>{sub}</Text> : null}
-      </View>
-      {right !== undefined
-        ? right
-        : onPress
-          ? <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} />
-          : null}
-    </View>
-  );
-  if (!onPress) return content;
-  return <TouchableOpacity onPress={onPress} activeOpacity={0.65}>{content}</TouchableOpacity>;
-}
-
-function Sep() {
-  const { theme } = useTheme();
-  return <View style={[S.sep, { backgroundColor: theme.separator }]} />;
-}
-
-function Card({ children }: { children: React.ReactNode }) {
-  const { theme } = useTheme();
-  return (
-    <View style={[S.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-      {children}
-    </View>
-  );
-}
+import { space, type, icon as iconSize } from '@/constants/tokens';
+import {
+  Screen, Card, Row, Touchable, Button, Sheet, SectionHeader, Chip,
+  type SheetHandle,
+} from '@/components/ui';
 
 function formatSyncTime(iso: string | null): string {
   if (!iso) return 'Never synced';
@@ -79,11 +34,17 @@ function formatSyncTime(iso: string | null): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+const RANGES = [
+  { key: 'week',  label: 'This week',  icon: 'calendar-outline'        },
+  { key: 'month', label: 'This month', icon: 'calendar-number-outline' },
+  { key: 'year',  label: 'This year',  icon: 'stats-chart-outline'     },
+  { key: 'all',   label: 'All time',   icon: 'infinite-outline'        },
+] as const;
+
 export default function DataScreen() {
   const { theme }               = useTheme();
   const { isGuest, logout }     = useAuth();
   const { prefs }               = usePreferences();
-  const { top }                 = useSafeAreaInsets();
 
   const [lastSync,          setLastSync]          = useState<string | null>(null);
   const [working,           setWorking]           = useState(false);
@@ -93,6 +54,7 @@ export default function DataScreen() {
   const [exportCustomTo,    setExportCustomTo]    = useState(() => { const d = new Date(); d.setHours(23,59,59,999); return d; });
   const [exportShowCustom,  setExportShowCustom]  = useState(false);
   const [exportDateTarget,  setExportDateTarget]  = useState<'from' | 'to' | null>(null);
+  const exportSheet = useRef<SheetHandle>(null);
 
   const currencyMeta = CURRENCY_META[prefs.currency as CurrencyCode];
 
@@ -152,8 +114,7 @@ export default function DataScreen() {
   const runExport = async (range: { from: Date; to: Date; label: string }) => {
     const type = exportSheetType;
     if (!type) return;
-    setExportSheetType(null);
-    setExportShowCustom(false);
+    exportSheet.current?.dismiss();
     setExporting(true);
     try {
       const txs = await fetchRangeTxs(range.from, range.to);
@@ -348,284 +309,134 @@ export default function DataScreen() {
     ]
   );
 
+  const openExport = (kind: 'csv' | 'xlsx' | 'pdf') => {
+    setExportShowCustom(false);
+    setExportSheetType(kind);
+    exportSheet.current?.present();
+  };
+
+  const rangeFor = (key: typeof RANGES[number]['key']) =>
+    key === 'week' ? rangeThisWeek() : key === 'month' ? rangeThisMonth() : key === 'year' ? rangeThisYear() : rangeAllTime();
+
+  const busy = working || exporting;
+
   return (
-    <ThemedView style={[S.container, { paddingTop: top + 8 }]}>
-      {/* Header */}
-      <View style={S.header}>
-        <TouchableOpacity onPress={() => router.back()} style={S.backBtn} hitSlop={16}>
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[S.headerTitle, { color: theme.text }]}>Data</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <Screen title="Data">
+      {!isGuest && (
+        <>
+          <SectionHeader title="Cloud backup" />
+          <Card padded={false}>
+            <Row
+              icon="cloud-done-outline"
+              title="Cloud backup"
+              subtitle={formatSyncTime(lastSync)}
+              right={<Chip size="sm" tone={lastSync ? 'income' : 'neutral'} label={lastSync ? 'Synced' : 'Not yet'} />}
+              last
+            />
+          </Card>
+        </>
+      )}
 
-      <ScrollView contentContainerStyle={S.scroll} showsVerticalScrollIndicator={false}>
+      <SectionHeader title="Export" />
+      <Card padded={false}>
+        <Row icon="download-outline"      title="Export CSV"        subtitle="Choose a date range"           onPress={() => openExport('csv')}  disabled={busy} />
+        <Row icon="document-outline"      title="Export XLSX"       subtitle="Excel — choose a date range"   onPress={() => openExport('xlsx')} disabled={busy} />
+        <Row icon="document-text-outline" title="Export PDF report" subtitle="Summary — choose a date range" onPress={() => openExport('pdf')}  disabled={busy} last />
+      </Card>
 
-        {/* ── Cloud Backup (logged-in only) ── */}
-        {!isGuest && (
-          <>
-            <Text style={[S.groupLabel, { color: theme.secondaryText }]}>CLOUD BACKUP</Text>
-            <Card>
-              <View style={S.row}>
-                <View style={[S.iconBox, { backgroundColor: '#0F766E' }]}>
-                  <Ionicons name="cloud-done-outline" size={18} color={getContrastText('#0F766E')} />
-                </View>
-                <View style={S.rowMid}>
-                  <Text style={[S.rowTitle, { color: theme.text }]}>Cloud Backup</Text>
-                  <Text style={[S.rowSub, { color: theme.secondaryText }]}>{formatSyncTime(lastSync)}</Text>
-                </View>
-                <View style={[S.syncDot, { backgroundColor: lastSync ? '#10B981' : theme.secondaryText }]} />
-              </View>
+      <SectionHeader title="Backup" />
+      <Card padded={false}>
+        <Row icon="save-outline"         title="Backup to device"      subtitle="Export all transactions as JSON"      onPress={backupToDevice}     disabled={busy} right={working ? <ActivityIndicator size="small" color={theme.tint} /> : undefined} />
+        <Row icon="mail-outline"         title="Send backup via email" subtitle="Share a JSON backup"                  onPress={sendBackupViaEmail} disabled={busy} />
+        <Row icon="cloud-upload-outline" title="Restore from backup"   subtitle="Import transactions from a JSON file" onPress={restoreFromBackup}  disabled={busy} last />
+      </Card>
+
+      <SectionHeader title="Import" />
+      <Card padded={false}>
+        <Row icon="cloud-download-outline" title="Import Excel / CSV" subtitle="Import .xlsx or .csv transactions" onPress={importExcel} disabled={busy} last />
+      </Card>
+
+      <SectionHeader title="Reset" />
+      <Card padded={false}>
+        <Row danger icon="refresh-outline" title="Reset contents only" subtitle="Delete all transactions, keep settings" onPress={resetContents} disabled={busy} />
+        <Row danger icon="nuclear-outline" title="Full reset"          subtitle="Delete everything and log out"         onPress={fullReset}     disabled={busy} last />
+      </Card>
+
+      {/* ── Export range ── */}
+      <Sheet
+        ref={exportSheet}
+        title={`Export ${exportSheetType?.toUpperCase() ?? ''}`}
+        onDismiss={() => { setExportSheetType(null); setExportDateTarget(null); }}
+        keyboard="none"
+      >
+        <Text style={[type.label, { color: theme.secondaryText, marginBottom: space.md }]}>Select a date range</Text>
+        <View style={S.rangeGrid}>
+          {RANGES.map(r => (
+            <Card key={r.key} tone="alt" onPress={() => runExport(rangeFor(r.key))} accessibilityLabel={r.label} style={S.rangeTile}>
+              <Ionicons name={r.icon} size={iconSize.lg} color={theme.tint} />
+              <Text style={[type.label, { color: theme.text }]}>{r.label}</Text>
             </Card>
-          </>
-        )}
+          ))}
+        </View>
 
-        {/* ── Export ── */}
-        <Text style={[S.groupLabel, { color: theme.secondaryText }]}>EXPORT</Text>
-        <Card>
-          <Row
-            icon="download-outline" iconBg="#0F766E"
-            title="Export CSV" sub="Choose date range"
-            onPress={() => { setExportShowCustom(false); setExportSheetType('csv'); }}
-            right={exporting ? <ActivityIndicator size="small" color="#0F766E" /> : undefined}
-          />
-          <Sep />
-          <Row
-            icon="document-outline" iconBg="#0F766E"
-            title="Export XLSX" sub="Excel — choose date range"
-            onPress={() => { setExportShowCustom(false); setExportSheetType('xlsx'); }}
-          />
-          <Sep />
-          <Row
-            icon="document-text-outline" iconBg="#0F766E"
-            title="Export PDF Report" sub="Summary — choose date range"
-            onPress={() => { setExportShowCustom(false); setExportSheetType('pdf'); }}
-          />
-        </Card>
+        <Touchable onPress={() => setExportShowCustom(v => !v)} haptic="selection" style={S.customToggle} accessibilityLabel="Custom range">
+          <Ionicons name="options-outline" size={iconSize.sm} color={theme.tint} />
+          <Text style={[type.label, { color: theme.tint, flex: 1 }]}>Custom range</Text>
+          <Ionicons name={exportShowCustom ? 'chevron-up' : 'chevron-down'} size={iconSize.sm} color={theme.secondaryText} />
+        </Touchable>
 
-        {/* ── Backup ── */}
-        <Text style={[S.groupLabel, { color: theme.secondaryText }]}>BACKUP</Text>
-        <Card>
-          <Row
-            icon="save-outline" iconBg="#3B82F6"
-            title="Backup to Device" sub="Export all transactions as JSON"
-            onPress={backupToDevice}
-            right={working ? <ActivityIndicator size="small" color="#3B82F6" /> : undefined}
-          />
-          <Sep />
-          <Row
-            icon="mail-outline" iconBg="#3B82F618" iconColor="#3B82F6"
-            title="Send Backup via Email" sub="Share JSON backup via email"
-            onPress={sendBackupViaEmail}
-          />
-          <Sep />
-          <Row
-            icon="cloud-upload-outline" iconBg="#3B82F618" iconColor="#3B82F6"
-            title="Restore from Backup" sub="Import transactions from a JSON file"
-            onPress={restoreFromBackup}
-          />
-        </Card>
-
-        {/* ── Import ── */}
-        <Text style={[S.groupLabel, { color: theme.secondaryText }]}>IMPORT</Text>
-        <Card>
-          <Row
-            icon="cloud-download-outline" iconBg="#6366F1"
-            title="Import Excel / CSV" sub="Import .xlsx or .csv transactions"
-            onPress={importExcel}
-          />
-        </Card>
-
-        {/* ── Reset ── */}
-        <Text style={[S.groupLabel, { color: theme.secondaryText }]}>RESET</Text>
-        <Card>
-          <Row
-            icon="refresh-outline" iconBg={(theme.danger ?? '#F55345') + '18'} iconColor={theme.danger ?? '#F55345'}
-            title="Reset Contents Only" sub="Delete all transactions, keep settings"
-            onPress={resetContents} danger
-          />
-          <Sep />
-          <Row
-            icon="nuclear-outline" iconBg={(theme.danger ?? '#F55345') + '18'} iconColor={theme.danger ?? '#F55345'}
-            title="Full Reset" sub="Delete everything and log out"
-            onPress={fullReset} danger
-          />
-        </Card>
-
-        <View style={{ height: 32 }} />
-      </ScrollView>
-
-      {/* ── Export Range Sheet ── */}
-      <Modal visible={exportSheetType !== null} transparent animationType="slide" onRequestClose={() => setExportSheetType(null)}>
-        <View style={S.exportOverlay}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setExportSheetType(null)} />
-          <View style={[S.exportSheet, { backgroundColor: theme.card }]}>
-            <View style={S.exportHandle} />
-            <Text style={[S.exportTitle, { color: theme.text }]}>
-              Export {exportSheetType?.toUpperCase()}
-            </Text>
-            <Text style={[S.exportSub, { color: theme.secondaryText }]}>Select a date range</Text>
-
-            <View style={S.exportGrid}>
-              {[
-                { label: 'This Week',  icon: 'calendar-outline',       fn: rangeThisWeek  },
-                { label: 'This Month', icon: 'calendar-number-outline', fn: rangeThisMonth },
-                { label: 'This Year',  icon: 'stats-chart-outline',     fn: rangeThisYear  },
-                { label: 'All Time',   icon: 'infinite-outline',        fn: rangeAllTime   },
-              ].map(({ label, icon, fn }) => (
-                <TouchableOpacity
-                  key={label}
-                  style={[S.exportRangeBtn, { backgroundColor: theme.background, borderColor: theme.border }]}
-                  onPress={() => runExport(fn())}
-                  disabled={exporting}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name={icon as any} size={22} color={theme.tint} />
-                  <Text style={[S.exportRangeBtnText, { color: theme.text }]}>{label}</Text>
-                </TouchableOpacity>
-              ))}
+        {exportShowCustom && (
+          <View style={{ gap: space.md }}>
+            <View style={S.dateRow}>
+              <Card tone="alt" onPress={() => openExportDatePicker('from')} accessibilityLabel={`From ${fmtExportDate(exportCustomFrom)}`} style={S.dateTile}>
+                <Text style={[type.overline, { color: theme.secondaryText }]}>From</Text>
+                <Text style={[type.bodyStrong, { color: theme.text }]}>{fmtExportDate(exportCustomFrom)}</Text>
+              </Card>
+              <Ionicons name="arrow-forward" size={iconSize.sm} color={theme.secondaryText} />
+              <Card tone="alt" onPress={() => openExportDatePicker('to')} accessibilityLabel={`To ${fmtExportDate(exportCustomTo)}`} style={S.dateTile}>
+                <Text style={[type.overline, { color: theme.secondaryText }]}>To</Text>
+                <Text style={[type.bodyStrong, { color: theme.text }]}>{fmtExportDate(exportCustomTo)}</Text>
+              </Card>
             </View>
+            <Button label="Export selected range" onPress={() => runExport({ from: exportCustomFrom, to: exportCustomTo, label: 'custom' })} loading={exporting} />
 
-            <TouchableOpacity
-              style={[S.exportCustomToggle, { borderColor: theme.border }]}
-              onPress={() => setExportShowCustom(v => !v)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="options-outline" size={17} color={theme.tint} />
-              <Text style={[S.exportCustomToggleText, { color: theme.tint }]}>Custom Range</Text>
-              <View style={{ flex: 1 }} />
-              <Ionicons name={exportShowCustom ? 'chevron-up' : 'chevron-down'} size={16} color={theme.secondaryText} />
-            </TouchableOpacity>
-
-            {exportShowCustom && (
-              <View style={S.exportCustomSection}>
-                <View style={S.exportDateRow}>
-                  <TouchableOpacity
-                    style={[S.exportDateBtn, { backgroundColor: theme.background, borderColor: theme.border }]}
-                    onPress={() => openExportDatePicker('from')}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[S.exportDateLabel, { color: theme.secondaryText }]}>FROM</Text>
-                    <Text style={[S.exportDateValue, { color: theme.text }]}>{fmtExportDate(exportCustomFrom)}</Text>
-                  </TouchableOpacity>
-                  <Ionicons name="arrow-forward" size={16} color={theme.secondaryText} />
-                  <TouchableOpacity
-                    style={[S.exportDateBtn, { backgroundColor: theme.background, borderColor: theme.border }]}
-                    onPress={() => openExportDatePicker('to')}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[S.exportDateLabel, { color: theme.secondaryText }]}>TO</Text>
-                    <Text style={[S.exportDateValue, { color: theme.text }]}>{fmtExportDate(exportCustomTo)}</Text>
-                  </TouchableOpacity>
+            {Platform.OS === 'ios' && exportDateTarget && (
+              <View style={[S.iosPicker, { borderTopColor: theme.separator }]}>
+                <View style={S.iosPickerHead}>
+                  <Text style={[type.bodyStrong, { color: theme.text }]}>{exportDateTarget === 'from' ? 'Start date' : 'End date'}</Text>
+                  <Button size="sm" variant="ghost" label="Done" onPress={() => setExportDateTarget(null)} />
                 </View>
-                <TouchableOpacity
-                  style={[S.exportGoBtn, { backgroundColor: theme.tint }]}
-                  onPress={() => runExport({ from: exportCustomFrom, to: exportCustomTo, label: 'custom' })}
-                  disabled={exporting}
-                  activeOpacity={0.85}
-                >
-                  {exporting
-                    ? <ActivityIndicator size="small" color={theme.tintText} />
-                    : <Text style={[S.exportGoBtnText, { color: theme.tintText }]}>Export Selected Range</Text>
-                  }
-                </TouchableOpacity>
-
-                {Platform.OS === 'ios' && exportDateTarget && (
-                  <View style={[S.iosPickerWrap, { borderTopColor: theme.border }]}>
-                    <View style={[S.iosPickerHeader, { borderBottomColor: theme.border }]}>
-                      <Text style={[S.iosPickerTitle, { color: theme.text }]}>
-                        {exportDateTarget === 'from' ? 'Select Start Date' : 'Select End Date'}
-                      </Text>
-                      <TouchableOpacity onPress={() => setExportDateTarget(null)}>
-                        <Text style={[S.iosPickerDone, { color: theme.tint }]}>Done</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <DateTimePicker
-                      value={exportDateTarget === 'from' ? exportCustomFrom : exportCustomTo}
-                      mode="date"
-                      display="spinner"
-                      maximumDate={new Date()}
-                      onChange={(_, d) => {
-                        if (d) { exportDateTarget === 'from' ? setExportCustomFrom(d) : setExportCustomTo(d); }
-                      }}
-                      style={{ width: '100%' }}
-                    />
-                  </View>
-                )}
+                <DateTimePicker
+                  value={exportDateTarget === 'from' ? exportCustomFrom : exportCustomTo}
+                  mode="date"
+                  display="spinner"
+                  maximumDate={new Date()}
+                  onChange={(_, d) => { if (d) { exportDateTarget === 'from' ? setExportCustomFrom(d) : setExportCustomTo(d); } }}
+                  style={{ width: '100%' }}
+                />
               </View>
             )}
-            <View style={{ height: 8 }} />
           </View>
-        </View>
-      </Modal>
+        )}
+      </Sheet>
 
-      {/* Global loading overlay */}
-      {(working || exporting) && (
-        <View style={S.loadingOverlay}>
+      {busy && (
+        <View style={S.overlay} pointerEvents="none">
           <ActivityIndicator size="large" color={theme.tint} />
-          <Text style={[S.loadingText, { color: theme.text }]}>
-            {exporting ? 'Exporting…' : 'Working…'}
-          </Text>
+          <Text style={[type.label, { color: theme.text }]}>{exporting ? 'Exporting…' : 'Working…'}</Text>
         </View>
       )}
-    </ThemedView>
+    </Screen>
   );
 }
 
 const S = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, marginBottom: 8, height: 44,
-  },
-  backBtn:     { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '800' },
-  scroll:      { paddingHorizontal: 12, paddingBottom: 40 },
-
-  groupLabel: {
-    fontSize: 11, fontWeight: '800', letterSpacing: 0.8,
-    marginBottom: 8, marginTop: 20, paddingLeft: 4,
-  },
-  card: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  sep:  { height: StyleSheet.hairlineWidth, marginLeft: 62 },
-
-  row:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, gap: 12 },
-  iconBox: { width: 34, height: 34, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-  rowMid:  { flex: 1 },
-  rowTitle:{ fontSize: 15, fontWeight: '600' },
-  rowSub:  { fontSize: 12, marginTop: 1 },
-
-  syncDot: { width: 8, height: 8, borderRadius: 4 },
-
-  // Export sheet
-  exportOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  exportSheet:     { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
-  exportHandle:    { width: 36, height: 4, borderRadius: 2, backgroundColor: '#8E8E93', alignSelf: 'center', marginBottom: 16 },
-  exportTitle:     { fontSize: 17, fontWeight: '800', marginBottom: 2 },
-  exportSub:       { fontSize: 13, marginBottom: 16 },
-  exportGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
-  exportRangeBtn:  { width: '47.5%', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 8 },
-  exportRangeBtnText: { fontSize: 14, fontWeight: '700' },
-  exportCustomToggle: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 12, marginBottom: 4,
-  },
-  exportCustomToggleText: { fontSize: 14, fontWeight: '700' },
-  exportCustomSection: { marginTop: 12, gap: 12 },
-  exportDateRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  exportDateBtn:   { flex: 1, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 12 },
-  exportDateLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginBottom: 3 },
-  exportDateValue: { fontSize: 13, fontWeight: '700' },
-  exportGoBtn:     { height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  exportGoBtnText: { fontSize: 15, fontWeight: '700' },
-  iosPickerWrap:   { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 8 },
-  iosPickerHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  iosPickerTitle:  { fontSize: 15, fontWeight: '600' },
-  iosPickerDone:   { fontSize: 15, fontWeight: '600' },
-
-  loadingOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)', gap: 12 },
-  loadingText:    { fontSize: 14, fontWeight: '600' },
+  rangeGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  rangeTile:     { width: '47%', flexGrow: 1, alignItems: 'center', gap: space.xs, paddingVertical: space.md },
+  customToggle:  { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.md, marginTop: space.sm },
+  dateRow:       { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  dateTile:      { flex: 1, gap: 2, padding: space.md },
+  iosPicker:     { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: space.sm },
+  iosPickerHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  overlay:       { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', gap: space.sm, backgroundColor: 'rgba(0,0,0,0.35)' },
 });
