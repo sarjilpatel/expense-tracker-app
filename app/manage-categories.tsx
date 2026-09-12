@@ -1,37 +1,36 @@
-import React, { useState, useCallback } from 'react';
-import {
-  StyleSheet, View, Text, TouchableOpacity, ScrollView,
-  Alert, TextInput, ActivityIndicator, LayoutAnimation,
-  Platform, UIManager, Modal,
-} from 'react-native';
-import { EmojiPickerModal } from '@/components/EmojiPickerModal';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useCallback, useRef } from 'react';
+import { StyleSheet, View, Text, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 
+import { EmojiPickerModal } from '@/components/EmojiPickerModal';
 import { useTheme } from '@/src/context/ThemeContext';
+import { useLanguage } from '@/src/i18n/LanguageContext';
+import { Currency } from '@/constants/theme';
+import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import {
+  Screen, Card, Row, Touchable, Button, Sheet, Field, EmptyState, SectionHeader, Chip, Skeleton,
+  type SheetHandle,
+} from '@/components/ui';
 import {
   getCurrentGroup, addCategory, removeCategory, getBudgets, setBudget, deleteBudget,
   getCategoryPresets, applyCategoryPreset,
 } from '@/src/services/dataService';
 import type { Category } from '@/src/services/dataService';
 import type { CategoryPresetSummary } from '@/src/services/groupApi';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useLanguage } from '@/src/i18n/LanguageContext';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { formatAmount } from '@/src/utils/money';
 
 type CategoryType = 'income' | 'expense' | 'both';
 
+const TYPES: { key: CategoryType; label: string }[] = [
+  { key: 'expense', label: 'Expense' },
+  { key: 'income',  label: 'Income'  },
+  { key: 'both',    label: 'Both'    },
+];
 
 export default function ManageCategoriesScreen() {
   const { t } = useLanguage();
   const { theme } = useTheme();
-  const { top } = useSafeAreaInsets();
   const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
 
   const [categories, setCategories]     = useState<Category[]>([]);
@@ -44,15 +43,15 @@ export default function ManageCategoriesScreen() {
   const [isAdding, setIsAdding]         = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  const [presets, setPresets]                 = useState<CategoryPresetSummary[]>([]);
-  const [presetModalVisible, setPresetModalVisible] = useState(false);
-  const [applyingPreset, setApplyingPreset]   = useState<string | null>(null);
+  const presetSheet = useRef<SheetHandle>(null);
+  const [presets, setPresets]               = useState<CategoryPresetSummary[]>([]);
+  const [applyingPreset, setApplyingPreset] = useState<string | null>(null);
 
-  const [budgetModalVisible, setBudgetModalVisible] = useState(false);
+  const budgetSheet = useRef<SheetHandle>(null);
   const [budgetCategory, setBudgetCategory]   = useState<string | null>(null);
-  const [budgetAmount, setBudgetAmount]         = useState('');
-  const [budgetSaving, setBudgetSaving]         = useState(false);
-  const [categoryBudgets, setCategoryBudgets]   = useState<Record<string, any>>({});
+  const [budgetAmount, setBudgetAmount]       = useState('');
+  const [budgetSaving, setBudgetSaving]       = useState(false);
+  const [categoryBudgets, setCategoryBudgets] = useState<Record<string, any>>({});
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -83,7 +82,6 @@ export default function ManageCategoriesScreen() {
     try {
       const icon = selectedType === 'income' ? 'cash-outline' : (selectedType === 'both' ? 'grid-outline' : 'cart-outline');
       const updatedCategories = await addCategory(newCategoryName.trim(), icon, selectedType, newCategoryEmoji || undefined);
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
       setCategories(updatedCategories);
       setNewCategoryName('');
       setNewCategoryEmoji('');
@@ -100,9 +98,8 @@ export default function ManageCategoriesScreen() {
     setApplyingPreset(preset.key);
     try {
       const { categories: updated, added } = await applyCategoryPreset(preset.key);
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
       setCategories(updated);
-      setPresetModalVisible(false);
+      presetSheet.current?.dismiss();
       // Applying a pack twice is allowed and adds nothing — say so rather than looking like a no-op.
       Alert.alert(
         preset.name,
@@ -123,21 +120,18 @@ export default function ManageCategoriesScreen() {
       {
         text: 'Remove', style: 'destructive',
         onPress: async () => {
-          try {
-            const updatedCategories = await removeCategory(id);
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setCategories(updatedCategories);
-          } catch { Alert.alert('Error', 'Failed to remove category'); }
+          try { setCategories(await removeCategory(id)); }
+          catch { Alert.alert('Error', 'Failed to remove category'); }
         },
       },
     ]);
   };
 
-  const openBudgetModal = (categoryName: string) => {
+  const openBudgetSheet = (categoryName: string) => {
     setBudgetCategory(categoryName);
     const existing = categoryBudgets[categoryName];
     setBudgetAmount(existing ? existing.amount.toString() : '');
-    setBudgetModalVisible(true);
+    budgetSheet.current?.present();
   };
 
   const handleSaveCategoryBudget = async () => {
@@ -152,27 +146,24 @@ export default function ManageCategoriesScreen() {
         category: budgetCategory,
       });
       setCategoryBudgets(prev => ({ ...prev, [budgetCategory]: budget }));
-      setBudgetModalVisible(false);
+      budgetSheet.current?.dismiss();
     } catch { Alert.alert('Error', 'Failed to save budget'); }
     finally { setBudgetSaving(false); }
   };
 
-  const handleRemoveCategoryBudget = async (categoryName: string) => {
-    const existing = categoryBudgets[categoryName];
-    if (!existing?._id) return;
+  const handleRemoveCategoryBudget = async () => {
+    const existing = budgetCategory ? categoryBudgets[budgetCategory] : null;
+    if (!existing?._id || !budgetCategory) return;
     try {
       await deleteBudget(existing._id);
-      setCategoryBudgets(prev => { const next = { ...prev }; delete next[categoryName]; return next; });
+      setCategoryBudgets(prev => { const next = { ...prev }; delete next[budgetCategory]; return next; });
+      budgetSheet.current?.dismiss();
     } catch { Alert.alert('Error', 'Failed to remove budget'); }
   };
 
-  const getTypeBadge = (type?: string) => {
-    switch (type) {
-      case 'income': return { label: 'Income',    color: theme.incomeText,  bg: theme.income  };
-      case 'both':   return { label: 'Universal', color: theme.tintText,    bg: theme.tint    };
-      default:       return { label: 'Expense',   color: theme.expenseText, bg: theme.expense };
-    }
-  };
+  const typeLabel = (kind?: string) => kind === 'income' ? 'Income' : kind === 'both' ? 'Universal' : 'Expense';
+  const typeTone  = (kind?: string): 'income' | 'expense' | 'neutral' =>
+    kind === 'income' ? 'income' : kind === 'both' ? 'neutral' : 'expense';
 
   const filteredCategories = categories.filter(item =>
     selectedType === 'both' ? true : (item.type === selectedType || item.type === 'both' || !item.type)
@@ -180,377 +171,155 @@ export default function ManageCategoriesScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.loading, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.tint} />
-      </View>
+      <Screen title={t('category_management')}>
+        <Skeleton.Group style={{ paddingTop: space.md }}>
+          <Skeleton.Block height={36} width="70%" round={radius.full} />
+          <Skeleton.Block height={48} />
+          <Skeleton.Row /><Skeleton.Row /><Skeleton.Row />
+        </Skeleton.Group>
+      </Screen>
     );
   }
 
   return (
-    <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={15}>
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
-        </TouchableOpacity>
-        <ThemedText type="subtitle" style={styles.headerTitle}>{t('category_management')}</ThemedText>
-        <View style={{ width: 36 }} />
+    <Screen title={t('category_management')} keyboard>
+      {/* ── Add ── */}
+      <SectionHeader title="Add category" />
+      <View style={S.chips}>
+        {TYPES.map(({ key, label }) => (
+          <Chip key={key} label={label} selected={selectedType === key} onPress={() => setSelectedType(key)} />
+        ))}
+      </View>
+      <View style={S.addRow}>
+        <Touchable
+          onPress={() => setShowEmojiPicker(true)}
+          size={48}
+          style={[S.emojiBtn, { backgroundColor: theme.inputBg, borderColor: theme.border }]}
+          accessibilityLabel={newCategoryEmoji ? `Emoji ${newCategoryEmoji}, change` : 'Pick an emoji'}
+        >
+          {newCategoryEmoji
+            ? <Text style={S.emoji}>{newCategoryEmoji}</Text>
+            : <Ionicons name="happy-outline" size={iconSize.lg} color={theme.secondaryText} />}
+        </Touchable>
+        <Field
+          placeholder="Category name…"
+          value={newCategoryName}
+          onChangeText={setNewCategoryName}
+          returnKeyType="done"
+          onSubmitEditing={handleAddCategory}
+          style={S.nameField}
+        />
+        <Button label="Add" onPress={handleAddCategory} loading={isAdding} block={false} accessibilityLabel="Add category" />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {presets.length > 0 && (
+        <Card padded={false} style={{ marginTop: space.md }}>
+          <Row
+            icon="sparkles"
+            title="Start from a preset"
+            subtitle="Wedding, travel, household and more"
+            onPress={() => presetSheet.current?.present()}
+            last
+          />
+        </Card>
+      )}
 
-        {/* Add Category Section */}
-        <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>ADD CATEGORY</Text>
-
-        {/* Type Toggle */}
-        <View style={[styles.typeToggleContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {(['expense', 'income', 'both'] as CategoryType[]).map((type) => {
-            const active = selectedType === type;
-            const bg = type === 'income' ? theme.income : (type === 'expense' ? theme.expense : theme.tint);
-            const color = type === 'income' ? theme.incomeText : (type === 'expense' ? theme.expenseText : theme.tintText);
+      {/* ── List ── */}
+      <SectionHeader title={`${typeLabel(selectedType)} categories`} count={filteredCategories.length} />
+      {filteredCategories.length === 0 ? (
+        <Card><EmptyState compact icon="grid-outline" title="No categories yet" body="Add one above, or start from a preset." /></Card>
+      ) : (
+        <Card padded={false}>
+          {filteredCategories.map((item, index) => {
+            const budget = categoryBudgets[item.name];
             return (
-              <TouchableOpacity
-                key={type}
-                style={[styles.typeToggleBtn, active && { backgroundColor: bg }]}
-                onPress={() => setSelectedType(type)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.typeToggleText, { color: active ? color : theme.secondaryText }]}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </Text>
-              </TouchableOpacity>
+              <Row
+                key={item._id}
+                title={t(item.name)}
+                emoji={item.emoji}
+                icon={item.emoji ? undefined : ((item.icon as any) || 'grid-outline')}
+                iconBg={item.emoji ? 'transparent' : undefined}
+                subtitle={budget ? `${typeLabel(item.type)} · Budget ${formatAmount(budget.amount)}` : typeLabel(item.type)}
+                last={index === filteredCategories.length - 1}
+                right={(
+                  <View style={S.actions}>
+                    <Chip size="sm" tone={typeTone(item.type)} label={typeLabel(item.type)} />
+                    <Touchable onPress={() => openBudgetSheet(item.name)} size={32} style={S.actionBtn} accessibilityLabel={`Set budget for ${t(item.name)}`} rippleBorderless>
+                      <Ionicons name="wallet-outline" size={iconSize.md} color={theme.tint} />
+                    </Touchable>
+                    <Touchable onPress={() => handleRemoveCategory(item._id, item.name)} size={32} style={S.actionBtn} accessibilityLabel={`Remove ${t(item.name)}`} rippleBorderless>
+                      <Ionicons name="trash-outline" size={iconSize.md} color={theme.danger} />
+                    </Touchable>
+                  </View>
+                )}
+              />
             );
           })}
-        </View>
+        </Card>
+      )}
 
-        {/* Name + Emoji row */}
-        <View style={styles.addInputRow}>
-          {/* Emoji picker button */}
-          <TouchableOpacity
-            style={[styles.emojiInput, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={() => setShowEmojiPicker(true)}
-            activeOpacity={0.8}
-          >
-            {newCategoryEmoji
-              ? <Text style={styles.emojiBtnText}>{newCategoryEmoji}</Text>
-              : <Ionicons name="happy-outline" size={22} color={theme.secondaryText} />
-            }
-          </TouchableOpacity>
+      {/* ── Presets ── */}
+      <Sheet ref={presetSheet} title="Category presets" scroll snapPoints={['70%']} keyboard="none">
+        <Text style={[type.label, { color: theme.secondaryText, marginBottom: space.sm }]}>
+          Anything you already have is skipped.
+        </Text>
+        <Card padded={false}>
+          {presets.map((preset, index) => (
+            <Row
+              key={preset.key}
+              icon={(preset.icon as any) || 'apps'}
+              title={preset.name}
+              subtitle={preset.description}
+              right={applyingPreset === preset.key
+                ? <Chip size="sm" label="Adding…" />
+                : <Chip size="sm" label={String(preset.count)} />}
+              onPress={() => handleApplyPreset(preset)}
+              disabled={applyingPreset !== null}
+              last={index === presets.length - 1}
+            />
+          ))}
+        </Card>
+      </Sheet>
 
-          <TextInput
-            style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.card }]}
-            placeholder="Category name..."
-            placeholderTextColor={theme.secondaryText}
-            value={newCategoryName}
-            onChangeText={setNewCategoryName}
-            returnKeyType="done"
-            onSubmitEditing={handleAddCategory}
-          />
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: theme.tint }]}
-            onPress={handleAddCategory}
-            disabled={isAdding}
-            activeOpacity={0.8}
-          >
-            {isAdding
-              ? <ActivityIndicator color={theme.tintText} size="small" />
-              : <Ionicons name="add" size={24} color={theme.tintText} />
-            }
-          </TouchableOpacity>
-        </View>
-
-        {/* Presets — twelve categories in one tap instead of twelve trips through the row above */}
-        {presets.length > 0 && (
-          <TouchableOpacity
-            style={[styles.presetTrigger, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={() => setPresetModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.presetTriggerIcon, { backgroundColor: theme.tint }]}>
-              <Ionicons name="sparkles" size={17} color={theme.tintText} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.presetTriggerTitle, { color: theme.text }]}>Start from a preset</Text>
-              <Text style={[styles.presetTriggerSub, { color: theme.secondaryText }]}>
-                Wedding, travel, household and more
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.secondaryText} />
-          </TouchableOpacity>
-        )}
-
-        {/* Category List */}
-        <View style={styles.listHeader}>
-          <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>
-            {selectedType.toUpperCase()} CATEGORIES
-          </Text>
-          <View style={[styles.countBadge, { backgroundColor: theme.tint }]}>
-            <Text style={{ color: theme.tintText, fontSize: 11, fontWeight: '800' }}>{filteredCategories.length}</Text>
-          </View>
-        </View>
-
-        <View style={[styles.categoryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {filteredCategories.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: theme.secondaryText }]}>No categories yet</Text>
-            </View>
-          ) : (
-            filteredCategories.map((item, index) => {
-              const badge = getTypeBadge(item.type);
-              const isLast = index === filteredCategories.length - 1;
-              return (
-                <Animated.View
-                  key={item._id}
-                  entering={FadeInDown.delay(index * 40).duration(220)}
-                  style={[styles.categoryRow, { borderBottomColor: theme.border, borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth }]}
-                >
-                  <View style={styles.catLeft}>
-                    <View style={[styles.catIcon, !item.emoji && { backgroundColor: badge.bg }]}>
-                      {item.emoji
-                        ? <Text style={styles.catEmoji}>{item.emoji}</Text>
-                        : <Ionicons name={(item.icon as any) || 'grid-outline'} size={20} color={badge.color} />
-                      }
-                    </View>
-                    <View>
-                      <Text style={[styles.catName, { color: theme.text }]}>{t(item.name)}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <View style={[styles.typeBadge, { backgroundColor: badge.bg }]}>
-                          <Text style={[styles.typeBadgeText, { color: badge.color }]}>{badge.label}</Text>
-                        </View>
-                        {categoryBudgets[item.name] && (
-                          <View style={[styles.typeBadge, { backgroundColor: theme.tint }]}>
-                            <Text style={[styles.typeBadgeText, { color: theme.tintText }]}>
-                              ₹{categoryBudgets[item.name].amount}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                  <View style={styles.catActions}>
-                    <TouchableOpacity onPress={() => openBudgetModal(item.name)} hitSlop={10}>
-                      <Ionicons name="wallet-outline" size={19} color={theme.tint} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleRemoveCategory(item._id, item.name)} hitSlop={10}>
-                      <Ionicons name="trash-outline" size={19} color={theme.danger} />
-                    </TouchableOpacity>
-                  </View>
-                </Animated.View>
-              );
-            })
+      {/* ── Category budget ── */}
+      <Sheet ref={budgetSheet} title="Category budget">
+        <Text style={[type.label, { color: theme.secondaryText, marginBottom: space.md }]}>
+          {budgetCategory ? t(budgetCategory) : ''} · this month
+        </Text>
+        <Field
+          label="Amount"
+          value={budgetAmount}
+          onChangeText={setBudgetAmount}
+          keyboardType="numeric"
+          placeholder="0"
+          autoFocus
+          right={<Text style={[type.bodyStrong, { color: theme.secondaryText }]}>{Currency.symbol}</Text>}
+        />
+        <View style={S.sheetActions}>
+          {!!(budgetCategory && categoryBudgets[budgetCategory]) && (
+            <Button label="Remove" variant="danger" onPress={handleRemoveCategoryBudget} block={false} />
           )}
+          <Button label="Save" onPress={handleSaveCategoryBudget} loading={budgetSaving} disabled={!budgetAmount} block={false} style={{ marginLeft: 'auto' }} />
         </View>
+      </Sheet>
 
-        <TouchableOpacity
-          style={[styles.importBtn, { borderColor: theme.border }]}
-          onPress={() => router.push({ pathname: '/import-categories', params: { type: selectedType } })}
-        >
-          <Ionicons name="download-outline" size={18} color={theme.tint} />
-          <Text style={[styles.importBtnText, { color: theme.tint }]}>{t('import_categories')}</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 32 }} />
-      </ScrollView>
-
-      {/* ── Emoji Picker ── */}
       <EmojiPickerModal
         visible={showEmojiPicker}
         onClose={() => setShowEmojiPicker(false)}
         onSelect={emoji => { setNewCategoryEmoji(emoji); }}
         theme={theme}
       />
-
-      {/* ── Budget Modal ── */}
-      <Modal visible={presetModalVisible} transparent animationType="slide" onRequestClose={() => setPresetModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.presetSheet, { backgroundColor: theme.card }]}>
-            <View style={styles.presetSheetHeader}>
-              <View style={{ flex: 1 }}>
-                <ThemedText type="subtitle">Category presets</ThemedText>
-                <Text style={{ color: theme.secondaryText, fontSize: 13, marginTop: 2 }}>
-                  Anything you already have is skipped
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setPresetModalVisible(false)} hitSlop={12}>
-                <Ionicons name="close" size={22} color={theme.secondaryText} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {presets.map((preset, index) => (
-                <TouchableOpacity
-                  key={preset.key}
-                  style={[styles.presetRow, {
-                    borderBottomColor: theme.border,
-                    borderBottomWidth: index === presets.length - 1 ? 0 : StyleSheet.hairlineWidth,
-                  }]}
-                  onPress={() => handleApplyPreset(preset)}
-                  disabled={applyingPreset !== null}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.presetIcon, { backgroundColor: theme.tint }]}>
-                    <Ionicons name={(preset.icon as any) || 'apps'} size={19} color={theme.tintText} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.presetName, { color: theme.text }]}>{preset.name}</Text>
-                    <Text style={[styles.presetDesc, { color: theme.secondaryText }]} numberOfLines={2}>
-                      {preset.description}
-                    </Text>
-                  </View>
-                  {applyingPreset === preset.key
-                    ? <ActivityIndicator color={theme.tint} size="small" />
-                    : (
-                      <View style={[styles.countBadge, { backgroundColor: theme.tint }]}>
-                        <Text style={{ color: theme.tintText, fontSize: 11, fontWeight: '800' }}>{preset.count}</Text>
-                      </View>
-                    )
-                  }
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={budgetModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.budgetSheet, { backgroundColor: theme.card }]}>
-            <ThemedText type="subtitle" style={{ marginBottom: 4 }}>Set Category Budget</ThemedText>
-            <ThemedText style={{ marginBottom: 20, fontSize: 13, color: theme.secondaryText }}>{budgetCategory}</ThemedText>
-            <View style={[styles.budgetInputWrapper, { borderColor: theme.border }]}>
-              <Text style={{ color: theme.text, fontSize: 22, marginRight: 8, fontWeight: '700' }}>₹</Text>
-              <TextInput
-                style={[styles.budgetInput, { color: theme.text }]}
-                placeholder="Enter amount"
-                placeholderTextColor={theme.secondaryText}
-                keyboardType="numeric"
-                value={budgetAmount}
-                onChangeText={setBudgetAmount}
-                autoFocus
-              />
-            </View>
-            <View style={styles.modalActions}>
-              {categoryBudgets[budgetCategory ?? ''] && (
-                <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: theme.danger }]}
-                  onPress={() => { handleRemoveCategoryBudget(budgetCategory!); setBudgetModalVisible(false); }}
-                >
-                  <Text style={{ color: theme.expenseText, fontWeight: '700' }}>Remove</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: theme.card, borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth }]}
-                onPress={() => setBudgetModalVisible(false)}
-              >
-                <Text style={{ color: theme.text, fontWeight: '700' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: theme.tint }]}
-                onPress={handleSaveCategoryBudget}
-                disabled={budgetSaving}
-              >
-                {budgetSaving
-                  ? <ActivityIndicator color={theme.tintText} size="small" />
-                  : <Text style={{ color: theme.tintText, fontWeight: '700' }}>Save</Text>
-                }
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </ThemedView>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  loading:   { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, height: 36, marginBottom: 8,
-  },
-  backBtn:     { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '800' },
-
-  content: { paddingHorizontal: 8, paddingBottom: 60 },
-
-  sectionLabel: {
-    fontSize: 11, fontWeight: '800', letterSpacing: 0.5,
-    marginBottom: 8, marginTop: 20,
-  },
-
-  typeToggleContainer: {
-    flexDirection: 'row', borderRadius: 14, padding: 4,
-    marginBottom: 12, gap: 4, borderWidth: StyleSheet.hairlineWidth,
-  },
-  typeToggleBtn:  { flex: 1, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  typeToggleText: { fontSize: 13, fontWeight: '700' },
-
-  addInputRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
-  emojiInput: {
-    width: 52, height: 52, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  emojiBtnText: { fontSize: 26 },
-  input: {
-    flex: 1, height: 52, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14,
-    paddingHorizontal: 14, fontSize: 15, fontWeight: '500',
-  },
-  addBtn: {
-    width: 52, height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center',
-  },
-
-  listHeader:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  countBadge:  { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-
-  categoryCard: {
-    borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginBottom: 16,
-  },
-  categoryRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 14, paddingVertical: 12,
-  },
-  catLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  catIcon: { width: 42, height: 42, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
-  catEmoji:{ fontSize: 22 },
-  catName: { fontSize: 15, fontWeight: '600' },
-  catActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  typeBadge: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, marginTop: 3 },
-  typeBadgeText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase' },
-
-  emptyState: { alignItems: 'center', paddingVertical: 32 },
-  emptyText:  { fontSize: 14 },
-
-  importBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    height: 52, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', gap: 8,
-  },
-  importBtnText: { fontWeight: '700', fontSize: 14 },
-
-  // Budget modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  presetTrigger: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 24,
-  },
-  presetTriggerIcon:  { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  presetTriggerTitle: { fontSize: 15, fontWeight: '700' },
-  presetTriggerSub:   { fontSize: 12, marginTop: 1 },
-  presetSheet: {
-    padding: 24, borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: '80%',
-  },
-  presetSheetHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
-  presetRow:  { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 },
-  presetIcon: { width: 38, height: 38, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-  presetName: { fontSize: 15, fontWeight: '600' },
-  presetDesc: { fontSize: 12, marginTop: 2, lineHeight: 16 },
-  budgetSheet: { padding: 28, borderTopLeftRadius: 32, borderTopRightRadius: 32 },
-  budgetInputWrapper: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, height: 56, marginBottom: 20,
-  },
-  budgetInput: { flex: 1, fontSize: 22, fontWeight: '700' },
-  modalActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
-  modalBtn: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+const S = StyleSheet.create({
+  chips:        { flexDirection: 'row', gap: space.sm, marginBottom: space.md },
+  addRow:       { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  emojiBtn:     { width: 48, height: 48, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', alignItems: 'center' },
+  emoji:        { fontSize: 22 },
+  nameField:    { flex: 1 },
+  actions:      { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  actionBtn:    { width: 32, height: 32, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  sheetActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.lg },
 });
