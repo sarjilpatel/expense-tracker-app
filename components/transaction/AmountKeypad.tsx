@@ -1,17 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View, Text, TouchableOpacity, Modal,
-  StyleSheet, Dimensions,
-} from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
-import { getContrastText } from '@/constants/theme';
+import { getContrastText, hexToRGBA } from '@/constants/theme';
+import { space, radius, type, tabular, icon as iconSize } from '@/constants/tokens';
+import { Sheet, Touchable, type SheetHandle } from '@/components/ui';
 
-const { height: SCREEN_H } = Dimensions.get('window');
-const SHEET_HEIGHT = Math.round(SCREEN_H * 0.52);
-const GAP = 8;
-
+/**
+ * The amount keypad, with a calculator mode.
+ *
+ * This was the modal the user reported could not be dismissed by tapping outside: a hand-rolled
+ * `Modal` with a transparent container that refused touches and no scrim at all (W2-11). It now
+ * sits in the shared `Sheet` — scrim, tap-outside, drag-down and hardware back come from there,
+ * and only the keys and the arithmetic are this file's own.
+ *
+ * The `visible` prop is kept so callers are unchanged; it drives the sheet's present/dismiss.
+ */
 interface Props {
   visible: boolean;
   value: string;
@@ -24,38 +28,29 @@ interface Props {
 
 type CalcOp = '+' | '-' | '×' | '÷' | null;
 
+const KEY_HEIGHT = 56;
+
 export function AmountKeypad({ visible, value, onClose, onDone, onChange, accentColor, theme }: Props) {
-  const [mounted, setMounted] = useState(false);
+  const sheet = useRef<SheetHandle>(null);
   const [calcMode, setCalcMode] = useState(false);
   const [calcExpr, setCalcExpr] = useState('');
   const [calcLeft, setCalcLeft] = useState('');
   const [calcOp, setCalcOp] = useState<CalcOp>(null);
   // tracks when = was just pressed so next digit starts a fresh number
   const [freshResult, setFreshResult] = useState(false);
-  const slide = useSharedValue(SHEET_HEIGHT);
-
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: slide.value }],
-  }));
 
   useEffect(() => {
-    if (visible) {
-      setMounted(true);
-      slide.value = SHEET_HEIGHT;
-      slide.value = withTiming(0, { duration: 280, easing: Easing.out(Easing.cubic) });
-    } else {
-      setCalcMode(false);
-      setCalcExpr(''); setCalcLeft(''); setCalcOp(null); setFreshResult(false);
-      slide.value = withTiming(SHEET_HEIGHT, { duration: 220, easing: Easing.in(Easing.cubic) }, (finished) => {
-        'worklet';
-        if (finished) runOnJS(setMounted)(false);
-      });
-    }
+    if (visible) sheet.current?.present();
+    else sheet.current?.dismiss();
   }, [visible]);
+
+  const resetCalc = () => {
+    setCalcMode(false);
+    setCalcExpr(''); setCalcLeft(''); setCalcOp(null); setFreshResult(false);
+  };
 
   // ── Regular keypad ────────────────────────────────────────────────────────
   const pressNum = (key: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (key === '⌫') { onChange(value.slice(0, -1)); return; }
     if (key === '.') {
       if (value.includes('.')) return;
@@ -81,8 +76,6 @@ export function AmountKeypad({ visible, value, onClose, onDone, onChange, accent
   };
 
   const calcPress = (key: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
     if (key === 'AC') {
       setCalcExpr(''); setCalcLeft(''); setCalcOp(null); setFreshResult(false);
       onChange('');
@@ -128,7 +121,6 @@ export function AmountKeypad({ visible, value, onClose, onDone, onChange, accent
       return;
     }
 
-    // Decimal
     if (key === '.') {
       if (value.includes('.')) return;
       if (freshResult) {
@@ -142,7 +134,6 @@ export function AmountKeypad({ visible, value, onClose, onDone, onChange, accent
       return;
     }
 
-    // Digit
     if (freshResult) {
       setFreshResult(false); setCalcLeft(''); setCalcOp(null);
       onChange(key); setCalcExpr(key);
@@ -160,22 +151,16 @@ export function AmountKeypad({ visible, value, onClose, onDone, onChange, accent
     if (calcMode && calcOp && calcLeft !== '' && value !== '') {
       onChange(evaluate(calcLeft, calcOp, value));
     }
-    setCalcMode(false);
-    setCalcExpr(''); setCalcLeft(''); setCalcOp(null); setFreshResult(false);
+    resetCalc();
     onDone();
   };
 
   const openCalc = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCalcMode(true);
     setCalcExpr(value); setCalcLeft(''); setCalcOp(null); setFreshResult(false);
   };
 
   // ── Key renderer ──────────────────────────────────────────────────────────
-  const keyBg    = theme.card;
-  const opBg     = accentColor + '22';
-  const dangerBg = (theme.danger || '#EF4444') + '22';
-
   const renderKey = (k: string, flex = 1) => {
     const isDel     = k === '⌫';
     const isAC      = k === 'AC';
@@ -185,133 +170,80 @@ export function AmountKeypad({ visible, value, onClose, onDone, onChange, accent
     const isCalcBtn = k === 'calc';
 
     const bgColor = (isEq || isDone) ? accentColor
-      : isOp        ? opBg
-      : isAC        ? dangerBg
-      : isCalcBtn   ? opBg
-      : keyBg;
-
-    const txtColor = (isEq || isDone)       ? getContrastText(accentColor)
+      : (isOp || isCalcBtn) ? hexToRGBA(accentColor, 0.14)
+      : isAC ? hexToRGBA(theme.danger, 0.14)
+      : theme.cardAlt;
+    const txtColor = (isEq || isDone) ? getContrastText(accentColor)
       : (isOp || isCalcBtn) ? accentColor
-      : isAC                ? (theme.danger || '#EF4444')
+      : isAC ? theme.danger
       : theme.text;
 
-    const onPress = isDone    ? handleDone
-      : isCalcBtn ? openCalc
-      : calcMode  ? () => calcPress(k)
-      : () => pressNum(k);
+    const onPress = isDone ? handleDone : isCalcBtn ? openCalc : calcMode ? () => calcPress(k) : () => pressNum(k);
+    const label = isDel ? 'Delete' : isDone ? 'Done' : isCalcBtn ? 'Calculator' : isAC ? 'All clear' : k;
 
     return (
-      <TouchableOpacity
+      <Touchable
         key={k + String(flex)}
         style={[styles.key, { flex, backgroundColor: bgColor }]}
         onPress={onPress}
-        activeOpacity={(isEq || isDone) ? 0.7 : 0.55}
+        haptic={isEq || isDone ? 'medium' : 'selection'}
+        accessibilityLabel={label}
       >
-        {isDel ? (
-          <Ionicons name="backspace-outline" size={20} color={theme.text} />
-        ) : isDone ? (
-          <Text style={[styles.keyText, styles.doneText, { color: txtColor }]}>Done</Text>
-        ) : isCalcBtn ? (
-          <Ionicons name="calculator-outline" size={22} color={accentColor} />
-        ) : isEq ? (
-          <Text style={[styles.keyText, styles.doneText, { color: txtColor }]}>=</Text>
-        ) : isOp ? (
-          <Text style={[styles.keyText, { color: txtColor, fontSize: 24, fontWeight: '400' }]}>{k}</Text>
-        ) : isAC ? (
-          <Text style={[styles.keyText, { color: txtColor, fontSize: 15, fontWeight: '700' }]}>AC</Text>
-        ) : (
-          <Text style={[styles.keyText, { color: txtColor }]}>{k}</Text>
-        )}
-      </TouchableOpacity>
+        {isDel ? <Ionicons name="backspace-outline" size={iconSize.md} color={theme.text} />
+          : isCalcBtn ? <Ionicons name="calculator-outline" size={iconSize.lg} color={accentColor} />
+          : isDone ? <Text style={[type.bodyStrong, { color: txtColor }]}>Done</Text>
+          : isAC ? <Text style={[type.label, { color: txtColor }]}>AC</Text>
+          : <Text style={[styles.keyText, { color: txtColor }]}>{k}</Text>}
+      </Touchable>
     );
   };
 
   return (
-    <Modal visible={mounted} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
-      <View style={styles.container} pointerEvents="box-none">
-        <Animated.View style={[styles.sheet, { backgroundColor: theme.background, height: SHEET_HEIGHT }, sheetStyle]}>
-
-          <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
-
-          {/* Display */}
-          <View style={[styles.display, { borderBottomColor: theme.border }]}>
-            {calcMode && calcExpr ? (
-              <Text style={[styles.exprText, { color: theme.secondaryText }]} numberOfLines={1}>
-                {calcExpr}
-              </Text>
-            ) : null}
-            <View style={styles.displayRow}>
-              <Text
-                style={[styles.displayAmount, { color: value ? theme.text : theme.secondaryText }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-              >
-                {value || '0'}
-              </Text>
-              <View style={[styles.cursor, { backgroundColor: accentColor }]} />
-            </View>
-          </View>
-
-          {/* Keys */}
-          <View style={styles.keypadArea}>
-            {calcMode ? (
-              // Calculator: 5 rows — standard layout, 0 is double-wide, Done in last row
-              <>
-                <View style={styles.row}>{renderKey('AC')}{renderKey('⌫')}{renderKey('÷')}{renderKey('×')}</View>
-                <View style={styles.row}>{renderKey('7')}{renderKey('8')}{renderKey('9')}{renderKey('-')}</View>
-                <View style={styles.row}>{renderKey('4')}{renderKey('5')}{renderKey('6')}{renderKey('+')}</View>
-                <View style={styles.row}>{renderKey('1')}{renderKey('2')}{renderKey('3')}{renderKey('=')}</View>
-                <View style={styles.row}>{renderKey('.')}{renderKey('0', 2)}{renderKey('done')}</View>
-              </>
-            ) : (
-              // Regular: 4 rows — no null gaps, 0 is triple-wide on last row
-              <>
-                <View style={styles.row}>{renderKey('1')}{renderKey('2')}{renderKey('3')}{renderKey('⌫')}</View>
-                <View style={styles.row}>{renderKey('4')}{renderKey('5')}{renderKey('6')}{renderKey('calc')}</View>
-                <View style={styles.row}>{renderKey('7')}{renderKey('8')}{renderKey('9')}{renderKey('done')}</View>
-                <View style={styles.row}>{renderKey('.')}{renderKey('0', 3)}</View>
-              </>
-            )}
-          </View>
-
-        </Animated.View>
+    <Sheet ref={sheet} onDismiss={() => { resetCalc(); onClose(); }} keyboard="none" contentStyle={styles.content}>
+      {/* Display */}
+      <View style={[styles.display, { borderBottomColor: theme.separator }]}>
+        {calcMode && calcExpr ? (
+          <Text style={[type.label, { color: theme.secondaryText }]} numberOfLines={1}>{calcExpr}</Text>
+        ) : null}
+        <View style={styles.displayRow}>
+          <Text style={[styles.displayAmount, { color: value ? theme.text : theme.secondaryText }]} numberOfLines={1} adjustsFontSizeToFit>
+            {value || '0'}
+          </Text>
+          <View style={[styles.cursor, { backgroundColor: accentColor }]} />
+        </View>
       </View>
-    </Modal>
+
+      {/* Keys */}
+      <View style={styles.keys}>
+        {calcMode ? (
+          <>
+            <View style={styles.row}>{renderKey('AC')}{renderKey('⌫')}{renderKey('÷')}{renderKey('×')}</View>
+            <View style={styles.row}>{renderKey('7')}{renderKey('8')}{renderKey('9')}{renderKey('-')}</View>
+            <View style={styles.row}>{renderKey('4')}{renderKey('5')}{renderKey('6')}{renderKey('+')}</View>
+            <View style={styles.row}>{renderKey('1')}{renderKey('2')}{renderKey('3')}{renderKey('=')}</View>
+            <View style={styles.row}>{renderKey('.')}{renderKey('0', 2)}{renderKey('done')}</View>
+          </>
+        ) : (
+          <>
+            <View style={styles.row}>{renderKey('1')}{renderKey('2')}{renderKey('3')}{renderKey('⌫')}</View>
+            <View style={styles.row}>{renderKey('4')}{renderKey('5')}{renderKey('6')}{renderKey('calc')}</View>
+            <View style={styles.row}>{renderKey('7')}{renderKey('8')}{renderKey('9')}{renderKey('done')}</View>
+            <View style={styles.row}>{renderKey('.')}{renderKey('0', 3)}</View>
+          </>
+        )}
+      </View>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' },
-  sheet: {
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingBottom: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12, shadowRadius: 20, elevation: 20,
-  },
-  dragHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    alignSelf: 'center', marginTop: 10, marginBottom: 2, opacity: 0.4,
-  },
-  display: {
-    paddingHorizontal: 20, paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    minHeight: 52, justifyContent: 'center',
-  },
-  exprText:      { fontSize: 12, fontWeight: '500', marginBottom: 2 },
+  content:       { paddingHorizontal: space.sm, paddingTop: 0 },
+  display:       { paddingHorizontal: space.md, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 56, justifyContent: 'center' },
   displayRow:    { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  displayAmount: {
-    fontSize: 32, fontWeight: '800',
-    fontVariant: ['tabular-nums'], letterSpacing: -0.5, flex: 1,
-  },
-  cursor:     { width: 2, height: 32, borderRadius: 1, opacity: 0.9 },
-  keypadArea: { flex: 1, padding: GAP, gap: GAP },
-  row:        { flexDirection: 'row', gap: GAP, flex: 1 },
-  key: {
-    flex: 1, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 3, elevation: 1,
-  },
-  keyText:  { fontSize: 22, fontWeight: '500' },
-  doneText: { fontSize: 17, fontWeight: '700' },
+  displayAmount: { ...type.display, ...tabular, flex: 1 },
+  cursor:        { width: 2, height: 32, borderRadius: 1, opacity: 0.9 },
+  keys:          { paddingTop: space.sm, gap: space.sm },
+  row:           { flexDirection: 'row', gap: space.sm, height: KEY_HEIGHT },
+  key:           { borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  keyText:       { ...type.heading, ...tabular },
 });

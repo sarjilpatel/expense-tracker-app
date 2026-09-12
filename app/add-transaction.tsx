@@ -1,12 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, Switch,
-  StyleSheet, ActivityIndicator, Alert, Platform, Modal, StatusBar,
-  KeyboardAvoidingView, Animated as RNAnimated,
-} from 'react-native';
+import { View, Text, TextInput, Switch, StyleSheet, Alert, Platform } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import { Image } from 'expo-image';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,7 +11,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { Currency } from '@/constants/theme';
-import { useLanguage } from '@/src/i18n/LanguageContext';
 import { addTransaction, getCurrentGroup, getTransactions, getAccounts, setTxAccount } from '@/src/services/dataService';
 import type { Category } from '@/src/services/dataService';
 import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
@@ -26,6 +20,8 @@ import { CategoryPicker } from '@/components/transaction/CategoryPicker';
 import { AccountPicker } from '@/components/transaction/AccountPicker';
 import { AmountKeypad } from '@/components/transaction/AmountKeypad';
 import { RecurringToggle } from '@/components/transaction/RecurringToggle';
+import { space, radius, type as text, tabular, icon as iconSize } from '@/constants/tokens';
+import { Screen, Card, Row, Touchable, Button, Sheet, Field, Chip, type SheetHandle } from '@/components/ui';
 
 function fmtDate(d: Date) {
   const dd   = String(d.getDate()).padStart(2, '0');
@@ -41,10 +37,8 @@ function fmtTime(d: Date) {
 }
 
 export default function AddTransactionScreen() {
-  const { t } = useLanguage();
   const { theme } = useTheme();
   const { prefs } = usePreferences();
-  const insets = useSafeAreaInsets();
 
   const [type, setType]             = useState<'income' | 'expense' | 'transfer'>('expense');
   const [amount, setAmount]         = useState('');
@@ -68,9 +62,9 @@ export default function AddTransactionScreen() {
 
   const [successToast, setSuccessToast] = useState(false);
   const [showKeypad, setShowKeypad]     = useState(true);
-  const cursorAnim = useRef(new RNAnimated.Value(1)).current;
   const [showCategory, setShowCategory]           = useState(false);
   const [iosPicker, setIosPicker]                 = useState<{ mode: 'date' | 'time' } | null>(null);
+  const iosPickerSheet = useRef<SheetHandle>(null);
 
   const animValue = useSharedValue(0);
   const hasAnimatedOut = useRef(false);
@@ -85,18 +79,6 @@ export default function AddTransactionScreen() {
     animValue.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.cubic) });
   }, []);
 
-  // Blink cursor while keypad is open
-  useEffect(() => {
-    if (!showKeypad) { cursorAnim.setValue(0); return; }
-    const loop = RNAnimated.loop(
-      RNAnimated.sequence([
-        RNAnimated.timing(cursorAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
-        RNAnimated.timing(cursorAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [showKeypad]);
 
   const { prefillDate, prefillAccountId, prefillAmount, prefillType, prefillCategory, prefillNote } =
     useLocalSearchParams<{ prefillDate?: string; prefillAccountId?: string; prefillAmount?: string; prefillType?: string; prefillCategory?: string; prefillNote?: string }>();
@@ -197,6 +179,7 @@ export default function AddTransactionScreen() {
       });
     } else {
       setIosPicker({ mode: 'date' });
+      iosPickerSheet.current?.present();
     }
   };
 
@@ -208,6 +191,7 @@ export default function AddTransactionScreen() {
       });
     } else {
       setIosPicker({ mode: 'time' });
+      iosPickerSheet.current?.present();
     }
   };
 
@@ -301,430 +285,200 @@ export default function AddTransactionScreen() {
     } finally { setLoading(false); }
   };
 
-  const accent = type === 'expense' ? theme.expense : type === 'income' ? theme.income : theme.tint;
+  const accent     = type === 'expense' ? theme.expense : type === 'income' ? theme.income : theme.tint;
   const accentText = type === 'expense' ? theme.expenseText : type === 'income' ? theme.incomeText : theme.tintText;
-  const isDark = theme.background === '#0D1117';
+
+  const dateChip = (label: string, onPress: () => void, a11y: string) => (
+    <Touchable onPress={onPress} haptic="selection" style={[S.dateBtn, { backgroundColor: theme.cardAlt }]} accessibilityLabel={a11y}>
+      <Text style={[text.label, { color: theme.text }]}>{label}</Text>
+    </Touchable>
+  );
+
+  const toggle = (value: boolean, onChange: (v: boolean) => void, label: string) => (
+    <Switch value={value} onValueChange={onChange} trackColor={{ false: theme.border, true: accent }} thumbColor={theme.card} accessibilityLabel={label} />
+  );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
-    >
-      <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-        <Animated.View style={animStyle}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-            <Ionicons name="arrow-back" size={24} color={theme.text} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>
-            New Transaction
-          </Text>
-          <TouchableOpacity hitSlop={8}>
-            <Ionicons name="star-outline" size={22} color={theme.secondaryText} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Type Selector */}
-        <View style={[styles.segmentedWrap, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {(['expense', 'income', 'transfer'] as const).map(tab => {
-            const active = type === tab;
-            const bg = tab === 'expense' ? theme.expense : tab === 'income' ? theme.income : theme.tint;
-            return (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.segmentedBtn, active && { backgroundColor: bg }]}
-                onPress={() => handleTypeChange(tab)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.segmentedText, { color: active ? accentText : theme.secondaryText }]}>
-                  {tab === 'expense' ? 'Expense' : tab === 'income' ? 'Income' : 'Transfer'}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={{ paddingBottom: 160 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Hero Amount Display Card */}
-          <TouchableOpacity
-            style={[styles.heroCard, { backgroundColor: theme.card, borderColor: showKeypad ? accent : theme.border }]}
-            onPress={() => setShowKeypad(true)}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.heroLabel, { color: theme.secondaryText }]}>AMOUNT</Text>
-            <View style={styles.heroAmountRow}>
-              <Text style={[styles.heroCurrency, { color: accent }]}>{Currency.symbol}</Text>
-              <Text style={[styles.heroAmountText, { color: amount ? theme.text : theme.secondaryText }]} numberOfLines={1} adjustsFontSizeToFit>
-                {amount || '0'}
-              </Text>
-              {showKeypad && (
-                <RNAnimated.View style={[styles.heroCursor, { backgroundColor: accent, opacity: cursorAnim }]} />
-              )}
-            </View>
-          </TouchableOpacity>
-
-          {/* Core Form Settings Card */}
-          <View style={[styles.formCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-
-            {/* Date Picker Row */}
-            <View style={[styles.formRow, { borderBottomColor: theme.border }]}>
-              <View style={styles.formRowLeft}>
-                <View style={[styles.iconBox, { backgroundColor: theme.primary + '18' }]}>
-                  <Ionicons name="calendar-outline" size={18} color={theme.primary} />
-                </View>
-                <Text style={[styles.formLabel, { color: theme.text }]}>Date</Text>
-              </View>
-              <View style={styles.formRowRight}>
-                <TouchableOpacity onPress={openDatePicker} activeOpacity={0.6} style={styles.dateTimeBtn}>
-                  <Text style={[styles.formValue, { color: theme.text }]}>{fmtDate(date)}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={openTimePicker} activeOpacity={0.6} style={[styles.dateTimeBtn, { marginLeft: 8 }]}>
-                  <Text style={[styles.formValue, { color: theme.text }]}>{fmtTime(date)}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Category Row */}
-            {type !== 'transfer' ? (
-              <TouchableOpacity
-                style={[styles.formRow, { borderBottomColor: theme.border }]}
-                onPress={() => setShowCategory(true)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.formRowLeft}>
-                  <View style={[styles.iconBox, { backgroundColor: theme.warning + '18' }]}>
-                    <Ionicons name="grid-outline" size={18} color={theme.warning} />
-                  </View>
-                  <Text style={[styles.formLabel, { color: theme.text }]}>Category</Text>
-                </View>
-                <View style={styles.formRowRight}>
-                  <Text style={[styles.formValue, { color: category ? theme.text : theme.secondaryText }]}>
-                    {category || 'Select Category'}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} />
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <View style={[styles.formRow, { borderBottomColor: theme.border }]}>
-                <View style={styles.formRowLeft}>
-                  <View style={[styles.iconBox, { backgroundColor: theme.warning + '18' }]}>
-                    <Ionicons name="swap-horizontal-outline" size={18} color={theme.warning} />
-                  </View>
-                  <Text style={[styles.formLabel, { color: theme.text }]}>Category</Text>
-                </View>
-                <View style={styles.formRowRight}>
-                  <Text style={[styles.formValue, { color: theme.secondaryText }]}>Transfer (Auto)</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Account Row */}
-            {type !== 'transfer' ? (
-              <View style={[styles.formRow, { borderBottomColor: theme.border }]}>
-                <View style={styles.formRowLeft}>
-                  <View style={[styles.iconBox, { backgroundColor: theme.success + '18' }]}>
-                    <Ionicons name="wallet-outline" size={18} color={theme.success} />
-                  </View>
-                  <Text style={[styles.formLabel, { color: theme.text }]}>Account</Text>
-                </View>
-                <View style={styles.formRowRight}>
-                  <AccountPicker accounts={accounts} selectedId={selectedAccountId} onChange={setSelectedAccountId} theme={theme} />
-                  <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} />
-                </View>
-              </View>
-            ) : (
-              <>
-                <View style={[styles.formRow, { borderBottomColor: theme.border }]}>
-                  <View style={styles.formRowLeft}>
-                    <View style={[styles.iconBox, { backgroundColor: theme.danger + '18' }]}>
-                      <Ionicons name="arrow-up-circle-outline" size={18} color={theme.danger} />
-                    </View>
-                    <Text style={[styles.formLabel, { color: theme.text }]}>From Account</Text>
-                  </View>
-                  <View style={styles.formRowRight}>
-                    <AccountPicker accounts={accounts} selectedId={fromAccountId} onChange={setFromAccountId} theme={theme} />
-                    <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} />
-                  </View>
-                </View>
-                <View style={[styles.formRow, { borderBottomColor: theme.border }]}>
-                  <View style={styles.formRowLeft}>
-                    <View style={[styles.iconBox, { backgroundColor: theme.success + '18' }]}>
-                      <Ionicons name="arrow-down-circle-outline" size={18} color={theme.success} />
-                    </View>
-                    <Text style={[styles.formLabel, { color: theme.text }]}>To Account</Text>
-                  </View>
-                  <View style={styles.formRowRight}>
-                    <AccountPicker accounts={accounts} selectedId={toAccountId} onChange={setToAccountId} theme={theme} />
-                    <Ionicons name="chevron-forward" size={16} color={theme.secondaryText} />
-                  </View>
-                </View>
-              </>
-            )}
-
-            {/* Note Row */}
-            <View style={[styles.formRow, { borderBottomColor: theme.border }]}>
-              <View style={styles.formRowLeft}>
-                <View style={[styles.iconBox, { backgroundColor: theme.primary + '18' }]}>
-                  <Ionicons name="document-text-outline" size={18} color={theme.primary} />
-                </View>
-                <Text style={[styles.formLabel, { color: theme.text }]}>Note</Text>
-              </View>
-              <View style={styles.formRowRight}>
-                <TextInput
-                  style={[styles.inlineInput, { color: theme.text }]}
-                  placeholder="Brief note..."
-                  placeholderTextColor={theme.secondaryText}
-                  value={note}
-                  onChangeText={setNote}
-                  returnKeyType="done"
-                  blurOnSubmit
-                />
-              </View>
-            </View>
-
-            {/* Repeat Row */}
-            {type !== 'transfer' && (
-              <View style={[styles.formRow, { borderBottomColor: theme.border }]}>
-                <View style={styles.formRowLeft}>
-                  <View style={[styles.iconBox, { backgroundColor: accent + '18' }]}>
-                    <Ionicons name="repeat" size={18} color={accent} />
-                  </View>
-                  <Text style={[styles.formLabel, { color: theme.text }]}>Repeat</Text>
-                </View>
-                <View style={styles.formRowRight}>
-                  <Switch
-                    value={isRecurring}
-                    onValueChange={v => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIsRecurring(v); }}
-                    trackColor={{ false: theme.border, true: accent + '60' }}
-                    thumbColor={isRecurring ? accent : '#f4f3f4'}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* Private Row */}
-            <View style={[styles.formRow, { borderBottomColor: 'transparent' }]}>
-              <View style={styles.formRowLeft}>
-                <View style={[styles.iconBox, { backgroundColor: theme.danger + '18' }]}>
-                  <Ionicons name="lock-closed-outline" size={18} color={theme.danger} />
-                </View>
-                <Text style={[styles.formLabel, { color: theme.text }]}>Private</Text>
-              </View>
-              <View style={styles.formRowRight}>
-                <Switch
-                  value={isPrivate}
-                  onValueChange={setIsPrivate}
-                  trackColor={{ false: theme.border, true: accent + '60' }}
-                  thumbColor={isPrivate ? accent : '#f4f3f4'}
-                />
-              </View>
-            </View>
-
+    <Animated.View style={animStyle}>
+      <Screen
+        title="New transaction"
+        keyboard
+        footer={(
+          <View style={S.footer}>
+            <Button label="Save" onPress={() => doSave(false)} loading={loading} style={{ flex: 2, backgroundColor: accent }} accessibilityLabel="Save transaction" />
+            <Button label="Continue" variant="secondary" onPress={() => doSave(true)} disabled={loading} style={{ flex: 1 }} accessibilityLabel="Save and add another" />
           </View>
+        )}
+      >
+        {/* Type — the one place the semantic colours paint chrome, because here the chip *is* the type. */}
+        <View style={S.chips}>
+          {(['expense', 'income', 'transfer'] as const).map(tab => (
+            <Chip
+              key={tab}
+              label={tab === 'expense' ? 'Expense' : tab === 'income' ? 'Income' : 'Transfer'}
+              selected={type === tab}
+              color={type === tab ? (tab === 'expense' ? theme.expense : tab === 'income' ? theme.income : theme.tint) : undefined}
+              onPress={() => handleTypeChange(tab)}
+            />
+          ))}
+        </View>
 
-          {/* Recurring Settings */}
-          {type !== 'transfer' && isRecurring && (
-            <View style={styles.recurringWrap}>
-              <RecurringToggle
-                enabled={isRecurring}
-                frequency={recurrenceFrequency}
-                onToggle={() => setIsRecurring(v => !v)}
-                onFrequencyChange={setRecurrenceFrequency}
-                tintColor={accent}
-                textColor={theme.text}
-                borderColor={theme.border}
-              />
-            </View>
+        {/* Amount */}
+        <Card onPress={() => setShowKeypad(true)} accessibilityLabel={`Amount ${amount || '0'}, tap to edit`} style={[S.hero, showKeypad && { borderColor: accent }]}>
+          <Text style={[text.overline, { color: theme.secondaryText }]}>Amount</Text>
+          <View style={S.heroRow}>
+            <Text style={[text.heading, { color: accent }]}>{Currency.symbol}</Text>
+            <Text style={[text.display, tabular, { color: amount ? theme.text : theme.secondaryText, flex: 1 }]} numberOfLines={1} adjustsFontSizeToFit>
+              {amount || '0'}
+            </Text>
+            {showKeypad && <View style={[S.cursor, { backgroundColor: accent }]} />}
+          </View>
+        </Card>
+
+        {/* Details */}
+        <Card padded={false} style={{ marginTop: space.md }}>
+          <Row
+            icon="calendar-outline"
+            title="Date"
+            right={(
+              <View style={S.dateRow}>
+                {dateChip(fmtDate(date), openDatePicker, `Date ${fmtDate(date)}, change`)}
+                {dateChip(fmtTime(date), openTimePicker, `Time ${fmtTime(date)}, change`)}
+              </View>
+            )}
+          />
+          {type !== 'transfer' ? (
+            <Row
+              icon="grid-outline"
+              title="Category"
+              right={<Text style={[text.body, { color: category ? theme.text : theme.secondaryText }]}>{category || 'Select'}</Text>}
+              chevron
+              onPress={() => setShowCategory(true)}
+            />
+          ) : (
+            <Row icon="swap-horizontal-outline" title="Category" right={<Text style={[text.body, { color: theme.secondaryText }]}>Transfer (auto)</Text>} />
           )}
-
-          {/* Description + Receipt */}
-          <View style={[styles.descCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <Text style={[styles.descCardTitle, { color: theme.text }]}>Description & Attachment</Text>
-            <View style={styles.descRow}>
-              {receiptUri && (
-                <View style={styles.receiptThumb}>
-                  <Image source={{ uri: receiptUri }} style={styles.thumbImg} />
-                  <TouchableOpacity style={styles.thumbRemove} onPress={() => setReceiptUri(null)} hitSlop={6}>
-                    <Ionicons name="close-circle" size={16} color={theme.danger} />
-                  </TouchableOpacity>
-                </View>
-              )}
+          {type !== 'transfer' ? (
+            <Row icon="wallet-outline" title="Account" right={<AccountPicker accounts={accounts} selectedId={selectedAccountId} onChange={setSelectedAccountId} theme={theme} />} />
+          ) : (
+            <>
+              <Row icon="arrow-up-circle-outline"   iconColor={theme.expense} title="From" right={<AccountPicker accounts={accounts} selectedId={fromAccountId} onChange={setFromAccountId} theme={theme} />} />
+              <Row icon="arrow-down-circle-outline" iconColor={theme.income}  title="To"   right={<AccountPicker accounts={accounts} selectedId={toAccountId}   onChange={setToAccountId}   theme={theme} />} />
+            </>
+          )}
+          <Row
+            icon="document-text-outline"
+            title="Note"
+            right={(
               <TextInput
-                style={[styles.descInput, { color: theme.text }]}
-                placeholder="Add more details about this transaction..."
+                style={[text.body, S.inlineInput, { color: theme.text }]}
+                placeholder="Brief note…"
                 placeholderTextColor={theme.secondaryText}
-                multiline
-                value={description}
-                onChangeText={setDescription}
+                value={note}
+                onChangeText={setNote}
+                returnKeyType="done"
+                blurOnSubmit
+                accessibilityLabel="Note"
               />
-              <TouchableOpacity onPress={pickReceipt} hitSlop={8} style={[styles.cameraBtn, { backgroundColor: theme.background }]}>
-                <Ionicons name="camera-outline" size={20} color={receiptUri ? accent : theme.secondaryText} />
-              </TouchableOpacity>
-            </View>
-          </View>
+            )}
+          />
+          {type !== 'transfer' && (
+            <Row icon="repeat" title="Repeat" right={toggle(isRecurring, setIsRecurring, 'Repeat this transaction')} />
+          )}
+          <Row icon="lock-closed-outline" title="Private" subtitle="Hidden from other group members" right={toggle(isPrivate, setIsPrivate, 'Private')} last />
+        </Card>
 
-          <View style={{ height: 24 }} />
-        </ScrollView>
-
-        {/* Bottom buttons */}
-        <View style={[styles.bottom, { borderTopColor: theme.border, paddingBottom: insets.bottom + 12 }]}>
-          <TouchableOpacity
-            style={[styles.saveBtn, { backgroundColor: accent }, loading && { opacity: 0.6 }]}
-            onPress={() => doSave(false)}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            {loading ? <ActivityIndicator color={accentText} size="small" /> : <Text style={[styles.saveTxt, { color: accentText }]}>Save</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.contBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
-            onPress={() => doSave(true)}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.contTxt, { color: theme.text }]}>Continue</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Success toast */}
-        {successToast && (
-          <View style={[styles.toast, { backgroundColor: theme.tint }]}>
-            <Ionicons name="checkmark-circle-outline" size={18} color={theme.tintText} />
-            <Text style={[styles.toastText, { color: theme.tintText }]}>Transaction added!</Text>
+        {type !== 'transfer' && isRecurring && (
+          <View style={{ marginTop: space.md }}>
+            <RecurringToggle
+              enabled={isRecurring}
+              frequency={recurrenceFrequency}
+              onToggle={() => setIsRecurring(v => !v)}
+              onFrequencyChange={setRecurrenceFrequency}
+              tintColor={accent}
+              textColor={theme.text}
+              borderColor={theme.border}
+            />
           </View>
         )}
-        </Animated.View>
 
-        {/* iOS date/time modal */}
-        {Platform.OS === 'ios' && iosPicker && (
-          <Modal transparent animationType="slide" onRequestClose={() => setIosPicker(null)}>
-            <View style={styles.iosOverlay}>
-              <TouchableOpacity style={{ flex: 1 }} onPress={() => setIosPicker(null)} />
-              <View style={[styles.iosSheet, { backgroundColor: theme.card }]}>
-                <View style={[styles.iosSheetHeader, { borderBottomColor: theme.border }]}>
-                  <Text style={[styles.iosSheetTitle, { color: theme.text }]}>
-                    {iosPicker.mode === 'date' ? 'Select Date' : 'Select Time'}
-                  </Text>
-                  <TouchableOpacity onPress={() => setIosPicker(null)}>
-                    <Text style={[styles.iosDone, { color: accent }]}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-                <DateTimePicker
-                  value={date}
-                  mode={iosPicker.mode}
-                  display="spinner"
-                  onChange={(_, d) => { if (d) setDate(d); }}
-                  style={{ width: '100%' }}
-                />
+        {/* Description + receipt */}
+        <Card style={{ marginTop: space.md }}>
+          <Text style={[text.overline, { color: theme.secondaryText, marginBottom: space.sm }]}>Description & attachment</Text>
+          <View style={S.descRow}>
+            {receiptUri && (
+              <View style={S.thumbWrap}>
+                <Image source={{ uri: receiptUri }} style={S.thumb} accessibilityLabel="Receipt" />
+                <Touchable onPress={() => setReceiptUri(null)} size={24} style={S.thumbRemove} accessibilityLabel="Remove receipt" rippleBorderless>
+                  <Ionicons name="close-circle" size={iconSize.sm} color={theme.danger} />
+                </Touchable>
               </View>
-            </View>
-          </Modal>
+            )}
+            <Field placeholder="Add more details…" multiline value={description} onChangeText={setDescription} style={{ flex: 1 }} accessibilityLabel="Description" />
+            <Touchable onPress={pickReceipt} size={44} style={[S.cameraBtn, { backgroundColor: theme.cardAlt }]} accessibilityLabel={receiptUri ? 'Change receipt' : 'Attach receipt'}>
+              <Ionicons name="camera-outline" size={iconSize.md} color={receiptUri ? accent : theme.secondaryText} />
+            </Touchable>
+          </View>
+        </Card>
+
+        {successToast && (
+          <View style={[S.toast, { backgroundColor: theme.tint }]} accessibilityLiveRegion="polite">
+            <Ionicons name="checkmark-circle-outline" size={iconSize.md} color={theme.tintText} />
+            <Text style={[text.label, { color: theme.tintText }]}>Transaction added</Text>
+          </View>
         )}
+      </Screen>
 
-        <AmountKeypad
-          visible={showKeypad}
-          value={amount}
-          onChange={setAmount}
-          onClose={() => setShowKeypad(false)}
-          onDone={() => setShowKeypad(false)}
-          accentColor={accent}
-          theme={theme}
-        />
+      {/* iOS date/time */}
+      {Platform.OS === 'ios' && (
+        <Sheet ref={iosPickerSheet} title={iosPicker?.mode === 'time' ? 'Select time' : 'Select date'} keyboard="none" onDismiss={() => setIosPicker(null)}>
+          {iosPicker && (
+            <DateTimePicker value={date} mode={iosPicker.mode} display="spinner" onChange={(_, d) => { if (d) setDate(d); }} style={{ width: '100%' }} />
+          )}
+          <Button label="Done" onPress={() => iosPickerSheet.current?.dismiss()} style={{ marginTop: space.md }} />
+        </Sheet>
+      )}
 
-        <CategoryPicker
-          visible={showCategory}
-          onClose={() => setShowCategory(false)}
-          categories={categories}
-          value={category}
-          type={type === 'transfer' ? 'expense' : type}
-          onTypeChange={handleTypeChange}
-          onChange={setCategory}
-          theme={theme}
-          loading={categoriesFetching}
-          onRetry={loadData}
-          recentCategories={recentCategories[type === 'transfer' ? 'expense' : type]}
-        />
+      <AmountKeypad
+        visible={showKeypad}
+        value={amount}
+        onChange={setAmount}
+        onClose={() => setShowKeypad(false)}
+        onDone={() => setShowKeypad(false)}
+        accentColor={accent}
+        theme={theme}
+      />
 
-      </View>
-    </KeyboardAvoidingView>
+      <CategoryPicker
+        visible={showCategory}
+        onClose={() => setShowCategory(false)}
+        categories={categories}
+        value={category}
+        type={type === 'transfer' ? 'expense' : type}
+        onTypeChange={handleTypeChange}
+        onChange={setCategory}
+        theme={theme}
+        loading={categoriesFetching}
+        onRetry={loadData}
+        recentCategories={recentCategories[type === 'transfer' ? 'expense' : type]}
+      />
+    </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
-  root:   { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, height: 36, marginBottom: 4 },
-  headerTitle: { fontSize: 17, fontWeight: '800' },
-
-  segmentedWrap: {
-    flexDirection: 'row', borderRadius: 14, padding: 4,
-    marginHorizontal: 8, marginBottom: 16, borderWidth: 1, height: 48,
-  },
-  segmentedBtn:  { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'center', borderRadius: 10 },
-  segmentedText: { fontSize: 14, fontWeight: '700' },
-
-  scroll: { flex: 1, paddingHorizontal: 8 },
-
-  heroCard: {
-    borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 16,
-    marginBottom: 16, alignItems: 'center', justifyContent: 'center',
-  },
-  heroLabel:      { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
-  heroAmountRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  heroCurrency:   { fontSize: 24, fontWeight: '700', marginRight: 6 },
-  heroAmountText: { fontSize: 38, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.5 },
-  heroCursor:     { width: 2.5, height: 40, borderRadius: 1.5, marginLeft: 3 },
-
-  formCard: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginBottom: 16 },
-  formRow:  {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    minHeight: 56, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  formRowLeft:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBox:      { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  formLabel:    { fontSize: 15, fontWeight: '600' },
-  formRowRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, flex: 1 },
-  dateTimeBtn:  { paddingVertical: 6, paddingHorizontal: 8 },
-  formValue:    { fontSize: 15, fontWeight: '600' },
-  inlineInput:  { flex: 1, fontSize: 15, fontWeight: '600', paddingVertical: 8, textAlign: 'right' },
-
-  recurringWrap: { marginBottom: 16 },
-
-  descCard:      { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 16, marginBottom: 16 },
-  descCardTitle: { fontSize: 14, fontWeight: '700', marginBottom: 12 },
-  descRow:       { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  descInput:     { flex: 1, fontSize: 14, paddingTop: 4, minHeight: 52, textAlignVertical: 'top' },
-  cameraBtn:     { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-
-  bottom:    { flexDirection: 'row', gap: 12, paddingHorizontal: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  saveBtn:   { flex: 2, height: 56, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
-  saveTxt:   { fontSize: 17, fontWeight: '700' },
-  contBtn:   { flex: 1, height: 56, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
-  contTxt:   { fontSize: 15, fontWeight: '700' },
-
-  iosOverlay:     { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
-  iosSheet:       { borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 20 },
-  iosSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
-  iosSheetTitle:  { fontSize: 15, fontWeight: '600' },
-  iosDone:        { fontSize: 15, fontWeight: '600' },
-
-  receiptThumb: { position: 'relative' },
-  thumbImg:     { width: 44, height: 44, borderRadius: 8 },
-  thumbRemove:  { position: 'absolute', top: -6, right: -6 },
-
-  toast: {
-    position: 'absolute', bottom: 100, alignSelf: 'center',
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24,
-    elevation: 6, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
-  },
-  toastText: { fontSize: 14, fontWeight: '600' },
+const S = StyleSheet.create({
+  chips:       { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
+  hero:        { marginTop: space.md },
+  heroRow:     { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
+  cursor:      { width: 2, height: 36, borderRadius: 1 },
+  dateRow:     { flexDirection: 'row', gap: space.xs },
+  dateBtn:     { paddingHorizontal: space.md, paddingVertical: space.xs, borderRadius: radius.sm },
+  inlineInput: { minWidth: 140, textAlign: 'right', paddingVertical: 0 },
+  descRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
+  thumbWrap:   { width: 56, height: 56 },
+  thumb:       { width: 56, height: 56, borderRadius: radius.sm },
+  thumbRemove: { position: 'absolute', top: -6, right: -6, width: 24, height: 24, justifyContent: 'center', alignItems: 'center' },
+  cameraBtn:   { width: 44, height: 44, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' },
+  footer:      { flexDirection: 'row', gap: space.sm },
+  toast:       { position: 'absolute', bottom: space.lg, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.md, borderRadius: radius.full },
 });
