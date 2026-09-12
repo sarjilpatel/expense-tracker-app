@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import { useTheme } from '@/src/context/ThemeContext';
 
 export type HomeViewMode = 'daily' | 'weekly' | 'calendar' | 'monthly' | 'total' | 'note';
@@ -32,16 +33,15 @@ export function ViewModeTabs({ active, onPress, tintColor, secondaryText }: Prop
         {TABS.map(tab => {
           const isActive = active === tab.key;
           return (
-            <TouchableOpacity
+            <Touchable
               key={tab.key}
               style={[styles.pill, isActive && { backgroundColor: theme.tint }]}
               onPress={() => onPress(tab.key)}
-              activeOpacity={0.75}
             >
               <Text style={[styles.label, { color: isActive ? theme.tintText : secondaryText }]}>
                 {tab.label}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           );
         })}
       </ScrollView>

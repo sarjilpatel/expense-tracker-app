@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, Platform, StyleSheet } from 'react-native';
+import { View, Platform, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ThemedText } from '@/components/themed-text';
@@ -39,7 +40,7 @@ export function DateTimeField({ value, onChange, tintColor, borderColor }: Props
 
   return (
     <View>
-      <TouchableOpacity
+      <Touchable
         style={[styles.btn, { borderColor, backgroundColor: theme.card }]}
         onPress={open}
       >
@@ -47,7 +48,7 @@ export function DateTimeField({ value, onChange, tintColor, borderColor }: Props
         <ThemedText style={styles.text}>
           {value.toLocaleDateString()} {value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </ThemedText>
-      </TouchableOpacity>
+      </Touchable>
       {Platform.OS === 'ios' && showIosPicker && (
         <DateTimePicker
           value={value}

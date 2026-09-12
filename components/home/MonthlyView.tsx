@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import { Currency } from '@/constants/theme';
 import { MONTHS_SHORT } from '@/constants/maps';
 
@@ -114,9 +115,8 @@ export function MonthlyView({ transactions, year, theme }: Props) {
           <View key={mIdx} style={[styles.monthBlock, { borderBottomColor: div }]}>
 
             {/* ── Month header row ── */}
-            <TouchableOpacity
+            <Touchable
               onPress={() => toggle(mIdx)}
-              activeOpacity={0.65}
               style={styles.row}
             >
               {/* Left: month name + subtitle */}
@@ -143,7 +143,7 @@ export function MonthlyView({ transactions, year, theme }: Props) {
                   {Currency.format(balance)}
                 </Text>
               </View>
-            </TouchableOpacity>
+            </Touchable>
 
             {/* ── Weekly breakdown rows ── */}
             {expanded && weeks.map(w => {

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Currency } from '@/constants/theme';
 import { MONTHS, DAY_NAMES, CATEGORY_EMOJIS } from '@/constants/maps';
@@ -131,10 +132,9 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
             const balC = theme.secondaryText;
 
             return (
-              <TouchableOpacity
+              <Touchable
                 key={idx}
                 onPress={() => setSelectedKey(key === selectedKey ? null : key)}
-                activeOpacity={0.7}
                 style={[
                   styles.cell,
                   {
@@ -173,7 +173,7 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
                     </Text>
                   )}
                 </View>
-              </TouchableOpacity>
+              </Touchable>
             );
           })}
         </View>
@@ -210,10 +210,9 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
           {/* Transaction rows */}
           {selectedData && selectedData.items.length > 0 ? (
             selectedData.items.map((tx: any, i: number) => (
-              <TouchableOpacity
+              <Touchable
                 key={tx._id || i}
                 onPress={() => onTransactionPress(tx)}
-                activeOpacity={0.65}
                 style={[
                   styles.txRow,
                   i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: div },
@@ -239,7 +238,7 @@ export function CalendarView({ transactions, month, year, theme, t, onTransactio
                 }]}>
                   {tx.type === 'expense' ? '-' : '+'}{Currency.format(tx.amount)}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             ))
           ) : (
             <Text style={[styles.noTx, { color: theme.secondaryText }]}>

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, interpolateColor } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
@@ -43,17 +44,17 @@ export function RecurringToggle({ enabled, frequency, onToggle, onFrequencyChang
           <ThemedText style={styles.label}>Recurring</ThemedText>
           <ThemedText style={styles.hint}>Auto-repeat this transaction</ThemedText>
         </View>
-        <TouchableOpacity onPress={handleToggle} activeOpacity={0.9}>
+        <Touchable onPress={handleToggle}>
           <Animated.View style={[styles.track, bgStyle]}>
             <Animated.View style={[styles.knob, knobStyle]} />
           </Animated.View>
-        </TouchableOpacity>
+        </Touchable>
       </View>
 
       {enabled && (
         <View style={[styles.freqRow, { backgroundColor: theme.card, borderColor }]}>
           {(['daily', 'weekly', 'monthly'] as Frequency[]).map(f => (
-            <TouchableOpacity
+            <Touchable
               key={f}
               style={[styles.freqBtn, frequency === f && { backgroundColor: tintColor }]}
               onPress={() => onFrequencyChange(f)}
@@ -61,7 +62,7 @@ export function RecurringToggle({ enabled, frequency, onToggle, onFrequencyChang
               <Text style={[styles.freqText, { color: frequency === f ? getContrastText(tintColor) : textColor }]}>
                 {f.charAt(0).toUpperCase() + f.slice(1)}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           ))}
         </View>
       )}

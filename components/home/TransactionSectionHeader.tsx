@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import { router } from 'expo-router';
 import { Currency } from '@/constants/theme';
 import { DAY_NAMES } from '@/constants/maps';
@@ -26,7 +27,7 @@ export function TransactionSectionHeader({ section, theme }: Props) {
   const badgeText = theme.secondaryText;
 
   return (
-    <TouchableOpacity
+    <Touchable
       style={[
         styles.header,
         {
@@ -43,7 +44,6 @@ export function TransactionSectionHeader({ section, theme }: Props) {
       onPress={() =>
         router.push({ pathname: '/add-transaction', params: { prefillDate: d.toISOString() } })
       }
-      activeOpacity={0.55}
     >
       <View style={styles.left}>
         <Text style={[styles.dayNum, { color: dayColor }]}>
@@ -63,7 +63,7 @@ export function TransactionSectionHeader({ section, theme }: Props) {
           -{Currency.format(section.expense || 0)}
         </Text>
       </View>
-    </TouchableOpacity>
+    </Touchable>
   );
 }
 

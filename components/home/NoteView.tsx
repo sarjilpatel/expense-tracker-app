@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { usePreferences } from '@/src/context/PreferencesContext';
 
@@ -78,9 +79,8 @@ export function NoteView({ transactions, theme, t, onTransactionPress }: Props) 
         {noteTransactions.map((tx, index) => {
           const isExpense = tx.type === 'expense';
           return (
-            <TouchableOpacity
+            <Touchable
               key={tx._id || index}
-              activeOpacity={0.75}
               onPress={() => onTransactionPress(tx)}
               style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
             >
@@ -101,7 +101,7 @@ export function NoteView({ transactions, theme, t, onTransactionPress }: Props) 
                   {formatDate(new Date(tx.date || tx.createdAt))}
                 </Text>
               </View>
-            </TouchableOpacity>
+            </Touchable>
           );
         })}
       </View>

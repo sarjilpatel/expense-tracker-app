@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Touchable } from '@/components/ui';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Currency } from '@/constants/theme';
@@ -39,7 +40,7 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
 
   return (
     <Animated.View entering={FadeInDown.delay(Math.min(index * 25, 150)).duration(200)}>
-      <TouchableOpacity
+      <Touchable
         style={[
           styles.row,
           {
@@ -61,7 +62,6 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
         onPress={() => onPress(item)}
         onLongPress={() => onLongPress(item._id)}
         delayLongPress={500}
-        activeOpacity={0.6}
       >
         {/* LEFT: Category Emoji */}
         <View style={styles.iconChip}>
@@ -92,7 +92,7 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
             </Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </Touchable>
     </Animated.View>
   );
 });
