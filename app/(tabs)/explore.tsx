@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
+import { runSync } from '@/src/sync/engine';
 import { LineChart, BarChart } from 'react-native-gifted-charts';
 import Animated, {
   FadeIn,
@@ -137,8 +138,9 @@ export default function AnalyticsScreen() {
     if (viewMode === 'trends' && trendData.length === 0) fetchTrend();
   }, [viewMode]);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
+    await runSync('manual').catch(() => {});
     fetchData(true);
     if (viewMode === 'trends') fetchTrend();
   };

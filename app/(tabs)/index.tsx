@@ -11,6 +11,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
+import { runSync } from '@/src/sync/engine';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -284,7 +285,8 @@ export default function HomeScreen() {
     fetchData(false);
   }, [currentMonth, currentYear, viewMode]);
 
-  const onRefresh = () => { setRefreshing(true); fetchData(true); };
+  // Pull-to-refresh is a sync, not a refetch: the device already has the data; the server may have more (W3-20).
+  const onRefresh = async () => { setRefreshing(true); await runSync('manual').catch(() => {}); fetchData(true); };
 
   // ── Month navigation ──────────────────────────────────────────────────────
   const changeMonth = useCallback((delta: number, isGesture = false) => {

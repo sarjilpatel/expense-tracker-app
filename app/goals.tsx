@@ -5,7 +5,6 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { GOAL_COLORS as COLORS } from '@/constants/palettes';
 import { useTheme } from '@/src/context/ThemeContext';
-import { useAuth } from '@/src/context/AuthContext';
 import { Currency, getContrastText, hexToRGBA } from '@/constants/theme';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
 import {
@@ -86,7 +85,6 @@ const EMPTY_FORM: FormState = {
 
 export default function GoalsScreen() {
   const { theme } = useTheme();
-  const { isGuest } = useAuth();
 
   const [goals,     setGoals]     = useState<Goal[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -102,7 +100,6 @@ export default function GoalsScreen() {
   const fundsSheet = useRef<SheetHandle>(null);
 
   const fetchGoals = useCallback(async () => {
-    if (isGuest) { setLoading(false); return; }
     try {
       setGoals(await getGoals());
       loaded.current = true;
@@ -111,7 +108,7 @@ export default function GoalsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isGuest]);
+  }, []);
 
   // Skeleton on the first load only; coming back refreshes silently (W2-13).
   useFocusRefresh(useCallback(() => { if (!loaded.current) setLoading(true); fetchGoals(); }, [fetchGoals]));
@@ -234,14 +231,6 @@ export default function GoalsScreen() {
       <Ionicons name="add" size={iconSize.lg} color={theme.tint} />
     </Touchable>
   );
-
-  if (isGuest) {
-    return (
-      <Screen title="Savings goals">
-        <EmptyState icon="flag-outline" title="Sign in to track goals" body="Savings goals are synced with your group. Create an account to get started." />
-      </Screen>
-    );
-  }
 
   if (loading) {
     return (

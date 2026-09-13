@@ -10,7 +10,6 @@ import { View, Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { useTheme } from '@/src/context/ThemeContext';
-import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { getBudgets, getAllTransactions, getGoals, getTrips, type Goal, type Trip } from '@/src/services/dataService';
 import { toSettlementInput } from '@/src/services/tripService';
@@ -26,7 +25,6 @@ const PREVIEW = 3;
 
 export default function PlanScreen() {
   const { theme }   = useTheme();
-  const { isGuest } = useAuth();
   const { prefs }   = usePreferences();
 
   const [loading, setLoading]   = useState(true);
@@ -56,7 +54,7 @@ export default function PlanScreen() {
       const [txData, budgetData, goalData, tripData] = await Promise.all([
         txPromise,
         getBudgets(month, year).catch(() => []),
-        isGuest ? Promise.resolve([] as Goal[]) : getGoals().catch(() => [] as Goal[]),
+        getGoals().catch(() => [] as Goal[]),
         getTrips().catch(() => [] as Trip[]),
       ]);
 
@@ -72,7 +70,7 @@ export default function PlanScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [month, year, prefs.monthlyStart, isGuest]);
+  }, [month, year, prefs.monthlyStart]);
 
   // Skeleton on the first load only; a return to the tab refreshes silently (W2-13).
   useFocusRefresh(useCallback(() => { if (!loaded.current) setLoading(true); fetchData(); }, [fetchData]));
@@ -120,9 +118,7 @@ export default function PlanScreen() {
 
       {/* ── Goals ── */}
       <SectionHeader title="Savings goals" count={goals.length || undefined} action={goals.length > 0 ? { label: 'See all', onPress: () => router.push('/goals') } : undefined} />
-      {isGuest ? (
-        <EmptyState compact icon="flag-outline" title="Sign in to track goals" body="Goals are synced with your group." action={{ label: 'Sign in', onPress: () => router.push('/login'), variant: 'secondary' }} />
-      ) : goals.length === 0 ? (
+      {goals.length === 0 ? (
         <EmptyState compact icon="flag-outline" title="No goals yet" body="Put a number on what you are saving for." action={{ label: 'Add a goal', onPress: () => router.push('/goals'), variant: 'secondary' }} />
       ) : (
         <Card padded={false}>
