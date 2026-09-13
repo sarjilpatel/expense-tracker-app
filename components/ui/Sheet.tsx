@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, Keyboard, type StyleProp, type ViewStyle } from 'react-native';
 import {
   BottomSheetModal, BottomSheetBackdrop, BottomSheetView, BottomSheetScrollView,
   type BottomSheetBackdropProps,
@@ -59,7 +59,9 @@ export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
   const modal = useRef<BottomSheetModal>(null);
 
   useImperativeHandle(ref, () => ({
-    present: () => modal.current?.present(),
+    // A sheet opened while a field has focus otherwise rises with the keyboard still up — the
+    // picker sits in the top half and the keyboard stays for an input nobody can see.
+    present: () => { Keyboard.dismiss(); modal.current?.present(); },
     dismiss: () => modal.current?.dismiss(),
   }), []);
 
