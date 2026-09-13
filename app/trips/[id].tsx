@@ -34,9 +34,10 @@ import {
 } from '@/components/ui';
 import {
   getTrip, addTripMember, removeTripMember, addTripExpense, updateTripExpense, deleteTripExpense,
-  recordTripSettlement, deleteTripSettlement, getCurrentGroup,
+  recordTripSettlement, deleteTripSettlement,
   Trip, TripExpense, TripMember,
 } from '@/src/services/dataService';
+import { getCurrentGroup } from '@/src/services/groupApi';
 import { isLocalTrip, toSettlementInput } from '@/src/services/tripService';
 import { computeSettlement, toMinorUnits, fromMinorUnits } from '@/src/utils/settlement';
 import { avatarColor } from '@/constants/palettes';

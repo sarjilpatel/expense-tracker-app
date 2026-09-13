@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSyncMeta } from '@/src/sync/meta';
 import type { Category } from '../groupApi';
 import { CATEGORY_PRESETS, findPreset } from '@/constants/categoryPresets';
 
@@ -46,8 +47,15 @@ async function load(): Promise<Category[]> {
 // an added category mutate DEFAULT_CATEGORIES for the life of the process — after which clearing
 // local data reseeded the "defaults" with someone's custom categories still in them.
 
+/** The active group's categories when signed in (plus any not yet pushed); everything as a guest. */
+async function inScope(cats: Category[]): Promise<Category[]> {
+  const { activeGroupId } = await getSyncMeta();
+  if (!activeGroupId) return cats;
+  return cats.filter(c => !(c as any).groupId || String((c as any).groupId) === activeGroupId);
+}
+
 export async function getLocalCategories(): Promise<{ categories: Category[] }> {
-  const categories = await load();
+  const categories = await inScope(await load());
   return { categories };
 }
 
@@ -126,4 +134,22 @@ export async function retainLocalCategories(ids: string[]): Promise<void> {
   const all = await load();
   const kept = all.filter(c => c._id.startsWith('dc_') || keep.has(c._id));
   await AsyncStorage.setItem(KEY, JSON.stringify(kept));
+}
+
+// ── Sync support (W3) ─────────────────────────────────────────────────────────
+// Rows arrive from other devices and other group members through the changes feed; the engine
+// upserts them here by clientId (which *is* the local id) and removes tombstones. Reads filter on
+// the active group when signed in: a row with no groupId is this device's own, not yet pushed.
+
+export async function upsertLocalCategory(row: Category & { groupId?: string | null }): Promise<void> {
+  const all = await load();
+  const idx = all.findIndex(c => c._id === row._id);
+  if (idx === -1) all.push(row); else all[idx] = { ...all[idx], ...row };
+  await AsyncStorage.setItem(KEY, JSON.stringify(all));
+}
+
+export async function dropLocalCategory(id: string): Promise<void> {
+  const all = await load();
+  const next = all.filter(c => c._id !== id);
+  if (next.length !== all.length) await AsyncStorage.setItem(KEY, JSON.stringify(next));
 }

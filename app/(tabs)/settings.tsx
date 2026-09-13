@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
@@ -7,9 +7,8 @@ import { Image } from 'expo-image';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { getProfile, deleteAccount as deleteAccountApi } from '@/src/services/authApi';
-import { getCurrentGroup } from '@/src/services/dataService';
-import { getMyGroups } from '@/src/services/groupApi';
-import { getLastSyncTime } from '@/src/services/syncService';
+import { getMyGroups, getCurrentGroup } from '@/src/services/groupApi';
+import { runSync, getSyncStatus, subscribeSync, type SyncStatus } from '@/src/sync/engine';
 import { GroupSection } from '@/components/settings/GroupSection';
 import { TILE_COLORS } from '@/constants/palettes';
 import { hexToRGBA } from '@/constants/theme';
@@ -40,7 +39,7 @@ export default function SettingsScreen() {
   const [user,      setUser]      = useState<any>(null);
   const [group,     setGroup]     = useState<any>(null);
   const [myGroups,  setMyGroups]  = useState<any[]>([]);
-  const [lastSync,  setLastSync]  = useState<string | null>(null);
+  const [sync,      setSync]      = useState<SyncStatus>({ running: false, lastSyncAt: null, lastError: null, pending: 0 });
   const [loading,   setLoading]   = useState(!isGuest);
 
   const deleteSheet = useRef<SheetHandle>(null);
@@ -62,7 +61,6 @@ export default function SettingsScreen() {
       setUser(profileData ?? null);
       setGroup(groupData ?? null);
       setMyGroups(Array.isArray(groupList) ? groupList : []);
-      getLastSyncTime().then(setLastSync).catch(() => {});
     } catch (e) {
       reportError(e);
     } finally {
@@ -71,11 +69,30 @@ export default function SettingsScreen() {
   }, [isGuest]);
 
   useFocusRefresh(useCallback(() => { fetchData(); }, [fetchData]));
+  useEffect(() => { if (isGuest) return; getSyncStatus().then(setSync); return subscribeSync(setSync); }, [isGuest]);
 
+  // Logging out empties the device. Anything still in the outbox is pushed first; if that fails
+  // the user is told exactly how much would be lost and decides.
   const handleLogout = () =>
     Alert.alert('Logout', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: async () => { await logout(); router.replace('/(tabs)'); } },
+      { text: 'Logout', style: 'destructive', onPress: async () => {
+        const outcome = await runSync('manual');
+        const { pending } = await getSyncStatus();
+        if (pending > 0) {
+          Alert.alert(
+            'Changes not backed up',
+            `${pending} change${pending === 1 ? '' : 's'} on this phone ${outcome.error ? `could not be sent (${outcome.error})` : 'were not accepted by the server'}. Logging out now will lose them.`,
+            [
+              { text: 'Keep me signed in', style: 'cancel' },
+              { text: 'Log out anyway', style: 'destructive', onPress: async () => { await logout(); router.replace('/(tabs)'); } },
+            ],
+          );
+          return;
+        }
+        await logout();
+        router.replace('/(tabs)');
+      } },
     ]);
 
   const openDelete = () => {
@@ -143,7 +160,7 @@ export default function SettingsScreen() {
               <Text style={[type.bodyStrong, { color: theme.text }]} numberOfLines={1}>{user?.name || 'User'}</Text>
               <Text style={[type.label, { color: theme.secondaryText }]} numberOfLines={1}>{user?.email || ''}</Text>
             </View>
-            <Chip size="sm" tone={lastSync ? 'income' : 'neutral'} icon={lastSync ? 'cloud-done-outline' : 'cloud-offline-outline'} label={lastSync ? 'Synced' : 'Offline'} />
+            <Chip size="sm" tone={sync.pending > 0 ? 'warning' : sync.lastSyncAt ? 'income' : 'neutral'} icon={sync.pending > 0 ? 'cloud-upload-outline' : 'cloud-done-outline'} label={sync.running ? 'Backing up…' : sync.pending > 0 ? `${sync.pending} waiting` : sync.lastSyncAt ? 'Backed up' : 'Not yet'} />
           </View>
           <Touchable onPress={openDelete} haptic="none" style={S.deleteLink} accessibilityLabel="Delete account">
             <Text style={[type.label, { color: theme.secondaryText }]}>Delete account</Text>

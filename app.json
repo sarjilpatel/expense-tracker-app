@@ -59,7 +59,8 @@
           "photosPermission": "$(PRODUCT_NAME) needs access to your photo library to attach receipts to transactions.",
           "cameraPermission": "$(PRODUCT_NAME) needs access to your camera to capture receipts."
         }
-      ]
+      ],
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true,

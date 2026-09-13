@@ -69,6 +69,8 @@ export interface Trip {
    * it. Everything else about the two is identical.
    */
   ownerId: string | null;
+  /** The group the trip belongs to once it has been through the server; null on this device only. */
+  groupId?: string | null;
 }
 
 export const isLocalTrip = (trip: Trip): boolean => trip.ownerId === null;
@@ -155,6 +157,7 @@ export function normaliseTrip(t: any): Trip {
 
     createdAt: str(t?.createdAt, nowIso),
     updatedAt: str(t?.updatedAt, nowIso),
+    groupId:   refId(t?.groupId),
   };
 }
 

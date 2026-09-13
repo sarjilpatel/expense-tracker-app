@@ -17,6 +17,11 @@ const NATIVE_STUBS = {
   '@react-native-async-storage/async-storage': 'stubs/asyncStorage.mjs',
   'expo-secure-store': 'stubs/secureStore.mjs',
   axios: 'stubs/axios.mjs',
+  // The sync scheduler (W3) reaches these; none can load outside a device.
+  'react-native': 'stubs/reactNative.mjs',
+  '@react-native-community/netinfo': 'stubs/netinfo.mjs',
+  'expo-task-manager': 'stubs/taskManager.mjs',
+  'expo-background-task': 'stubs/taskManager.mjs',
 };
 
 const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];

@@ -9,6 +9,7 @@ export interface LocalBudget {
   year: number;
   category?: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 function genId(): string {
@@ -84,4 +85,22 @@ export async function retainLocalBudgets(ids: string[]): Promise<void> {
   if (keep.size === 0) return clearLocalBudgets();
   const all = await load();
   await persist(all.filter(b => keep.has(b._id)));
+}
+
+// ── Sync support (W3) ─────────────────────────────────────────────────────────
+// Rows arrive from other devices and other group members through the changes feed; the engine
+// upserts them here by clientId (which *is* the local id) and removes tombstones. Reads filter on
+// the active group when signed in: a row with no groupId is this device's own, not yet pushed.
+
+export async function upsertLocalBudget(row: LocalBudget): Promise<void> {
+  const all = await load();
+  const idx = all.findIndex(b => b._id === row._id);
+  if (idx === -1) all.push(row); else all[idx] = { ...all[idx], ...row };
+  await persist(all);
+}
+
+export async function removeLocalBudget(id: string): Promise<void> {
+  const all = await load();
+  const next = all.filter(b => b._id !== id);
+  if (next.length !== all.length) await persist(next);
 }

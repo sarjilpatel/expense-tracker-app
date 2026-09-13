@@ -1,9 +1,9 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { ActivityIndicator, View, StyleSheet, AppState, Appearance } from 'react-native';
+import { ActivityIndicator, View, Text, StyleSheet, AppState, Appearance } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { enableFreeze } from 'react-native-screens';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -18,13 +18,14 @@ import { Colors, getContrastText } from '@/constants/theme';
 import apiClient from '@/src/services/apiClient';
 import { LanguageProvider } from '@/src/i18n/LanguageContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { SyncModal } from '@/components/SyncModal';
 import { OfflineBanner } from '@/components/OfflineBanner';
-import { hasPendingLocalData } from '@/src/services/syncService';
+import { runSync } from '@/src/sync/engine';
+import { getSyncMeta } from '@/src/sync/meta';
+import { startForegroundScheduler } from '@/src/sync/scheduler';
 import LockScreen from '@/app/lock';
 import { shouldLock, recordBackground, clearBackgroundTime } from '@/src/services/lockService';
 import { hasSeenWelcome } from '@/src/services/onboardingService';
-import { radius } from '@/constants/tokens';
+import { radius, space, type } from '@/constants/tokens';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
 SplashScreen.preventAutoHideAsync();
@@ -66,11 +67,11 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router   = useRouter();
 
-  const [showSync, setShowSync] = useState(false);
+  // A signed-in device with no cursor has never pulled: restore before the first screen (W3-19).
+  const [restoring, setRestoring] = useState<boolean | null>(null);
   const [locked, setLocked]     = useState(false);
   const [lockChecked, setLockChecked] = useState(false);
   const [welcomeSeen, setWelcomeSeen] = useState<boolean | null>(null);
-  const prevIsGuest = useRef<boolean | null>(null);
 
   // Inject logout into apiClient for 401 handling
   useEffect(() => {
@@ -100,16 +101,27 @@ function RootLayoutNav() {
     return () => sub.remove();
   }, []);
 
-  // Show sync modal when transitioning from guest → logged-in with pending local data
+  // First run for an account on this device: a full pull, with a screen saying so, before Home
+  // renders empty. A failed attempt (offline) does not trap the user — the app opens and the
+  // status line on the Data screen says the backup is behind.
   useEffect(() => {
     if (loading) return;
-    if (prevIsGuest.current === true && !isGuest && user) {
-      hasPendingLocalData().then(has => {
-        if (has) setShowSync(true);
-      });
-    }
-    prevIsGuest.current = isGuest;
-  }, [isGuest, loading, user]);
+    if (isGuest || !user) { setRestoring(false); return; }
+    let cancelled = false;
+    getSyncMeta().then(async meta => {
+      if (cancelled) return;
+      if (meta.cursor !== null) { setRestoring(false); return; }
+      setRestoring(true);
+      try { await runSync('restore'); } finally { if (!cancelled) setRestoring(false); }
+    });
+    return () => { cancelled = true; };
+  }, [isGuest, loading, user?._id]);
+
+  // The schedule's foreground half: a run on every return to the app, if one is due (W3-17).
+  useEffect(() => {
+    if (loading || isGuest) return;
+    return startForegroundScheduler();
+  }, [loading, isGuest]);
 
   useEffect(() => {
     if (loading) return;
@@ -143,6 +155,15 @@ function RootLayoutNav() {
     return <LockScreen onUnlock={() => setLocked(false)} />;
   }
 
+  if (restoring !== false) {
+    return (
+      <View style={[loadingStyles.container, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.tint} />
+        <Text style={[type.body, { color: theme.secondaryText, marginTop: space.lg }]}>Restoring your data…</Text>
+      </View>
+    );
+  }
+
   const bgColor = theme.background;
   const navTheme = isDark
     ? { ...DarkTheme,    colors: { ...DarkTheme.colors,    background: bgColor, card: bgColor } }
@@ -168,7 +189,6 @@ function RootLayoutNav() {
         {FLOW_SCREENS.map(name => <Stack.Screen key={name} name={name} options={FLOW} />)}
       </Stack>
       <StatusBar style="auto" />
-      <SyncModal visible={showSync} onDone={() => setShowSync(false)} />
     </ThemeProvider>
   );
 }

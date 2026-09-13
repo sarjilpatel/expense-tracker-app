@@ -12,6 +12,7 @@
  * hand these to the server on first login without translating anything.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSyncMeta } from '@/src/sync/meta';
 import {
   normaliseTrip,
   type Trip,
@@ -63,8 +64,15 @@ async function withTrip(id: string, mutate: (trip: Trip) => void): Promise<Trip 
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 
+/** The active group's trips when signed in (plus any not yet pushed); everything as a guest. */
+async function inScope(trips: Trip[]): Promise<Trip[]> {
+  const { activeGroupId } = await getSyncMeta();
+  if (!activeGroupId) return trips;
+  return trips.filter(t => !t.groupId || String(t.groupId) === activeGroupId);
+}
+
 export async function getTrips(): Promise<Trip[]> {
-  const all = await loadAll();
+  const all = await inScope(await loadAll());
   return all.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
@@ -256,4 +264,22 @@ export async function retainTrips(ids: string[]): Promise<void> {
   if (keep.size === 0) return clearAllTrips();
   const all = await loadAll();
   await persist(all.filter(t => keep.has(t.id)));
+}
+
+// ── Sync support (W3) ─────────────────────────────────────────────────────────
+// Rows arrive from other devices and other group members through the changes feed; the engine
+// upserts them here by clientId (which *is* the local id) and removes tombstones. Reads filter on
+// the active group when signed in: a row with no groupId is this device's own, not yet pushed.
+
+export async function upsertLocalTrip(trip: Trip): Promise<void> {
+  const all = await loadAll();
+  const idx = all.findIndex(t => t.id === trip.id);
+  if (idx === -1) all.push(trip); else all[idx] = trip;
+  await persist(all);
+}
+
+export async function removeLocalTrip(id: string): Promise<void> {
+  const all = await loadAll();
+  const next = all.filter(t => t.id !== id);
+  if (next.length !== all.length) await persist(next);
 }

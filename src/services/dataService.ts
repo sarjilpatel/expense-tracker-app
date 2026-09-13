@@ -1,21 +1,35 @@
-// Unified data service — routes to local (guest) or remote (logged-in) based on auth mode.
-// AuthContext calls setMode() on startup and on login/logout.
+/**
+ * The data layer every screen goes through — and since W3-18 the device is the source of truth
+ * for all of it. Every read here is a local read, signed in or not; every write lands locally,
+ * appends to the sync outbox, and returns. The server only ever hears about it from the sync
+ * engine (`src/sync/engine.ts`), on the user's schedule.
+ *
+ * This file used to be a `_isGuest ? local : remote` switch. The guest half *was* the local-first
+ * app; the signed-in half fetched on every focus and hit the rate limit. Now there is one half.
+ * The `*Api.ts` modules are still imported by the engine, by auth and group membership, and by
+ * the two things that genuinely need a server: AI insights and the profile photo.
+ *
+ * Every mutator does three things in order: local write → outbox → `bumpDataVersion` (so the
+ * screens refetch on focus) and `noteLocalWrite` (so an instant schedule pushes shortly). A new
+ * data feature adds its local service, its `Collection` in the outbox, and its row shape to
+ * `engine.applyRow`. Nothing else.
+ */
 
-import * as remoteTx   from './transactionApi';
-import { getInsights as remoteGetInsights } from './transactionApi';
 import * as localTx    from './local/localTransactionService';
-import * as remoteGrp  from './groupApi';
 import * as localCat   from './local/localCategoryService';
-import * as remoteBudg from './budgetApi';
 import * as localBudg  from './local/localBudgetService';
-import * as remoteAcct from './accountApi';
-import type { Account }    from './accountService';
 import * as localAcct  from './local/localAccountService';
-import * as remoteGoal from './goalApi';
-import type { Goal }    from './goalApi';
-import * as remoteTrip from './tripApi';
+import * as localGoal  from './local/localGoalService';
 import * as localTrip  from './local/localTripService';
-import { mutating } from './dataVersion';
+import { getInsights as remoteGetInsights } from './transactionApi';
+import type { Account }    from './accountService';
+import type { Goal }       from './goalApi';
+import type { ExpenseInput } from './tripApi';
+import type { Trip }       from './tripService';
+import { bumpDataVersion } from './dataVersion';
+import * as outbox from '@/src/sync/outbox';
+import { getSyncMeta } from '@/src/sync/meta';
+import { noteLocalWrite } from '@/src/sync/scheduler';
 
 export type { Category } from './groupApi';
 export type { Account, AccountType } from './accountService';
@@ -32,93 +46,126 @@ export function isGuestMode(): boolean {
   return _isGuest;
 }
 
+// ── The write path ────────────────────────────────────────────────────────────
+
+type Collection = outbox.Collection;
+
+/** Queue a write for the server and tell the screens something changed. */
+async function queue(collection: Collection, op: outbox.OutboxOp, clientId: string, payload: Record<string, unknown> = {}): Promise<void> {
+  const { activeGroupId } = await getSyncMeta();
+  await outbox.enqueue({ collection, op, clientId, payload, groupId: activeGroupId });
+  bumpDataVersion();
+  noteLocalWrite();
+}
+
+/** The fields of a transaction the server takes, in the shape it takes them. */
+function txPayload(tx: Partial<localTx.LocalTransaction>, accountId?: string | null): Record<string, unknown> {
+  const p: Record<string, unknown> = {};
+  for (const k of ['amount', 'type', 'category', 'note', 'date', 'currency', 'isRecurring', 'recurrenceFrequency', 'isPrivate', 'createdAt'] as const) {
+    if (tx[k] !== undefined) p[k] = tx[k];
+  }
+  if (accountId !== undefined) p.accountId = accountId;
+  return p;
+}
+
+const tripPayload = (t: Trip): Record<string, unknown> => ({
+  name: t.name, currency: t.currency, members: t.members, expenses: t.expenses, settlements: t.settlements, createdAt: t.createdAt,
+});
+
 // ── Transactions ──────────────────────────────────────────────────────────────
 
 export const getTransactions = (month?: number, year?: number, search?: string) =>
-  _isGuest
-    ? localTx.getLocalTransactions(month, year, search)
-    : remoteTx.getTransactions(month, year, search);
+  localTx.getLocalTransactions(month, year, search);
 
-/**
- * Every matching transaction, paging past the server's 50-row default.
- * Use for exports, backups and balance sums — anywhere a truncated list is a wrong answer.
- * Guest mode already returns everything, so the local branch is the same call.
- */
+/** Every matching transaction. The local store has no pages, so this is the same read. */
 export const getAllTransactions = (month?: number, year?: number, search?: string) =>
-  _isGuest
-    ? localTx.getLocalTransactions(month, year, search)
-    : remoteTx.getAllTransactions(month, year, search);
+  localTx.getLocalTransactions(month, year, search);
 
 /** Search across ALL time periods — no month/year filter. */
 export const searchAllTransactions = (query: string) =>
-  _isGuest
-    ? localTx.getLocalTransactions(undefined, undefined, query)
-    : remoteTx.getTransactions(undefined, undefined, query);
+  localTx.getLocalTransactions(undefined, undefined, query);
 
-export const addTransaction = mutating((data: any) =>
-  _isGuest
-    ? localTx.addLocalTransaction(data)
-    : remoteTx.addTransaction(data));
+export const addTransaction = async (data: any) => {
+  const { accountId, ...fields } = data;
+  const tx = await localTx.addLocalTransaction({ ...fields, updatedAt: new Date().toISOString() });
+  if (accountId) await localAcct.setLocalTxAccount(tx._id, accountId);
+  await queue('transactions', 'create', tx._id, txPayload(tx, accountId ?? null));
+  return tx;
+};
 
-export const updateTransaction = mutating((id: string, data: any) =>
-  _isGuest
-    ? localTx.updateLocalTransaction(id, data)
-    : remoteTx.updateTransaction(id, data));
+export const updateTransaction = async (id: string, data: any) => {
+  const { accountId, ...fields } = data;
+  const tx = await localTx.updateLocalTransaction(id, { ...fields, updatedAt: new Date().toISOString() });
+  await queue('transactions', 'update', id, txPayload(fields, accountId));
+  return tx;
+};
 
-export const deleteTransaction = mutating((id: string) =>
-  _isGuest
-    ? localTx.deleteLocalTransaction(id)
-    : remoteTx.deleteTransaction(id));
+export const deleteTransaction = async (id: string) => {
+  const result = await localTx.deleteLocalTransaction(id);
+  await localAcct.removeLocalTxAccount(id);
+  await queue('transactions', 'delete', id);
+  return result;
+};
 
-export const restoreTransaction = mutating((id: string) =>
-  _isGuest
-    ? Promise.resolve()
-    : remoteTx.restoreTransaction(id));
+/**
+ * Undo of a delete. The row is gone from the device — the delete queued above is a tombstone on
+ * the server once pushed — so a restore re-creates it from what the caller still holds.
+ */
+export const restoreTransaction = async (id: string, row?: any) => {
+  if (!row) return;
+  const { _id, accountId, ...fields } = row;
+  await localTx.upsertLocalTransaction({ ...fields, _id: id, updatedAt: new Date().toISOString() });
+  if (accountId) await localAcct.setLocalTxAccount(id, accountId);
+  await queue('transactions', 'update', id, txPayload(fields, accountId ?? null));
+};
 
-export const getAnalytics = (month?: number, year?: number) =>
-  _isGuest
-    ? localTx.computeLocalAnalytics(month, year)
-    : remoteTx.getAnalytics(month, year);
+export const getAnalytics = (month?: number, year?: number) => localTx.computeLocalAnalytics(month, year);
+export const getTrend     = (months = 6) => localTx.computeLocalTrend(months);
 
-export const getTrend = (months = 6) =>
-  _isGuest
-    ? localTx.computeLocalTrend(months)
-    : remoteTx.getTrend(months);
-
+/** The one read that needs a server: insights come from an LLM. A guest has none. */
 export const getInsights = (month: number, year: number) =>
   _isGuest
     ? Promise.resolve({ insights: [], month, year, noData: true })
     : remoteGetInsights(month, year);
 
-// ── Categories (via group or local) ──────────────────────────────────────────
+// ── Categories ────────────────────────────────────────────────────────────────
+// `getCurrentGroup` keeps its name and its `{ categories }` shape because six screens read it
+// for exactly that. Group *membership* (name, members, join code) is not data — screens that
+// need it call `groupApi.getCurrentGroup` directly, as they do for every membership operation.
 
-export const getCurrentGroup = () =>
-  _isGuest
-    ? localCat.getLocalCategories()
-    : remoteGrp.getCurrentGroup();
+export const getCurrentGroup = () => localCat.getLocalCategories();
 
-export const addCategory = mutating((name: string, icon: string, type: 'income' | 'expense' | 'both' = 'expense', emoji?: string) =>
-  _isGuest
-    ? localCat.addLocalCategory(name, icon, type, emoji)
-    : remoteGrp.addCategory(name, icon, type, emoji));
+export const addCategory = async (name: string, icon: string, type: 'income' | 'expense' | 'both' = 'expense', emoji?: string) => {
+  const before = new Set((await localCat.getAllLocalCategories()).map(c => c._id));
+  const cats = await localCat.addLocalCategory(name, icon, type, emoji);
+  const added = cats.find(c => !before.has(c._id));
+  if (added) {
+    const { activeGroupId } = await getSyncMeta();
+    if (activeGroupId) await localCat.upsertLocalCategory({ ...added, groupId: activeGroupId });
+    await queue('categories', 'create', added._id, { name: added.name, icon: added.icon, emoji: added.emoji ?? '', type: added.type ?? 'expense' });
+  }
+  return (await localCat.getLocalCategories()).categories;
+};
 
-export const removeCategory = mutating((id: string) =>
-  _isGuest
-    ? localCat.removeLocalCategory(id)
-    : remoteGrp.removeCategory(id));
+export const removeCategory = async (id: string) => {
+  const cats = await localCat.removeLocalCategory(id);
+  await queue('categories', 'delete', id);
+  return cats;
+};
 
-// Category presets — named packs, so a wedding or a trip is one tap instead of typing twelve
-// categories in. A guest applies them against the bundled catalogue; signed in, the server holds
-// the list and does the merge.
-export const getCategoryPresets = () =>
-  _isGuest
-    ? localCat.getLocalPresets()
-    : remoteGrp.getCategoryPresets();
+export const getCategoryPresets = () => localCat.getLocalPresets();
 
-export const applyCategoryPreset = mutating((key: string) =>
-  _isGuest
-    ? localCat.applyLocalPreset(key)
-    : remoteGrp.applyCategoryPreset(key));
+export const applyCategoryPreset = async (key: string) => {
+  const before = new Set((await localCat.getAllLocalCategories()).map(c => c._id));
+  const result = await localCat.applyLocalPreset(key);
+  const { activeGroupId } = await getSyncMeta();
+  for (const c of result.categories) {
+    if (before.has(c._id)) continue;
+    if (activeGroupId) await localCat.upsertLocalCategory({ ...c, groupId: activeGroupId });
+    await queue('categories', 'create', c._id, { name: c.name, icon: c.icon, emoji: c.emoji ?? '', type: c.type ?? 'expense' });
+  }
+  return { ...result, categories: (await localCat.getLocalCategories()).categories };
+};
 
 // ── Carry-forward ─────────────────────────────────────────────────────────────
 
@@ -154,73 +201,56 @@ export async function getPrevMonthCarryForward(month: number, year: number): Pro
 
 // ── Budgets ───────────────────────────────────────────────────────────────────
 
-export const getBudgets = (month?: number, year?: number) =>
-  _isGuest
-    ? localBudg.getLocalBudgets(month, year)
-    : remoteBudg.getBudgets(month, year);
+export const getBudgets = (month?: number, year?: number) => localBudg.getLocalBudgets(month, year);
 
-export const setBudget = mutating((data: { amount: number; month?: number; year?: number; category?: string | null }) =>
-  _isGuest
-    ? localBudg.setLocalBudget(data)
-    : remoteBudg.setBudget(data));
+export const setBudget = async (data: { amount: number; month?: number; year?: number; category?: string | null }) => {
+  const before = new Set((await localBudg.getAllLocalBudgets()).map(b => b._id));
+  const budget = await localBudg.setLocalBudget(data);
+  await localBudg.upsertLocalBudget({ ...budget, updatedAt: new Date().toISOString() });
+  await queue('budgets', before.has(budget._id) ? 'update' : 'create', budget._id,
+    { amount: budget.amount, month: budget.month, year: budget.year, category: budget.category ?? null, createdAt: budget.createdAt });
+  return budget;
+};
 
-export const deleteBudget = mutating((id: string) =>
-  _isGuest
-    ? localBudg.deleteLocalBudget(id)
-    : remoteBudg.deleteBudget(id));
+export const deleteBudget = async (id: string) => {
+  await localBudg.deleteLocalBudget(id);
+  await queue('budgets', 'delete', id);
+};
 
 // ── Accounts ──────────────────────────────────────────────────────────────────
-// Accounts were local-only until now, so a signed-in user lost every one of them on reinstall or
-// on a second device. Both sides are AsyncStorage-shaped: an account has an `id`, and the
-// transaction→account links are a `{ [txId]: accountId }` map.
 
-export const getAccounts = () =>
-  _isGuest
-    ? localAcct.getLocalAccounts()
-    : remoteAcct.getAccounts();
+export const getAccounts = () => localAcct.getLocalAccounts();
 
-export const saveAccount = mutating((data: Omit<Account, 'id' | 'createdAt'> & { id?: string }) =>
-  _isGuest
-    ? localAcct.saveLocalAccount(data)
-    : remoteAcct.saveAccount(data));
+export const saveAccount = async (data: Omit<Account, 'id' | 'createdAt'> & { id?: string }) => {
+  const existed = !!data.id && (await localAcct.getLocalAccounts()).some(a => a.id === data.id);
+  const account = await localAcct.saveLocalAccount(data);
+  await queue('accounts', existed ? 'update' : 'create', account.id,
+    { name: account.name, type: account.type, openingBalance: account.openingBalance, color: account.color, icon: account.icon, createdAt: account.createdAt });
+  return account;
+};
 
-export const deleteAccount = mutating((id: string) =>
-  _isGuest
-    ? localAcct.deleteLocalAccount(id)
-    : remoteAcct.deleteAccount(id));
+export const deleteAccount = async (id: string) => {
+  await localAcct.deleteLocalAccount(id);
+  await queue('accounts', 'delete', id);
+};
 
-export const getTxAccountMap = () =>
-  _isGuest
-    ? localAcct.getLocalTxAccountMap()
-    : remoteAcct.getTxAccountMap();
+export const getTxAccountMap = () => localAcct.getLocalTxAccountMap();
 
-export const setTxAccount = mutating((txId: string, accountId: string) =>
-  _isGuest
-    ? localAcct.setLocalTxAccount(txId, accountId)
-    : remoteAcct.setTxAccount(txId, accountId));
+// The link lives on the transaction server-side, so changing it is an update of that row.
+export const setTxAccount = async (txId: string, accountId: string) => {
+  await localAcct.setLocalTxAccount(txId, accountId);
+  await queue('transactions', 'update', txId, { accountId });
+};
 
-export const removeTxAccount = mutating((txId: string) =>
-  _isGuest
-    ? localAcct.removeLocalTxAccount(txId)
-    : remoteAcct.removeTxAccount(txId));
+export const removeTxAccount = async (txId: string) => {
+  await localAcct.removeLocalTxAccount(txId);
+  await queue('transactions', 'update', txId, { accountId: null });
+};
 
-
-// ── Goals (account required) ─────────────────────────────────────────────────
-// Goals have no local implementation and should not have one: they are group-scoped server-side,
-// and there is nothing coherent to store for a guest who has no group.
-//
-// They route through here anyway, rather than being imported straight from `goalApi`, so that
-// "a guest reaches the network" is impossible by construction instead of depending on every screen
-// remembering its own `isGuest` check. Reads answer empty — a guest genuinely has none. Writes
-// reject, because silently swallowing a write the user asked for is worse than a visible failure.
-// Screens still show a sign-in prompt instead of the feature; this is the backstop for the day one
-// forgets.
-//
-// Splits used to be listed here for the same reason and are not any more. That argument was right
-// about splits and wrong about the need: a shared bill does not actually require a group, it
-// requires people, and W2-28 replaced splits with trips, whose members are names that may or may
-// not have accounts behind them. A guest can keep a whole trip on their device, and `syncService`
-// hands it to the server when they sign in — which is the one thing splits could never do.
+// ── Goals ─────────────────────────────────────────────────────────────────────
+// Goals used to be the one collection with no local branch. A guest can keep them on the device
+// now like everything else (W3-13); `GuestUnsupportedError` stays exported for the screens that
+// still import it and is no longer thrown.
 
 export class GuestUnsupportedError extends Error {
   constructor(feature: string) {
@@ -229,96 +259,78 @@ export class GuestUnsupportedError extends Error {
   }
 }
 
-const guestReject = (feature: string) => Promise.reject(new GuestUnsupportedError(feature));
+export const getGoals = () => localGoal.getLocalGoals() as Promise<Goal[]>;
 
-export const getGoals = () =>
-  _isGuest
-    ? Promise.resolve([] as Goal[])
-    : remoteGoal.getGoals();
+export const createGoal = async (data: { name: string; targetAmount: number; savedAmount?: number; deadline?: string | null; icon?: string; color?: string }) => {
+  const goal = await localGoal.createLocalGoal(data);
+  await queue('goals', 'create', goal._id,
+    { name: goal.name, targetAmount: goal.targetAmount, savedAmount: goal.savedAmount, deadline: goal.deadline, icon: goal.icon, color: goal.color, createdAt: goal.createdAt });
+  return goal as Goal;
+};
 
-export const createGoal = mutating((data: Parameters<typeof remoteGoal.createGoal>[0]) =>
-  _isGuest
-    ? guestReject('Savings goals')
-    : remoteGoal.createGoal(data));
+export const updateGoal = async (id: string, data: Parameters<typeof localGoal.updateLocalGoal>[1]) => {
+  const goal = await localGoal.updateLocalGoal(id, data);
+  await queue('goals', 'update', id,
+    { name: goal.name, targetAmount: goal.targetAmount, savedAmount: goal.savedAmount, deadline: goal.deadline, icon: goal.icon, color: goal.color });
+  return goal as Goal;
+};
 
-export const updateGoal = mutating((id: string, data: Parameters<typeof remoteGoal.updateGoal>[1]) =>
-  _isGuest
-    ? guestReject('Savings goals')
-    : remoteGoal.updateGoal(id, data));
+export const deleteGoal = async (id: string) => {
+  await localGoal.deleteLocalGoal(id);
+  await queue('goals', 'delete', id);
+};
 
-export const deleteGoal = mutating((id: string) =>
-  _isGuest
-    ? guestReject('Savings goals')
-    : remoteGoal.deleteGoal(id));
+// ── Trips ─────────────────────────────────────────────────────────────────────
+// A trip syncs as one row — members, expenses and settlements together — so every mutation
+// below queues the whole trip as an update. Ten edits on a trip are one item on the wire.
 
-// ── Trips (works either way) ────────────────────────────────────────────────
+export const getTrips = () => localTrip.getTrips();
+export const getTrip  = (id: string) => localTrip.getTrip(id);
 
-export const getTrips = () =>
-  _isGuest
-    ? localTrip.getTrips()
-    : remoteTrip.getTrips();
+async function queueTrip(trip: Trip | null, op: outbox.OutboxOp = 'update'): Promise<Trip | null> {
+  if (trip) await queue('trips', op, trip.id, tripPayload(trip));
+  return trip;
+}
 
-export const getTrip = (id: string) =>
-  _isGuest
-    ? localTrip.getTrip(id)
-    : remoteTrip.getTrip(id);
+export const createTrip = async (data: Parameters<typeof localTrip.createTrip>[0]) =>
+  (await queueTrip(await localTrip.createTrip(data), 'create')) as Trip;
 
-export const createTrip = mutating((data: Parameters<typeof remoteTrip.createTrip>[0]) =>
-  _isGuest
-    ? localTrip.createTrip(data)
-    : remoteTrip.createTrip(data));
+export const renameTrip = (id: string, name: string) =>
+  localTrip.renameTrip(id, name).then(t => queueTrip(t));
 
-export const renameTrip = mutating((id: string, name: string) =>
-  _isGuest
-    ? localTrip.renameTrip(id, name)
-    : remoteTrip.renameTrip(id, name));
+export const deleteTrip = async (id: string) => {
+  await localTrip.deleteTrip(id);
+  await queue('trips', 'delete', id);
+};
 
-export const deleteTrip = mutating((id: string) =>
-  _isGuest
-    ? localTrip.deleteTrip(id)
-    : remoteTrip.deleteTrip(id));
+export const addTripMember = (tripId: string, name: string, userId?: string | null) =>
+  localTrip.addMember(tripId, name).then(async t => {
+    // A member linked to an account is a server-side concept; the local service only knows names,
+    // and a guest has nobody to link to — a stray id would claim the wrong account on push.
+    if (t && userId && !_isGuest) {
+      const m = t.members[t.members.length - 1];
+      if (m) { m.userId = userId; await localTrip.upsertLocalTrip(t); }
+    }
+    return queueTrip(t);
+  });
 
-// `userId` links the member to a real account, which is what makes a payment confirmable by the
-// person who received it. A guest has no accounts to link to, so the local branch ignores it.
-export const addTripMember = mutating((tripId: string, name: string, userId?: string | null) =>
-  _isGuest
-    ? localTrip.addMember(tripId, name)
-    : remoteTrip.addMember(tripId, name, userId));
+export const renameTripMember = (tripId: string, memberId: string, name: string) =>
+  localTrip.renameMember(tripId, memberId, name).then(t => queueTrip(t));
 
-export const renameTripMember = mutating((tripId: string, memberId: string, name: string) =>
-  _isGuest
-    ? localTrip.renameMember(tripId, memberId, name)
-    : remoteTrip.renameMember(tripId, memberId, name));
+export const removeTripMember = (tripId: string, memberId: string) =>
+  localTrip.removeMember(tripId, memberId).then(t => queueTrip(t));
 
-export const removeTripMember = mutating((tripId: string, memberId: string) =>
-  _isGuest
-    ? localTrip.removeMember(tripId, memberId)
-    : remoteTrip.removeMember(tripId, memberId));
+export const addTripExpense = (tripId: string, data: ExpenseInput) =>
+  localTrip.addExpense(tripId, data).then(t => queueTrip(t));
 
-export const addTripExpense = mutating((tripId: string, data: remoteTrip.ExpenseInput) =>
-  _isGuest
-    ? localTrip.addExpense(tripId, data)
-    : remoteTrip.addExpense(tripId, data));
+export const updateTripExpense = (tripId: string, expenseId: string, data: ExpenseInput) =>
+  localTrip.updateExpense(tripId, expenseId, data).then(t => queueTrip(t));
 
-export const updateTripExpense = mutating((tripId: string, expenseId: string, data: remoteTrip.ExpenseInput) =>
-  _isGuest
-    ? localTrip.updateExpense(tripId, expenseId, data)
-    : remoteTrip.updateExpense(tripId, expenseId, data));
+export const deleteTripExpense = (tripId: string, expenseId: string) =>
+  localTrip.deleteExpense(tripId, expenseId).then(t => queueTrip(t));
 
-export const deleteTripExpense = mutating((tripId: string, expenseId: string) =>
-  _isGuest
-    ? localTrip.deleteExpense(tripId, expenseId)
-    : remoteTrip.deleteExpense(tripId, expenseId));
+export const recordTripSettlement = (tripId: string, data: { fromId: string; toId: string; amountMinor: number }) =>
+  localTrip.recordSettlement(tripId, data).then(t => queueTrip(t));
 
-export const recordTripSettlement = mutating((
-  tripId: string,
-  data: { fromId: string; toId: string; amountMinor: number },
-) =>
-  _isGuest
-    ? localTrip.recordSettlement(tripId, data)
-    : remoteTrip.recordSettlement(tripId, data));
-
-export const deleteTripSettlement = mutating((tripId: string, settlementId: string) =>
-  _isGuest
-    ? localTrip.deleteSettlement(tripId, settlementId)
-    : remoteTrip.deleteSettlement(tripId, settlementId));
+export const deleteTripSettlement = (tripId: string, settlementId: string) =>
+  localTrip.deleteSettlement(tripId, settlementId).then(t => queueTrip(t));

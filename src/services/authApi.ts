@@ -137,6 +137,15 @@ export const resetPassword = async (email: string, code: string, password: strin
   }
 };
 
+/** The server's copy of the device's backup schedule, so a reinstall keeps it (W3-10). */
+export const updateBackupSchedule = async (backupSchedule: string): Promise<void> => {
+  try {
+    await apiClient.patch('/auth/backup-schedule', { backupSchedule });
+  } catch (error: any) {
+    throw error.response?.data?.message || 'Failed to update backup schedule';
+  }
+};
+
 export const updateAiConsent = async (aiConsentGiven: boolean): Promise<void> => {
   try {
     await apiClient.patch('/auth/ai-consent', { aiConsentGiven });

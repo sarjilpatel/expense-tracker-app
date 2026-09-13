@@ -23,6 +23,7 @@ import { __reset as resetAxios, __handle, __calls } from './stubs/axios.mjs';
 const dataService = await import('../src/services/dataService.ts');
 const localCat    = await import('../src/services/local/localCategoryService.ts');
 const { CATEGORY_PRESETS } = await import('../constants/categoryPresets.ts');
+const outbox = await import('../src/sync/outbox.ts');
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -116,25 +117,22 @@ test('a guest gets the catalogue from the bundled copy', async () => {
 
 // --- signed in --------------------------------------------------------------------------------
 
-test('a signed-in user applies the preset on the server, not locally', async () => {
+test('a signed-in user applies the preset on the device and the outbox carries it (W3-18)', async () => {
   setup(false);
-  __handle('post', '/group/categories/presets/travel', () => ({ categories: [{ name: 'Flights' }], added: 8 }));
-
   const { added } = await dataService.applyCategoryPreset('travel');
   const { categories } = await localCat.getLocalCategories();
-
-  assert.equal(added, 8);
-  assert.equal(__calls().length, 1);
-  assert.ok(!categories.some(c => c.name === 'Flights'), 'nothing was written to the device');
+  assert.ok(added > 0);
+  assert.ok(categories.some(c => c.name === 'Flights'), 'written to the device like any write');
+  assert.equal(__calls().length, 0, 'the sync engine, not dataService, talks to the server');
+  const queued = await outbox.peek(100);
+  assert.equal(queued.filter(e => e.collection === 'categories' && e.op === 'create').length, added);
 });
 
-test('a signed-in user reads the catalogue from the server', async () => {
+test('the catalogue is the bundled one in both modes', async () => {
   setup(false);
-  __handle('get', '/group/categories/presets', () => [{ key: 'wedding', name: 'Wedding', count: 12 }]);
-
   const presets = await dataService.getCategoryPresets();
-
-  assert.deepEqual(presets.map(p => p.key), ['wedding']);
+  assert.equal(presets.length, CATEGORY_PRESETS.length);
+  assert.equal(__calls().length, 0);
 });
 
 // --- the two catalogues -------------------------------------------------------------------------

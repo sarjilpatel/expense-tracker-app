@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSyncMeta } from '@/src/sync/meta';
 
 const KEY = '@local_transactions_v1';
 
@@ -13,6 +14,12 @@ export interface LocalTransaction {
   accountId?: string;
   isRecurring?: boolean;
   recurrenceFrequency?: string;
+  isPrivate?: boolean;
+  currency?: string;
+  // Present on rows that have been through the server: who wrote it and which group it is in.
+  userId?: string | { _id: string; name?: string; profilePhoto?: string } | null;
+  groupId?: string | null;
+  updatedAt?: string;
 }
 
 function genId(): string {
@@ -49,10 +56,17 @@ function noteWords(text?: string | null): string[] {
     .filter(Boolean);
 }
 
+/** The rows the signed-in user should see: the active group's, plus anything not yet pushed. */
+async function inScope(rows: LocalTransaction[]): Promise<LocalTransaction[]> {
+  const { activeGroupId } = await getSyncMeta();
+  if (!activeGroupId) return rows;
+  return rows.filter(tx => !tx.groupId || String(tx.groupId) === activeGroupId);
+}
+
 export async function getLocalTransactions(
   month?: number, year?: number, search?: string
 ): Promise<LocalTransaction[]> {
-  let all = await load();
+  let all = await inScope(await load());
 
   if (month && year) {
     all = all.filter(tx => {
@@ -157,7 +171,7 @@ export async function computeLocalAnalytics(month?: number, year?: number) {
 }
 
 export async function computeLocalTrend(months = 6) {
-  const all = await load();
+  const all = await inScope(await load());
   const now = new Date();
   const result = [];
 
@@ -199,4 +213,27 @@ export async function retainLocalTransactions(ids: string[]): Promise<void> {
   if (keep.size === 0) return clearAllLocalTransactions();
   const all = await load();
   await persist(all.filter(t => keep.has(t._id)));
+}
+
+// ── Sync support (W3) ─────────────────────────────────────────────────────────
+// Rows arrive from other devices and other group members through the changes feed; the engine
+// upserts them here by clientId (which *is* the local id) and removes tombstones. Reads filter on
+// the active group when signed in: a row with no groupId is this device's own, not yet pushed.
+
+export async function upsertLocalTransaction(row: LocalTransaction): Promise<void> {
+  const all = await load();
+  const idx = all.findIndex(t => t._id === row._id);
+  if (idx === -1) all.unshift(row); else all[idx] = { ...all[idx], ...row };
+  await persist(all);
+}
+
+export async function removeLocalTransaction(id: string): Promise<void> {
+  const all = await load();
+  const next = all.filter(t => t._id !== id);
+  if (next.length !== all.length) await persist(next);
+}
+
+/** Every row on the device regardless of group — what a full local export or a group switch reads. */
+export async function getLocalTransactionById(id: string): Promise<LocalTransaction | null> {
+  return (await load()).find(t => t._id === id) ?? null;
 }

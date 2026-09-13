@@ -37,7 +37,7 @@ function makeInstance(defaults = {}) {
     }
 
     const method = (cfg.method || 'get').toLowerCase();
-    calls.push({ method, url: cfg.url, data: cfg.data, headers: cfg.headers,
+    calls.push({ method, url: cfg.url, data: cfg.data, params: cfg.params, headers: cfg.headers,
                  timeout: cfg.timeout ?? defaults.timeout });
 
     let response;

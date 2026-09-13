@@ -107,7 +107,7 @@ export default function HomeScreen() {
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [undoState, setUndoState] = useState<{ txId: string; tx: any } | null>(null);
+  const [undoState, setUndoState] = useState<{ txId: string; tx: any; accountId?: string } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasData = useRef(false);
   const isMounted = useRef(false);
@@ -404,9 +404,11 @@ export default function HomeScreen() {
   }, [budget, summary.expense]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  const handleDelete = useCallback((id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     const removed = allTransactions.find(tx => tx._id === id);
     if (!removed) return;
+    // The account link goes with the row; keep it so an undo can put it back.
+    const accountId = (await getTxAccountMap().catch(() => ({} as Record<string, string>)))[id];
 
     // Optimistic remove
     setAllTransactions(prev => prev.filter(tx => tx._id !== id));
@@ -431,7 +433,7 @@ export default function HomeScreen() {
 
     // Show undo toast for 5 seconds
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    setUndoState({ txId: id, tx: removed });
+    setUndoState({ txId: id, tx: removed, accountId });
     undoTimerRef.current = setTimeout(() => {
       setUndoState(null);
       invalidateCachedTransactions(currentMonth, currentYear);
@@ -441,10 +443,11 @@ export default function HomeScreen() {
   const handleUndo = useCallback(async () => {
     if (!undoState) return;
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    const { txId, tx } = undoState;
+    const { txId, tx, accountId } = undoState;
     setUndoState(null);
     try {
-      await restoreTransaction(txId);
+      // The row left the device on delete; the undo re-creates it from the copy the toast kept.
+      await restoreTransaction(txId, { ...tx, accountId: accountId ?? null });
       setAllTransactions(prev => [tx, ...prev].sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       ));

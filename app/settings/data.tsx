@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -9,30 +9,16 @@ import * as XLSX from 'xlsx';
 import * as DocumentPicker from 'expo-document-picker';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
-import { usePreferences } from '@/src/context/PreferencesContext';
 import { getAllTransactions, getCurrentGroup as getCategoryData } from '@/src/services/dataService';
-import { getLastSyncTime } from '@/src/services/syncService';
+import { BackupSection } from '@/components/settings/BackupSection';
 import apiClient from '@/src/services/apiClient';
 import { generateMonthlyPDF } from '@/src/services/reportService';
-import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
 import { space, type, icon as iconSize } from '@/constants/tokens';
 import {
-  Screen, Card, Row, Touchable, Button, Sheet, SectionHeader, Chip,
+  Screen, Card, Row, Touchable, Button, Sheet, SectionHeader,
   type SheetHandle,
 } from '@/components/ui';
 
-function formatSyncTime(iso: string | null): string {
-  if (!iso) return 'Never synced';
-  const d = new Date(iso);
-  const now = new Date();
-  const mins = Math.floor((now.getTime() - d.getTime()) / 60000);
-  if (mins < 1)  return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  return `Today ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  if (hrs < 48)  return 'Yesterday';
-  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
 
 const RANGES = [
   { key: 'week',  label: 'This week',  icon: 'calendar-outline'        },
@@ -44,9 +30,7 @@ const RANGES = [
 export default function DataScreen() {
   const { theme }               = useTheme();
   const { isGuest, logout }     = useAuth();
-  const { prefs }               = usePreferences();
 
-  const [lastSync,          setLastSync]          = useState<string | null>(null);
   const [working,           setWorking]           = useState(false);
   const [exporting,         setExporting]         = useState(false);
   const [exportSheetType,   setExportSheetType]   = useState<'csv' | 'xlsx' | 'pdf' | null>(null);
@@ -56,13 +40,7 @@ export default function DataScreen() {
   const [exportDateTarget,  setExportDateTarget]  = useState<'from' | 'to' | null>(null);
   const exportSheet = useRef<SheetHandle>(null);
 
-  const currencyMeta = CURRENCY_META[prefs.currency as CurrencyCode];
 
-  useFocusEffect(useCallback(() => {
-    if (!isGuest) {
-      getLastSyncTime().then(setLastSync).catch(() => {});
-    }
-  }, [isGuest]));
 
   // ── Export helpers ──────────────────────────────────────────────
   function fmtExportDate(d: Date): string {
@@ -322,20 +300,7 @@ export default function DataScreen() {
 
   return (
     <Screen title="Data">
-      {!isGuest && (
-        <>
-          <SectionHeader title="Cloud backup" />
-          <Card padded={false}>
-            <Row
-              icon="cloud-done-outline"
-              title="Cloud backup"
-              subtitle={formatSyncTime(lastSync)}
-              right={<Chip size="sm" tone={lastSync ? 'income' : 'neutral'} label={lastSync ? 'Synced' : 'Not yet'} />}
-              last
-            />
-          </Card>
-        </>
-      )}
+      {!isGuest && <BackupSection />}
 
       <SectionHeader title="Export" />
       <Card padded={false}>

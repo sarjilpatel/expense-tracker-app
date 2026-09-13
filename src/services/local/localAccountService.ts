@@ -104,3 +104,21 @@ export async function retainLocalAccounts(ids: string[]): Promise<void> {
   const all  = await getLocalAccounts();
   await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(all.filter(a => keep.has(a.id))));
 }
+
+// ── Sync support (W3) ─────────────────────────────────────────────────────────
+// Rows arrive from other devices and other group members through the changes feed; the engine
+// upserts them here by clientId (which *is* the local id) and removes tombstones. Reads filter on
+// the active group when signed in: a row with no groupId is this device's own, not yet pushed.
+
+export async function upsertLocalAccount(row: Account): Promise<void> {
+  const all = await getLocalAccounts();
+  const idx = all.findIndex(a => a.id === row.id);
+  if (idx === -1) all.push(row); else all[idx] = { ...all[idx], ...row };
+  await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(all));
+}
+
+export async function removeLocalAccount(id: string): Promise<void> {
+  const all = await getLocalAccounts();
+  const next = all.filter(a => a.id !== id);
+  if (next.length !== all.length) await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(next));
+}

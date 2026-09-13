@@ -4,7 +4,11 @@ import * as SecureStore from 'expo-secure-store';
 import socketService from '../services/socketService';
 import { requestNotificationPermissions } from '../services/notificationService';
 import { setMode as setDataMode } from '../services/dataService';
-import { clearAllUserCaches } from '../cache/transactionCache';
+import { setSignedIn } from '@/src/sync/session';
+import { getSyncMeta, updateSyncMeta, resetSyncCursor } from '@/src/sync/meta';
+import { runSync } from '@/src/sync/engine';
+import { applyBackgroundSchedule } from '@/src/sync/scheduler';
+import { seedOutboxFromLocal, clearLocalData } from '@/src/sync/localStore';
 import { logoutUser, syncDeviceTimezone } from '../services/authApi';
 
 import { reportError } from '@/src/utils/log';
@@ -45,18 +49,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ]);
 
         if (storedToken && storedUser) {
+          const stored: User = JSON.parse(storedUser);
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          setUser(stored);
           setIsGuest(false);
           setDataMode(false);
+          // The sync engine's view of the session (W3): who we are and which group we read for.
+          setSignedIn(true);
+          await updateSyncMeta({ activeGroupId: stored.groupId ? String(stored.groupId) : null });
+          seedOutboxFromLocal().catch(() => {});
+          applyBackgroundSchedule().catch(() => {});
         } else {
           // No stored credentials — start in guest mode automatically
           setIsGuest(true);
           setDataMode(true);
+          setSignedIn(false);
         }
       } catch {
         setIsGuest(true);
         setDataMode(true);
+        setSignedIn(false);
       } finally {
         setLoading(false);
       }
@@ -98,6 +110,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsGuest(false);
       setDataMode(false);
       requestNotificationPermissions();
+      // Whatever was written as a guest is the outbox; a new device has a full pull to do. Both
+      // are one call — the engine pushes first, then pulls from the (empty) cursor (W3-19).
+      setSignedIn(true);
+      await updateSyncMeta({ activeGroupId: newUser.groupId ? String(newUser.groupId) : null });
+      await seedOutboxFromLocal().catch(() => {});
+      runSync('login').catch(() => {});
+      applyBackgroundSchedule().catch(() => {});
     } catch (error) {
       reportError('Error during login storage:', error);
     }
@@ -114,6 +133,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // offline, or the token was already invalid — nothing more to revoke
     }
     try {
+      // The data is on the server (the caller confirmed anything still waiting — see settings);
+      // the device starts over as a guest with nothing of this account left on it.
+      setSignedIn(false);
+      await applyBackgroundSchedule().catch(() => {});
       await SecureStore.deleteItemAsync('token');
       await SecureStore.deleteItemAsync('refreshToken');
       await SecureStore.deleteItemAsync('user');
@@ -122,7 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsGuest(true);
       setDataMode(true);
       socketService.disconnect();
-      await clearAllUserCaches();
+      await clearLocalData();
     } catch (error) {
       reportError('Error during logout storage:', error);
     }
@@ -134,6 +157,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const mergedUser = { ...user, ...updatedData };
       await SecureStore.setItemAsync('user', JSON.stringify(mergedUser));
       setUser(mergedUser);
+      // A group change means a different set of rows: the local reads now filter on the new
+      // group, and the cursor is reset so the next run pulls that group in full — the changes
+      // feed is not group-versioned (W3, Stage 1 note).
+      if ('groupId' in updatedData) {
+        const next = mergedUser.groupId ? String(mergedUser.groupId) : null;
+        const { activeGroupId } = await getSyncMeta();
+        if (next !== activeGroupId) {
+          await updateSyncMeta({ activeGroupId: next });
+          await resetSyncCursor();
+          runSync('restore').catch(() => {});
+        }
+      }
     } catch (error) {
       reportError('Error updating user state:', error);
     }
