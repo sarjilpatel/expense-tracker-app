@@ -9,7 +9,6 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useTheme } from '@/src/context/ThemeContext';
 import { updateTransaction, getCurrentGroup, getAccounts, setTxAccount, removeTxAccount, getTxAccountMap } from '@/src/services/dataService';
 import type { Category } from '@/src/services/dataService';
-import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
 import type { Account } from '@/src/services/accountService';
 
 import { CategoryPicker } from '@/components/transaction/CategoryPicker';
@@ -167,7 +166,6 @@ export default function EditTransactionScreen() {
         else                   await removeTxAccount(txId as string);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await invalidateAllTransactionCache();
       router.back();
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

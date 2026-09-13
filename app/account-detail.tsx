@@ -9,7 +9,6 @@ import { useLanguage } from '@/src/i18n/LanguageContext';
 import { TransactionRow } from '@/components/home/TransactionRow';
 import { Account, ACCOUNT_TYPE_META, computeAccountBalance } from '@/src/services/accountService';
 import { getAllTransactions, getAccounts, getTxAccountMap } from '@/src/services/dataService';
-import { getCachedTransactions, setCachedTransactions } from '@/src/cache/transactionCache';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
 import { Screen, Card, Touchable, Amount, EmptyState, SectionHeader, Skeleton } from '@/components/ui';
 
@@ -39,18 +38,8 @@ export default function AccountDetailScreen() {
         .filter((tx: any) => map[tx._id] === id)
         .sort((a: any, b: any) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime());
 
-      // Cache first, then a silent refresh.
-      const cached = await getCachedTransactions();
-      const rawTx = cached ?? await getAllTransactions();
+      const rawTx = await getAllTransactions();
       const allTx: any[] = Array.isArray(rawTx) ? rawTx : [];
-      if (!cached) await setCachedTransactions(allTx);
-      else {
-        getAllTransactions().then(raw => {
-          const fresh: any[] = Array.isArray(raw) ? raw : [];
-          setCachedTransactions(fresh);
-          setTransactions(forThis(fresh));
-        }).catch(() => {});
-      }
       setTransactions(forThis(allTx));
     } catch (err) {
       reportError(err);

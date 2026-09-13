@@ -35,7 +35,7 @@ export const getTrip = async (id: string): Promise<Trip | null> => {
 export const createTrip = async (data: {
   name: string;
   currency?: string;
-  // A member id may be supplied, and the server keeps it. That is what lets `syncService` push a
+  // A member id may be supplied, and the server keeps it. That is what lets the sync engine push a
   // guest's whole trip: the expenses it uploads next still name their payer and participants by the
   // ids the device gave them, so nothing has to be remapped on the way up.
   members?: Array<{ id?: string; name: string; userId?: string | null }>;

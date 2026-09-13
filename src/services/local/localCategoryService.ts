@@ -123,19 +123,6 @@ export async function clearLocalCategories(): Promise<void> {
   await AsyncStorage.removeItem(KEY);
 }
 
-/**
- * Keeps the built-in defaults plus the given custom ids — used by sync to hold on to
- * whatever failed to upload. Clearing the key outright would restore defaults on next
- * load and silently drop the custom categories that never made it to the server.
- */
-export async function retainLocalCategories(ids: string[]): Promise<void> {
-  const keep = new Set(ids);
-  if (keep.size === 0) return clearLocalCategories();
-  const all = await load();
-  const kept = all.filter(c => c._id.startsWith('dc_') || keep.has(c._id));
-  await AsyncStorage.setItem(KEY, JSON.stringify(kept));
-}
-
 // ── Sync support (W3) ─────────────────────────────────────────────────────────
 // Rows arrive from other devices and other group members through the changes feed; the engine
 // upserts them here by clientId (which *is* the local id) and removes tombstones. Reads filter on

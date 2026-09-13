@@ -77,32 +77,8 @@ export async function removeLocalTxAccount(txId: string): Promise<void> {
   await AsyncStorage.setItem(TX_ACCOUNT_KEY, JSON.stringify(map));
 }
 
-/** Replaces the whole map. Sync uses it to rewrite guest account ids to server ids. */
-export async function setLocalTxAccountMap(map: Record<string, string>): Promise<void> {
-  await AsyncStorage.setItem(TX_ACCOUNT_KEY, JSON.stringify(map));
-}
-
-// ── Sync support ──────────────────────────────────────────────────────────────
-
 export async function clearLocalAccounts(): Promise<void> {
   await AsyncStorage.multiRemove([ACCOUNTS_KEY, TX_ACCOUNT_KEY]);
-}
-
-export async function clearLocalTxAccountMap(): Promise<void> {
-  await AsyncStorage.removeItem(TX_ACCOUNT_KEY);
-}
-
-/**
- * Keeps only the given ids — used by sync to hold on to whatever failed to upload.
- *
- * Deliberately leaves the tx→account map alone. Once accounts have synced, sync rewrites the
- * map's values to the new server ids so that transactions still waiting to upload keep their
- * links; wiping the map here would strand them. Sync clears it explicitly once everything lands.
- */
-export async function retainLocalAccounts(ids: string[]): Promise<void> {
-  const keep = new Set(ids);
-  const all  = await getLocalAccounts();
-  await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(all.filter(a => keep.has(a.id))));
 }
 
 // ── Sync support (W3) ─────────────────────────────────────────────────────────

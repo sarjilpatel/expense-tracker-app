@@ -7,7 +7,6 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { DateTimeField } from '@/components/transaction/DateTimeField';
 import { addTransaction, getAccounts, setTxAccount } from '@/src/services/dataService';
 import type { Account } from '@/src/services/accountService';
-import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
 import { Currency } from '@/constants/theme';
 import { space, type, icon as iconSize } from '@/constants/tokens';
 import { Screen, Button, Field, Card, Chip } from '@/components/ui';
@@ -72,8 +71,6 @@ export default function AddTransferScreen() {
       // Link to accounts
       if (outTx?._id) await setTxAccount(outTx._id, fromAccountId);
       if (inTx?._id)  await setTxAccount(inTx._id, toAccountId);
-
-      await invalidateAllTransactionCache();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {

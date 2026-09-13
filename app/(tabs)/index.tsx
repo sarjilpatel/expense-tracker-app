@@ -27,11 +27,6 @@ import {
   getAccounts, getTxAccountMap,
 } from '@/src/services/dataService';
 import { getReceiptMap } from '@/src/services/receiptService';
-import {
-  getCachedTransactions, setCachedTransactions,
-  getCachedBudgets, setCachedBudgets,
-  invalidateCachedTransactions,
-} from '@/src/cache/transactionCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedView } from '@/components/themed-view';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
@@ -136,30 +131,9 @@ export default function HomeScreen() {
     const isMonthlyView = viewMode === 'monthly';
     const monthParam = isMonthlyView ? undefined : currentMonth;
 
-    // Step 1 — serve from cache instantly (no spinner if cache exists)
-    const [cachedTx, cachedBudgets] = await Promise.all([
-      getCachedTransactions(monthParam, currentYear),
-      getCachedBudgets(),
-    ]);
+    // The local store answers instantly; a skeleton only on the very first load.
+    if (!isSilent) setMonthLoading(true);
 
-    if (cachedTx) {
-      let periodTx = cachedTx;
-      if (!isMonthlyView && monthlyStart > 1) {
-        const { start, end } = getPeriodRange(currentMonth, currentYear, monthlyStart);
-        periodTx = filterByPeriod(cachedTx, start, end);
-      }
-      setAllTransactions(periodTx);
-      setSummary(computeSummary(periodTx));
-      setMonthLoading(false);
-    } else if (!isSilent) {
-      setMonthLoading(true);
-    }
-
-    if (cachedBudgets) {
-      setBudget(cachedBudgets.find((b: any) => !b.category) || null);
-    }
-
-    // Step 2 — background API fetch, update cache + state silently
     try {
       let txData: any[];
 
@@ -170,17 +144,13 @@ export default function HomeScreen() {
         const combined = (results as any[][]).flat();
         const { start, end } = getPeriodRange(currentMonth, currentYear, monthlyStart);
         txData = filterByPeriod(combined, start, end);
-        // Cache first month only (standard cache key)
-        await setCachedTransactions(combined, currentMonth, currentYear);
       } else {
         const raw = await getAllTransactions(monthParam, currentYear);
         txData = Array.isArray(raw) ? raw : [];
-        await setCachedTransactions(txData, monthParam, currentYear);
       }
 
       const [budgetsData] = await Promise.all([getBudgets()]);
       const budgetList: any[] = Array.isArray(budgetsData) ? budgetsData : [];
-      await setCachedBudgets(budgetList);
 
       const freshSummary = computeSummary(txData);
       setAllTransactions(txData);
@@ -421,7 +391,6 @@ export default function HomeScreen() {
     setUndoState({ txId: id, tx: removed, accountId });
     undoTimerRef.current = setTimeout(() => {
       setUndoState(null);
-      invalidateCachedTransactions(currentMonth, currentYear);
     }, 5000);
   }, [allTransactions, currentMonth, currentYear]);
 

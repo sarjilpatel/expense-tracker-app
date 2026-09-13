@@ -13,7 +13,6 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { addTransaction, getCurrentGroup, getTransactions, getAccounts, setTxAccount } from '@/src/services/dataService';
 import type { Category } from '@/src/services/dataService';
-import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
 import type { Account } from '@/src/services/accountService';
 import { saveReceipt } from '@/src/services/receiptService';
 import { CategoryPicker } from '@/components/transaction/CategoryPicker';
@@ -245,7 +244,6 @@ export default function AddTransactionScreen() {
         if (inTx?._id)  await setTxAccount(inTx._id, toAccountId);
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        await invalidateAllTransactionCache();
         resetForm();
         setSuccessToast(true);
         if (andContinue) {
@@ -275,7 +273,6 @@ export default function AddTransactionScreen() {
       if (selectedAccountId && newTx?._id) await setTxAccount(newTx._id, selectedAccountId);
       if (receiptUri && newTx?._id) await saveReceipt(newTx._id, receiptUri).catch(() => {});
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await invalidateAllTransactionCache();
       resetForm();
       setSuccessToast(true);
       if (andContinue) {

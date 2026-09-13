@@ -7,7 +7,6 @@ import { getContrastText } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
 import { Account, ACCOUNT_TYPE_META, computeAccountBalance } from '@/src/services/accountService';
 import { getAllTransactions, getAccounts, getTxAccountMap } from '@/src/services/dataService';
-import { getCachedTransactions, setCachedTransactions } from '@/src/cache/transactionCache';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
 import { Screen, Card, Row, Touchable, Amount, EmptyState, SectionHeader, Skeleton } from '@/components/ui';
 
@@ -29,17 +28,8 @@ export default function AccountsScreen() {
       const [accs, map] = await Promise.all([getAccounts(), getTxAccountMap()]);
       setAccounts(accs);
       setTxAccountMap(map);
-      // On regular focus: serve from cache to avoid fetching all-time transactions.
-      // On pull-to-refresh: fetch fresh data from API.
-      const cached = await getCachedTransactions();
-      if (!forceRefresh && cached) {
-        setAllTransactions(cached);
-      } else {
-        const raw = await getAllTransactions();
-        const fresh: any[] = Array.isArray(raw) ? raw : [];
-        await setCachedTransactions(fresh);
-        setAllTransactions(fresh);
-      }
+      const raw = await getAllTransactions();
+      setAllTransactions(Array.isArray(raw) ? raw : []);
       loaded.current = true;
     } catch (err) {
       reportError(err);

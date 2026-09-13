@@ -8,8 +8,8 @@
  * This is what W2-28 merged the old server-side splits into. The remote half is `tripApi.ts`, the
  * shared shape is `tripService.ts`, and `dataService.ts` picks between them. Every function here
  * answers with a `Trip` run through `normaliseTrip`, so a trip that came off this device and one
- * that came off the server are the same object to a screen — which is also what lets `syncService`
- * hand these to the server on first login without translating anything.
+ * that came off the server are the same object to a screen — which is also what lets the sync
+ * engine push a whole trip as one row without translating anything.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSyncMeta } from '@/src/sync/meta';
@@ -250,20 +250,6 @@ export async function deleteSettlement(tripId: string, settlementId: string): Pr
 
 export async function clearAllTrips(): Promise<void> {
   await AsyncStorage.removeItem(KEY);
-}
-
-/**
- * Keeps only the trips named, dropping the rest.
- *
- * `syncService` calls this after handing the guest's trips to the server: whatever the server took
- * is no longer this device's copy, and whatever it refused has to stay exactly where it is. A trip
- * is the one thing in the local store the server cannot re-derive from anything else.
- */
-export async function retainTrips(ids: string[]): Promise<void> {
-  const keep = new Set(ids);
-  if (keep.size === 0) return clearAllTrips();
-  const all = await loadAll();
-  await persist(all.filter(t => keep.has(t.id)));
 }
 
 // ── Sync support (W3) ─────────────────────────────────────────────────────────

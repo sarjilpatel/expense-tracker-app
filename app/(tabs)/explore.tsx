@@ -29,10 +29,6 @@ import { Card, Row, Touchable, Sheet, Amount, EmptyState, Chip, type SheetHandle
 import { CategoryBar } from '@/components/analytics/CategoryBar';
 import { ConnectedDonutChart } from '@/components/analytics/ConnectedDonutChart';
 import { MONTHS, CATEGORY_COLORS, CATEGORY_EMOJIS, EXPENSE_PALETTE, INCOME_PALETTE } from '@/constants/maps';
-import {
-  getCachedAnalytics, setCachedAnalytics,
-  getCachedTrend, setCachedTrend,
-} from '@/src/cache/transactionCache';
 import { MonthYearPicker } from '@/components/home/MonthYearPicker';
 
 import { reportError } from '@/src/utils/log';
@@ -75,22 +71,12 @@ export default function AnalyticsScreen() {
 
   // ── Data fetching ─────────────────────────────────────────────────────────
   const fetchData = useCallback(async (isSilent = false) => {
-    // Step 1 — serve from cache instantly
-    const cached = await getCachedAnalytics(currentMonth, currentYear);
-    if (cached) {
-      setData(cached);
-      setLoading(false);
-    } else if (!isSilent) {
-      setLoading(true);
-    }
-
-    // Step 2 — background API sync
+    if (!isSilent) setLoading(true);
     try {
       const [analyticsData, budgetData] = await Promise.all([
         getAnalytics(currentMonth, currentYear),
         getBudgets(currentMonth, currentYear).catch(() => []),
       ]);
-      await setCachedAnalytics(analyticsData, currentMonth, currentYear);
       setData(analyticsData);
       setBudgets(Array.isArray(budgetData) ? budgetData : []);
       hasData.current = true;
@@ -104,20 +90,10 @@ export default function AnalyticsScreen() {
   }, [currentMonth, currentYear, user?.groupId]);
 
   const fetchTrend = useCallback(async () => {
-    // Step 1 — serve from cache instantly
-    const cached = await getCachedTrend();
-    if (cached) {
-      setTrendData(cached);
-      setTrendLoading(false);
-    } else {
-      setTrendLoading(true);
-    }
-
-    // Step 2 — background API sync
+    if (!hasData.current) setTrendLoading(true);
     try {
       const raw = await getTrend(6);
       const result: any[] = Array.isArray(raw) ? raw : [];
-      await setCachedTrend(result);
       setTrendData(result);
     } catch (err) {
       reportError(err);
