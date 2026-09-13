@@ -11,6 +11,7 @@ import { hexToRGBA } from '@/constants/theme';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
 import { Screen, Card, Touchable, Amount, EmptyState, Skeleton } from '@/components/ui';
 
+import { reportError } from '@/src/utils/log';
 export default function BudgetScreen() {
   const { theme } = useTheme();
   const { prefs } = usePreferences();
@@ -47,7 +48,7 @@ export default function BudgetScreen() {
       setCarryForward(cf);
       loaded.current = true;
     } catch (err) {
-      console.error(err);
+      reportError(err);
     } finally {
       setLoading(false);
     }

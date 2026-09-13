@@ -20,6 +20,7 @@ import { formatAmount } from '@/src/utils/money';
 import { space, radius, type } from '@/constants/tokens';
 import { Screen, Card, Row, Amount, Chip, EmptyState, SectionHeader, Skeleton } from '@/components/ui';
 
+import { reportError } from '@/src/utils/log';
 const PREVIEW = 3;
 
 export default function PlanScreen() {
@@ -65,7 +66,7 @@ export default function PlanScreen() {
       setTrips(tripData || []);
       loaded.current = true;
     } catch (err) {
-      console.error(err);
+      reportError(err);
     } finally {
       setLoading(false);
       setRefreshing(false);

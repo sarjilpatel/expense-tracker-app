@@ -12,6 +12,7 @@ import { getCachedTransactions, setCachedTransactions } from '@/src/cache/transa
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
 import { Screen, Card, Touchable, Amount, EmptyState, SectionHeader, Skeleton } from '@/components/ui';
 
+import { reportError } from '@/src/utils/log';
 export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { theme } = useTheme();
@@ -51,7 +52,7 @@ export default function AccountDetailScreen() {
       }
       setTransactions(forThis(allTx));
     } catch (err) {
-      console.error(err);
+      reportError(err);
     } finally {
       setLoading(false);
       setRefreshing(false);

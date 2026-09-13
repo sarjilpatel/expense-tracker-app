@@ -49,6 +49,7 @@ import { NoteView } from '@/components/home/NoteView';
 import { NotificationsModal, Notification } from '@/components/home/NotificationsModal';
 import { MonthYearPicker } from '@/components/home/MonthYearPicker';
 
+import { reportError } from '@/src/utils/log';
 const EmptyWalletIllustration = ({ theme }: { theme: any }) => (
   <View style={styles.emptyIllustrationWrap}>
     {/* Coins */}
@@ -243,7 +244,7 @@ export default function HomeScreen() {
       }
       hasData.current = true;
     } catch (err) {
-      console.error(err);
+      reportError(err);
     } finally {
       setRefreshing(false);
       setMonthLoading(false);

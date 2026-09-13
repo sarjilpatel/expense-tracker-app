@@ -9,6 +9,7 @@ import { getMyGroups, importCategories } from '@/src/services/groupApi';
 import { space, type, icon as iconSize } from '@/constants/tokens';
 import { Screen, Card, Row, EmptyState, Skeleton } from '@/components/ui';
 
+import { reportError } from '@/src/utils/log';
 export default function ImportCategoriesScreen() {
   const { theme } = useTheme();
   const { t } = useLanguage();
@@ -29,7 +30,7 @@ export default function ImportCategoriesScreen() {
         // the server refuses anyway.
         setGroups((data || []).filter((g: any) => g._id !== user?.groupId));
       } catch (error) {
-        console.error(error);
+        reportError(error);
       } finally {
         setLoading(false);
       }

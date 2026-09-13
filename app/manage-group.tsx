@@ -12,6 +12,7 @@ import {
 import { getAllTransactions } from '@/src/services/dataService';
 import { hexToRGBA } from '@/constants/theme';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import { reportError } from '@/src/utils/log';
 import {
   Screen, Card, Row, Button, Field, Amount, EmptyState, SectionHeader, Chip, Skeleton,
 } from '@/components/ui';
@@ -54,7 +55,7 @@ export default function ManageGroupScreen() {
         (grpDetail.createdBy === user?._id || grpDetail.owner === user?._id);
       setPending(owner ? await getPendingRequests(grpDetail._id).catch(() => []) : []);
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setLoading(false);
     }

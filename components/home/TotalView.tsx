@@ -8,6 +8,7 @@ import { getAllTransactions } from '@/src/services/dataService';
 import { space, type } from '@/constants/tokens';
 import { Sheet, Button, Card, Row, Amount, SectionHeader, type SheetHandle } from '@/components/ui';
 
+import { reportError } from '@/src/utils/log';
 interface Props {
   transactions: any[];
   summary: { income: number; expense: number; balance: number };
@@ -137,7 +138,7 @@ export function TotalView({ transactions, summary, budget, month, year, theme }:
         });
       }
     } catch (e) {
-      console.error('Export error:', e);
+      reportError('Export error:', e);
     } finally {
       setExporting(false);
     }

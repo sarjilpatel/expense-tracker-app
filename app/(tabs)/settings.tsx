@@ -13,6 +13,7 @@ import { GroupSection } from '@/components/settings/GroupSection';
 import { TILE_COLORS } from '@/constants/palettes';
 import { hexToRGBA } from '@/constants/theme';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
+import { reportError } from '@/src/utils/log';
 import {
   Screen, Card, Row, Touchable, Button, Sheet, Field, Chip, Skeleton, SectionHeader,
   type SheetHandle,
@@ -62,7 +63,7 @@ export default function SettingsScreen() {
       setMyGroups(Array.isArray(groupList) ? groupList : []);
       getLastSyncTime().then(setLastSync).catch(() => {});
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setLoading(false);
     }

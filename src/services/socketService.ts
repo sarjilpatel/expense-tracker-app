@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
+import { debugLog } from '@/src/utils/log';
 const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL;
 
 class SocketService {
@@ -15,11 +16,11 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('✅ WebSocket Connected:', this.socket?.id);
+      debugLog('[socket] connected', this.socket?.id);
     });
 
     this.socket.on('connect_error', (error) => {
-      console.log('❌ WebSocket Error:', error.message);
+      debugLog('[socket] error', error.message);
     });
   }
 

@@ -10,6 +10,7 @@ import { getCachedTransactions, setCachedTransactions } from '@/src/cache/transa
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
 import { Screen, Card, Row, Touchable, Amount, EmptyState, SectionHeader, Skeleton } from '@/components/ui';
 
+import { reportError } from '@/src/utils/log';
 export default function AccountsScreen() {
   const { theme } = useTheme();
 
@@ -40,7 +41,7 @@ export default function AccountsScreen() {
       }
       loaded.current = true;
     } catch (err) {
-      console.error(err);
+      reportError(err);
     } finally {
       setLoading(false);
       setRefreshing(false);

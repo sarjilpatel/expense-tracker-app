@@ -33,6 +33,7 @@ import {
 } from '@/src/cache/transactionCache';
 import { MonthYearPicker } from '@/components/home/MonthYearPicker';
 
+import { reportError } from '@/src/utils/log';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type ViewMode = 'overview' | 'trends';
@@ -92,7 +93,7 @@ export default function AnalyticsScreen() {
       setBudgets(Array.isArray(budgetData) ? budgetData : []);
       hasData.current = true;
     } catch (err) {
-      console.error(err);
+      reportError(err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -117,7 +118,7 @@ export default function AnalyticsScreen() {
       await setCachedTrend(result);
       setTrendData(result);
     } catch (err) {
-      console.error(err);
+      reportError(err);
     } finally {
       setTrendLoading(false);
     }

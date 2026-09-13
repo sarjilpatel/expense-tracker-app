@@ -7,6 +7,7 @@ import { setMode as setDataMode } from '../services/dataService';
 import { clearAllUserCaches } from '../cache/transactionCache';
 import { logoutUser, syncDeviceTimezone } from '../services/authApi';
 
+import { reportError } from '@/src/utils/log';
 export interface User {
   _id: string;
   name: string;
@@ -37,8 +38,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadStorageData = async () => {
       try {
-        const storedToken = await SecureStore.getItemAsync('token');
-        const storedUser  = await SecureStore.getItemAsync('user');
+        // Both reads at once — they were sequential on the critical startup path (W2-18).
+        const [storedToken, storedUser] = await Promise.all([
+          SecureStore.getItemAsync('token'),
+          SecureStore.getItemAsync('user'),
+        ]);
 
         if (storedToken && storedUser) {
           setToken(storedToken);
@@ -95,7 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setDataMode(false);
       requestNotificationPermissions();
     } catch (error) {
-      console.error('Error during login storage:', error);
+      reportError('Error during login storage:', error);
     }
   };
 
@@ -120,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       socketService.disconnect();
       await clearAllUserCaches();
     } catch (error) {
-      console.error('Error during logout storage:', error);
+      reportError('Error during logout storage:', error);
     }
   };
 
@@ -131,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await SecureStore.setItemAsync('user', JSON.stringify(mergedUser));
       setUser(mergedUser);
     } catch (error) {
-      console.error('Error updating user state:', error);
+      reportError('Error updating user state:', error);
     }
   };
 

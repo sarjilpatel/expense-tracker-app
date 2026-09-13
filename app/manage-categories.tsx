@@ -20,6 +20,7 @@ import type { Category } from '@/src/services/dataService';
 import type { CategoryPresetSummary } from '@/src/services/groupApi';
 import { formatAmount } from '@/src/utils/money';
 
+import { reportError } from '@/src/utils/log';
 type CategoryType = 'income' | 'expense' | 'both';
 
 const TYPES: { key: CategoryType; label: string }[] = [
@@ -68,7 +69,7 @@ export default function ManageCategoriesScreen() {
       (budgets || []).forEach((b: any) => { if (b.category) budgetMap[b.category] = b; });
       setCategoryBudgets(budgetMap);
     } catch (error) {
-      console.error(error);
+      reportError(error);
     } finally {
       setLoading(false);
     }

@@ -41,6 +41,7 @@ import { computeSettlement, toMinorUnits, fromMinorUnits } from '@/src/utils/set
 import { avatarColor } from '@/constants/palettes';
 
 
+import { reportError } from '@/src/utils/log';
 /** Both halves of the service throw: the remote one a string, the local one an Error. */
 const msg = (e: any, fallback: string) =>
   (typeof e === 'string' ? e : e?.message) || fallback;
@@ -98,7 +99,7 @@ export default function TripDetailScreen() {
     try {
       setTrip(await getTrip(id));
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setLoading(false);
     }

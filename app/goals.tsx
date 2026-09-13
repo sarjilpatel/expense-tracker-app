@@ -15,6 +15,7 @@ import {
 } from '@/components/ui';
 import { getGoals, createGoal, updateGoal, deleteGoal, Goal } from '@/src/services/dataService';
 
+import { reportError } from '@/src/utils/log';
 const ICONS = [
   'flag-outline', 'home-outline', 'airplane-outline', 'car-outline',
   'school-outline', 'gift-outline', 'heart-outline', 'trophy-outline',
@@ -106,7 +107,7 @@ export default function GoalsScreen() {
       setGoals(await getGoals());
       loaded.current = true;
     } catch (e) {
-      console.error(e);
+      reportError(e);
     } finally {
       setLoading(false);
     }

@@ -8,6 +8,7 @@ import { space, type } from '@/constants/tokens';
 import { Screen, Button, Field, Touchable } from '@/components/ui';
 import { AuthHero } from '@/components/auth/AuthHero';
 
+import { reportError } from '@/src/utils/log';
 // Google sign-in is hidden (W1-31). `googleAuthLogin` in authApi and `POST /api/auth/google` remain
 // — only the button is gone, so bringing it back is re-adding the button and the
 // `expo-auth-session` wiring, not rebuilding the flow.
@@ -42,7 +43,7 @@ export default function LoginScreen() {
         throw new Error('Invalid response from server');
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      reportError('Login error:', error);
       Alert.alert('Login Failed', typeof error === 'string' ? error : 'Check your credentials');
     } finally {
       setLoading(false);
