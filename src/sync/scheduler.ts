@@ -62,8 +62,9 @@ export async function syncIfDue(reason: SyncReason = 'schedule'): Promise<boolea
   const meta = await getSyncMeta();
   const pending = await outbox.count();
   if (!isDue(meta.schedule, meta.lastSyncAt, new Date(), pending)) return false;
-  if (meta.wifiOnly && !(await onWifi())) return false;
-  await runSync(reason);
+  const wifi = await onWifi();
+  if (meta.wifiOnly && !wifi) return false;
+  await runSync(reason, { attachments: wifi || meta.attachmentsOnCellular });
   return true;
 }
 
@@ -84,8 +85,9 @@ export function noteLocalWrite(): void {
     const meta = await getSyncMeta();
     const shared = !!meta.activeGroupId && meta.sharedGroupIds.includes(meta.activeGroupId);
     if (meta.schedule !== 'instant' && !shared) return;
-    if (meta.wifiOnly && !shared && !(await onWifi())) return;
-    runSync('write').catch(() => {});
+    const wifi = await onWifi();
+    if (meta.wifiOnly && !shared && !wifi) return;
+    runSync('write', { attachments: wifi || meta.attachmentsOnCellular }).catch(() => {});
   }, WRITE_DEBOUNCE_MS);
 }
 
@@ -151,4 +153,8 @@ export async function setBackupSchedule(schedule: BackupSchedule): Promise<void>
 
 export async function setWifiOnly(wifiOnly: boolean): Promise<void> {
   await updateSyncMeta({ wifiOnly });
+}
+
+export async function setAttachmentsOnCellular(attachmentsOnCellular: boolean): Promise<void> {
+  await updateSyncMeta({ attachmentsOnCellular });
 }

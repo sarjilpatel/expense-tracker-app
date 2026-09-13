@@ -284,3 +284,74 @@ test('syncIfDue honours the schedule and Wi-Fi only', async () => {
   assert.equal(await scheduler.syncIfDue('schedule'), true);
   assert.ok((await meta.getSyncMeta()).lastSyncAt);
 });
+
+// ── attachments (W3-24) ───────────────────────────────────────────────────────
+
+const receipts = await import('../src/services/receiptService.ts');
+const fs = await import('./stubs/fileSystem.mjs');
+
+test('a saved receipt is queued, uploaded after its row has landed, and the key written back', async () => {
+  await setup();
+  fs.__reset({ 'file:///picked/r.jpg': 'bytes' });
+  const tx = await dataService.addTransaction({ amount: 5, type: 'expense', category: 'Food', date: '2026-09-13T09:00:00Z' });
+  await receipts.saveReceipt(tx._id, 'file:///picked/r.jpg');
+  assert.deepEqual((await outbox.peek()).map(e => e.collection), ['transactions', 'attachments']);
+
+  __handle('post', '/sync/push', (cfg) => ({ results: cfg.data.items.map(i => ({ clientId: i.clientId, collection: i.collection, status: 'applied', serverId: 's', row: { _id: 's', ...i.payload, groupId: 'g-home' } })) }));
+  __handle('post', `/attachments/receipts/${tx._id}`, () => ({ receiptKey: `receipts/me/${tx._id}.jpg` }));
+  __handle('get', '/sync/changes', () => ({ changes: [], cursor: 'c', hasMore: false }));
+
+  const out = await engine.runSync('manual');
+  assert.equal(out.pushed, 2);
+  assert.equal(await outbox.count(), 0);
+  assert.equal((await localTx.getLocalTransactions())[0].receiptKey, `receipts/me/${tx._id}.jpg`);
+  const upload = __calls().find(c => c.url === `/attachments/receipts/${tx._id}`);
+  assert.ok(upload, 'one multipart upload');
+  assert.ok(__calls().findIndex(c => c.url === '/sync/push') < __calls().indexOf(upload), 'rows first, then the file');
+});
+
+test('an upload the server answers 404 to waits for the next run without burning an attempt', async () => {
+  await setup();
+  fs.__reset({ 'file:///picked/r.jpg': 'bytes' });
+  await outbox.enqueue({ collection: 'attachments', op: 'create', clientId: 'not-landed', groupId: null, payload: { uri: 'file:///picked/r.jpg' } });
+  __handle('post', '/attachments/receipts/not-landed', () => { throw __status(404); });
+  __handle('get', '/sync/changes', () => ({ changes: [], cursor: 'c', hasMore: false }));
+  const out = await engine.runSync('manual');
+  assert.equal(out.error, null);
+  const [left] = await outbox.peek();
+  assert.equal(left.attempts, 0);
+});
+
+test('a scheduled run on cellular sends the rows but not the receipts unless opted in', async () => {
+  await setup();
+  fs.__reset({ 'file:///picked/r.jpg': 'bytes' });
+  await meta.updateSyncMeta({ schedule: 'hourly', lastSyncAt: null, wifiOnly: false });
+  const tx = await dataService.addTransaction({ amount: 5, type: 'expense', category: 'Food', date: '2026-09-13T09:00:00Z' });
+  await receipts.saveReceipt(tx._id, 'file:///picked/r.jpg');
+  __handle('post', '/sync/push', (cfg) => ({ results: cfg.data.items.map(i => ({ clientId: i.clientId, collection: i.collection, status: 'applied', serverId: 's', row: { _id: 's', ...i.payload } })) }));
+  __handle('post', /\/attachments\/receipts\//, () => ({ receiptKey: 'k' }));
+  __handle('get', '/sync/changes', () => ({ changes: [], cursor: 'c', hasMore: false }));
+  const netinfo = (await import('./stubs/netinfo.mjs')).default;
+
+  netinfo.__set({ type: 'cellular' });
+  assert.equal(await scheduler.syncIfDue('schedule'), true);
+  assert.deepEqual((await outbox.peek()).map(e => e.collection), ['attachments'], 'the row went, the file waits');
+
+  await meta.updateSyncMeta({ attachmentsOnCellular: true, lastSyncAt: null });
+  await scheduler.syncIfDue('schedule');
+  assert.equal(await outbox.count(), 0);
+  netinfo.__set({ type: 'wifi' });
+});
+
+test('a row pulled with a receiptKey fetches the file on demand, once', async () => {
+  await setup();
+  fs.__reset();
+  await localTx.upsertLocalTransaction({ _id: 'r1', amount: 1, type: 'expense', category: 'x', date: 'x', createdAt: 'x', groupId: 'g-home', receiptKey: 'receipts/them/r1.png' });
+  __handle('get', '/attachments/receipts/r1/url', () => ({ url: 'https://signed/r1', receiptKey: 'receipts/them/r1.png' }));
+
+  const uri = await receipts.getReceipt('r1');
+  assert.equal(uri, 'file:///doc/receipts/r1.png');
+  assert.equal(await receipts.getReceipt('r1'), uri);
+  assert.equal(__calls().filter(c => c.url.includes('/url')).length, 1, 'the second read is the local file');
+  assert.equal(await receipts.getReceipt('nothing'), null);
+});

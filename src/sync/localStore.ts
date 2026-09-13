@@ -8,6 +8,7 @@ import { getAllLocalCategories, clearLocalCategories } from '@/src/services/loca
 import { getAllLocalGoals, clearLocalGoals } from '@/src/services/local/localGoalService';
 import { getTrips, clearAllTrips } from '@/src/services/local/localTripService';
 import { clearAllUserCaches } from '@/src/cache/transactionCache';
+import { getReceiptMap } from '@/src/services/receiptService';
 
 const SEEDED_KEY = '@sync_outbox_seeded_v1';
 
@@ -59,6 +60,13 @@ export async function seedOutboxFromLocal(): Promise<number> {
     if (t.groupId) continue;
     batch.push({ collection: 'trips', op: 'create', clientId: t.id, groupId: null,
       payload: { name: t.name, currency: t.currency, members: t.members, expenses: t.expenses, settlements: t.settlements, createdAt: t.createdAt } });
+  }
+  // Receipts already on the device for rows the server has no file for.
+  const receipts = await getReceiptMap();
+  const txs = await getAllLocalTransactions();
+  for (const [txId, uri] of Object.entries(receipts)) {
+    const row = txs.find(t => t._id === txId);
+    if (row && !row.receiptKey) batch.push({ collection: 'attachments', op: 'create', clientId: txId, groupId: null, payload: { uri } });
   }
   await outbox.enqueueMany(batch);
   try { await AsyncStorage.setItem(SEEDED_KEY, 'true'); } catch {}

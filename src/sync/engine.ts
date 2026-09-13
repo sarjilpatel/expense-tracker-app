@@ -11,6 +11,8 @@ import { upsertLocalAccount, removeLocalAccount, setLocalTxAccount, removeLocalT
 import { upsertLocalGoal, removeLocalGoal } from '@/src/services/local/localGoalService';
 import { upsertLocalTrip, removeLocalTrip } from '@/src/services/local/localTripService';
 import { upsertLocalCategory, dropLocalCategory } from '@/src/services/local/localCategoryService';
+import { uploadReceipt, removeRemoteReceipt } from '@/src/services/receiptService';
+import { getLocalTransactionById, upsertLocalTransaction as writeLocalTransaction } from '@/src/services/local/localTransactionService';
 
 /**
  * The sync engine (W3-15/16). One run = push the outbox, then pull the changes feed.
@@ -144,13 +146,15 @@ const toWire = (e: outbox.OutboxEntry) => ({
   groupId: e.groupId ?? undefined,
 });
 
-async function push(outcome: SyncOutcome): Promise<void> {
+async function push(outcome: SyncOutcome, opts: PushOptions): Promise<void> {
   // Rows the server refused this run are left for the next one — sending them again now would
-  // only burn their attempts.
+  // only burn their attempts. Attachments go after the rows they belong to, one by one.
   const refused = new Set<string>();
   for (;;) {
-    const entries = (await outbox.peek(PUSH_BATCH + refused.size)).filter((e) => !refused.has(e.id)).slice(0, PUSH_BATCH);
-    if (entries.length === 0) return;
+    const entries = (await outbox.peek(PUSH_BATCH + refused.size))
+      .filter((e) => !refused.has(e.id) && e.collection !== 'attachments')
+      .slice(0, PUSH_BATCH);
+    if (entries.length === 0) break;
 
     const { data } = await apiClient.post('/sync/push', { items: entries.map(toWire) }, { timeout: LONG_TIMEOUT_MS });
     const results: any[] = data.results || [];
@@ -181,7 +185,38 @@ async function push(outcome: SyncOutcome): Promise<void> {
       }
     }
     await outbox.remove(done);
-    if (!progressed) return;
+    if (!progressed) break;
+  }
+  await pushAttachments(outcome, opts);
+}
+
+interface PushOptions { attachments: boolean }
+
+/**
+ * Receipts (W3-24): each is one multipart upload against its transaction's clientId, which has
+ * to have landed first — a 404 is "not yet", left for the next run without burning an attempt.
+ * Skipped entirely on cellular unless the user opted in; the rows still sync.
+ */
+async function pushAttachments(outcome: SyncOutcome, opts: PushOptions): Promise<void> {
+  if (!opts.attachments) return;
+  const entries = (await outbox.peek(1000)).filter((e) => e.collection === 'attachments');
+  for (const entry of entries) {
+    try {
+      if (entry.op === 'delete') {
+        await removeRemoteReceipt(entry.clientId);
+      } else {
+        const key = await uploadReceipt(entry.clientId, String(entry.payload.uri || ''));
+        const row = await getLocalTransactionById(entry.clientId);
+        if (row) await writeLocalTransaction({ ...row, receiptKey: key });
+      }
+      await outbox.remove([entry.id]);
+      outcome.pushed += 1;
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 404) continue;                        // the row has not landed yet
+      if (status && status < 500) { await outbox.markFailed(entry.id, e?.response?.data?.message || 'rejected'); outcome.rejected += 1; continue; }
+      throw e;                                             // network or server: stop, keep the rest
+    }
   }
 }
 
@@ -214,7 +249,12 @@ async function pull(outcome: SyncOutcome): Promise<void> {
 
 // ── The run ──────────────────────────────────────────────────────────────────
 
-export function runSync(reason: SyncReason = 'manual'): Promise<SyncOutcome> {
+export interface RunOptions {
+  /** Upload receipts on this run. The scheduler decides from the network; a manual run says yes. */
+  attachments?: boolean;
+}
+
+export function runSync(reason: SyncReason = 'manual', options: RunOptions = {}): Promise<SyncOutcome> {
   if (running) return running;
   // A guest has nowhere to sync to; the outbox waits. Decided before the promise exists — an
   // early return inside it would run before `running` is even assigned.
@@ -224,7 +264,7 @@ export function runSync(reason: SyncReason = 'manual'): Promise<SyncOutcome> {
 
     await publish({ running: true });
     try {
-      await push(outcome);
+      await push(outcome, { attachments: options.attachments ?? (reason === 'manual' || reason === 'restore' || reason === 'login') });
       await pull(outcome);
       await updateSyncMeta({ lastSyncAt: new Date().toISOString(), lastError: null });
     } catch (e: any) {

@@ -22,6 +22,7 @@ const NATIVE_STUBS = {
   '@react-native-community/netinfo': 'stubs/netinfo.mjs',
   'expo-task-manager': 'stubs/taskManager.mjs',
   'expo-background-task': 'stubs/taskManager.mjs',
+  'expo-file-system/legacy': 'stubs/fileSystem.mjs',
 };
 
 const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];

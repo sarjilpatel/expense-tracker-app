@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * the server never saw drops both; a delete after an edit is just the delete. Ten edits in a row
  * are one item on the wire.
  */
-export type Collection = 'transactions' | 'budgets' | 'accounts' | 'goals' | 'trips' | 'categories';
+export type Collection = 'transactions' | 'budgets' | 'accounts' | 'goals' | 'trips' | 'categories' | 'attachments';
 export type OutboxOp = 'create' | 'update' | 'delete';
 
 export interface OutboxEntry {

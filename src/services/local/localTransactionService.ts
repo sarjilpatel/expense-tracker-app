@@ -20,6 +20,9 @@ export interface LocalTransaction {
   userId?: string | { _id: string; name?: string; profilePhoto?: string } | null;
   groupId?: string | null;
   updatedAt?: string;
+  /** Set by the server once a receipt is uploaded; the file itself is fetched on demand. */
+  receiptKey?: string | null;
+  serverId?: string;
 }
 
 function genId(): string {

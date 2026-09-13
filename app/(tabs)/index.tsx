@@ -480,7 +480,7 @@ export default function HomeScreen() {
         theme={theme}
         t={t}
         accountName={accountNameMap[flatItem.item._id] ?? null}
-        hasReceipt={!!receiptMap[flatItem.item._id]}
+        hasReceipt={!!receiptMap[flatItem.item._id] || !!flatItem.item.receiptKey}
         onPress={handleEdit}
         onLongPress={(id) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openActionSheet(flatItem.item); }}
         isFirst={flatItem.isFirst}

@@ -5,7 +5,7 @@ import { space, radius, type } from '@/constants/tokens';
 import { Card, Row, Chip, Button, SectionHeader } from '@/components/ui';
 import { runSync, subscribeSync, getSyncStatus, type SyncStatus } from '@/src/sync/engine';
 import { getSyncMeta, type BackupSchedule } from '@/src/sync/meta';
-import { setBackupSchedule, setWifiOnly } from '@/src/sync/scheduler';
+import { setBackupSchedule, setWifiOnly, setAttachmentsOnCellular } from '@/src/sync/scheduler';
 import { updateBackupSchedule } from '@/src/services/authApi';
 
 /**
@@ -37,9 +37,10 @@ export function BackupSection() {
   const [status, setStatus]     = useState<SyncStatus>({ running: false, lastSyncAt: null, lastError: null, pending: 0 });
   const [schedule, setSchedule] = useState<BackupSchedule>('instant');
   const [wifi, setWifi]         = useState(false);
+  const [cellReceipts, setCellReceipts] = useState(false);
 
   useEffect(() => {
-    getSyncMeta().then(m => { setSchedule(m.schedule); setWifi(m.wifiOnly); });
+    getSyncMeta().then(m => { setSchedule(m.schedule); setWifi(m.wifiOnly); setCellReceipts(m.attachmentsOnCellular); });
     getSyncStatus().then(setStatus);
     return subscribeSync(setStatus);
   }, []);
@@ -76,6 +77,12 @@ export function BackupSection() {
           title="Wi-Fi only"
           subtitle="Scheduled backups wait for Wi-Fi; Back up now always goes"
           right={<Switch value={wifi} onValueChange={v => { setWifi(v); setWifiOnly(v); }} trackColor={{ false: theme.border, true: theme.tint }} thumbColor={theme.card} accessibilityLabel="Wi-Fi only" />}
+        />
+        <Row
+          icon="image-outline"
+          title="Receipts on mobile data"
+          subtitle="Off: receipt photos wait for Wi-Fi; the transactions themselves still back up"
+          right={<Switch value={cellReceipts} onValueChange={v => { setCellReceipts(v); setAttachmentsOnCellular(v); }} trackColor={{ false: theme.border, true: theme.tint }} thumbColor={theme.card} accessibilityLabel="Receipts on mobile data" />}
           last
         />
       </Card>

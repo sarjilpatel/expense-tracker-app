@@ -20,10 +20,12 @@ export interface SyncMeta {
   sharedGroupIds: string[];
   schedule: BackupSchedule;
   wifiOnly: boolean;
+  /** Receipts are big; by default they upload on Wi-Fi only even when `wifiOnly` is off. */
+  attachmentsOnCellular: boolean;
 }
 
 export const DEFAULT_META: SyncMeta = {
-  cursor: null, lastSyncAt: null, lastError: null, activeGroupId: null, sharedGroupIds: [], schedule: 'instant', wifiOnly: false,
+  cursor: null, lastSyncAt: null, lastError: null, activeGroupId: null, sharedGroupIds: [], schedule: 'instant', wifiOnly: false, attachmentsOnCellular: false,
 };
 
 let cache: SyncMeta | null = null;
