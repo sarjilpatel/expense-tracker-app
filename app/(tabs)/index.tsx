@@ -9,7 +9,8 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -252,7 +253,7 @@ export default function HomeScreen() {
     }
   }, [currentMonth, currentYear, viewMode, computeSummary, prefs.monthlyStart]);
 
-  useFocusEffect(useCallback(() => { fetchData(hasData.current); }, [fetchData]));
+  useFocusRefresh(useCallback(() => { fetchData(hasData.current); }, [fetchData]));
 
   const loadAccountMap = useCallback(async () => {
     try {
@@ -266,13 +267,15 @@ export default function HomeScreen() {
     } catch {}
   }, []);
 
-  useFocusEffect(useCallback(() => { loadAccountMap(); }, [loadAccountMap]));
+  // Accounts and the tx→account map only change through this device's own writes, so a focus
+  // never needs to refetch them on time alone — only after a write (W3-04).
+  useFocusRefresh(useCallback(() => { loadAccountMap(); }, [loadAccountMap]), Infinity);
 
   const loadReceiptMap = useCallback(async () => {
     try { setReceiptMap(await getReceiptMap()); } catch {}
   }, []);
 
-  useFocusEffect(useCallback(() => { loadReceiptMap(); }, [loadReceiptMap]));
+  useFocusRefresh(useCallback(() => { loadReceiptMap(); }, [loadReceiptMap]), Infinity);
 
   useEffect(() => {
     if (!isMounted.current) { isMounted.current = true; return; }

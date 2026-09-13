@@ -5,7 +5,8 @@ import { Image } from 'expo-image';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/src/context/ThemeContext';
@@ -139,7 +140,7 @@ export default function AddTransactionScreen() {
     finally { setCategoriesFetching(false); }
   }, [selectedAccountId, fromAccountId, toAccountId]);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusRefresh(useCallback(() => { loadData(); }, [loadData]));
 
   const navigation = useNavigation();
   const isDirty = !!(amount || category || note || description || receiptUri);

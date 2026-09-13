@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { StyleSheet, View, Text, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { EmojiPickerModal } from '@/components/EmojiPickerModal';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLanguage } from '@/src/i18n/LanguageContext';
@@ -75,7 +76,7 @@ export default function ManageCategoriesScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { fetchCategories(); }, [fetchCategories]));
+  useFocusRefresh(useCallback(() => { fetchCategories(); }, [fetchCategories]));
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) { Alert.alert('Error', 'Please enter a category name'); return; }

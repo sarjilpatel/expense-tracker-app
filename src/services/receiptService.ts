@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // EncodingType, ...) behind /legacy; the main entry now exports only Paths/File/Directory.
 import * as FileSystem from 'expo-file-system/legacy';
 
+import { bumpDataVersion } from './dataVersion';
+
 const RECEIPT_MAP_KEY = '@receipt_map';
 const RECEIPT_DIR = `${FileSystem.documentDirectory}receipts/`;
 
@@ -22,6 +24,7 @@ async function loadMap(): Promise<Record<string, string>> {
 
 async function saveMap(map: Record<string, string>) {
   await AsyncStorage.setItem(RECEIPT_MAP_KEY, JSON.stringify(map));
+  bumpDataVersion();
 }
 
 export async function saveReceipt(txId: string, sourceUri: string): Promise<string> {

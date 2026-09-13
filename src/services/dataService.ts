@@ -15,6 +15,7 @@ import * as remoteGoal from './goalApi';
 import type { Goal }    from './goalApi';
 import * as remoteTrip from './tripApi';
 import * as localTrip  from './local/localTripService';
+import { mutating } from './dataVersion';
 
 export type { Category } from './groupApi';
 export type { Account, AccountType } from './accountService';
@@ -54,25 +55,25 @@ export const searchAllTransactions = (query: string) =>
     ? localTx.getLocalTransactions(undefined, undefined, query)
     : remoteTx.getTransactions(undefined, undefined, query);
 
-export const addTransaction = (data: any) =>
+export const addTransaction = mutating((data: any) =>
   _isGuest
     ? localTx.addLocalTransaction(data)
-    : remoteTx.addTransaction(data);
+    : remoteTx.addTransaction(data));
 
-export const updateTransaction = (id: string, data: any) =>
+export const updateTransaction = mutating((id: string, data: any) =>
   _isGuest
     ? localTx.updateLocalTransaction(id, data)
-    : remoteTx.updateTransaction(id, data);
+    : remoteTx.updateTransaction(id, data));
 
-export const deleteTransaction = (id: string) =>
+export const deleteTransaction = mutating((id: string) =>
   _isGuest
     ? localTx.deleteLocalTransaction(id)
-    : remoteTx.deleteTransaction(id);
+    : remoteTx.deleteTransaction(id));
 
-export const restoreTransaction = (id: string) =>
+export const restoreTransaction = mutating((id: string) =>
   _isGuest
     ? Promise.resolve()
-    : remoteTx.restoreTransaction(id);
+    : remoteTx.restoreTransaction(id));
 
 export const getAnalytics = (month?: number, year?: number) =>
   _isGuest
@@ -96,15 +97,15 @@ export const getCurrentGroup = () =>
     ? localCat.getLocalCategories()
     : remoteGrp.getCurrentGroup();
 
-export const addCategory = (name: string, icon: string, type: 'income' | 'expense' | 'both' = 'expense', emoji?: string) =>
+export const addCategory = mutating((name: string, icon: string, type: 'income' | 'expense' | 'both' = 'expense', emoji?: string) =>
   _isGuest
     ? localCat.addLocalCategory(name, icon, type, emoji)
-    : remoteGrp.addCategory(name, icon, type, emoji);
+    : remoteGrp.addCategory(name, icon, type, emoji));
 
-export const removeCategory = (id: string) =>
+export const removeCategory = mutating((id: string) =>
   _isGuest
     ? localCat.removeLocalCategory(id)
-    : remoteGrp.removeCategory(id);
+    : remoteGrp.removeCategory(id));
 
 // Category presets — named packs, so a wedding or a trip is one tap instead of typing twelve
 // categories in. A guest applies them against the bundled catalogue; signed in, the server holds
@@ -114,10 +115,10 @@ export const getCategoryPresets = () =>
     ? localCat.getLocalPresets()
     : remoteGrp.getCategoryPresets();
 
-export const applyCategoryPreset = (key: string) =>
+export const applyCategoryPreset = mutating((key: string) =>
   _isGuest
     ? localCat.applyLocalPreset(key)
-    : remoteGrp.applyCategoryPreset(key);
+    : remoteGrp.applyCategoryPreset(key));
 
 // ── Carry-forward ─────────────────────────────────────────────────────────────
 
@@ -158,15 +159,15 @@ export const getBudgets = (month?: number, year?: number) =>
     ? localBudg.getLocalBudgets(month, year)
     : remoteBudg.getBudgets(month, year);
 
-export const setBudget = (data: { amount: number; month?: number; year?: number; category?: string | null }) =>
+export const setBudget = mutating((data: { amount: number; month?: number; year?: number; category?: string | null }) =>
   _isGuest
     ? localBudg.setLocalBudget(data)
-    : remoteBudg.setBudget(data);
+    : remoteBudg.setBudget(data));
 
-export const deleteBudget = (id: string) =>
+export const deleteBudget = mutating((id: string) =>
   _isGuest
     ? localBudg.deleteLocalBudget(id)
-    : remoteBudg.deleteBudget(id);
+    : remoteBudg.deleteBudget(id));
 
 // ── Accounts ──────────────────────────────────────────────────────────────────
 // Accounts were local-only until now, so a signed-in user lost every one of them on reinstall or
@@ -178,30 +179,30 @@ export const getAccounts = () =>
     ? localAcct.getLocalAccounts()
     : remoteAcct.getAccounts();
 
-export const saveAccount = (data: Omit<Account, 'id' | 'createdAt'> & { id?: string }) =>
+export const saveAccount = mutating((data: Omit<Account, 'id' | 'createdAt'> & { id?: string }) =>
   _isGuest
     ? localAcct.saveLocalAccount(data)
-    : remoteAcct.saveAccount(data);
+    : remoteAcct.saveAccount(data));
 
-export const deleteAccount = (id: string) =>
+export const deleteAccount = mutating((id: string) =>
   _isGuest
     ? localAcct.deleteLocalAccount(id)
-    : remoteAcct.deleteAccount(id);
+    : remoteAcct.deleteAccount(id));
 
 export const getTxAccountMap = () =>
   _isGuest
     ? localAcct.getLocalTxAccountMap()
     : remoteAcct.getTxAccountMap();
 
-export const setTxAccount = (txId: string, accountId: string) =>
+export const setTxAccount = mutating((txId: string, accountId: string) =>
   _isGuest
     ? localAcct.setLocalTxAccount(txId, accountId)
-    : remoteAcct.setTxAccount(txId, accountId);
+    : remoteAcct.setTxAccount(txId, accountId));
 
-export const removeTxAccount = (txId: string) =>
+export const removeTxAccount = mutating((txId: string) =>
   _isGuest
     ? localAcct.removeLocalTxAccount(txId)
-    : remoteAcct.removeTxAccount(txId);
+    : remoteAcct.removeTxAccount(txId));
 
 
 // ── Goals (account required) ─────────────────────────────────────────────────
@@ -235,20 +236,20 @@ export const getGoals = () =>
     ? Promise.resolve([] as Goal[])
     : remoteGoal.getGoals();
 
-export const createGoal = (data: Parameters<typeof remoteGoal.createGoal>[0]) =>
+export const createGoal = mutating((data: Parameters<typeof remoteGoal.createGoal>[0]) =>
   _isGuest
     ? guestReject('Savings goals')
-    : remoteGoal.createGoal(data);
+    : remoteGoal.createGoal(data));
 
-export const updateGoal = (id: string, data: Parameters<typeof remoteGoal.updateGoal>[1]) =>
+export const updateGoal = mutating((id: string, data: Parameters<typeof remoteGoal.updateGoal>[1]) =>
   _isGuest
     ? guestReject('Savings goals')
-    : remoteGoal.updateGoal(id, data);
+    : remoteGoal.updateGoal(id, data));
 
-export const deleteGoal = (id: string) =>
+export const deleteGoal = mutating((id: string) =>
   _isGuest
     ? guestReject('Savings goals')
-    : remoteGoal.deleteGoal(id);
+    : remoteGoal.deleteGoal(id));
 
 // ── Trips (works either way) ────────────────────────────────────────────────
 
@@ -262,62 +263,62 @@ export const getTrip = (id: string) =>
     ? localTrip.getTrip(id)
     : remoteTrip.getTrip(id);
 
-export const createTrip = (data: Parameters<typeof remoteTrip.createTrip>[0]) =>
+export const createTrip = mutating((data: Parameters<typeof remoteTrip.createTrip>[0]) =>
   _isGuest
     ? localTrip.createTrip(data)
-    : remoteTrip.createTrip(data);
+    : remoteTrip.createTrip(data));
 
-export const renameTrip = (id: string, name: string) =>
+export const renameTrip = mutating((id: string, name: string) =>
   _isGuest
     ? localTrip.renameTrip(id, name)
-    : remoteTrip.renameTrip(id, name);
+    : remoteTrip.renameTrip(id, name));
 
-export const deleteTrip = (id: string) =>
+export const deleteTrip = mutating((id: string) =>
   _isGuest
     ? localTrip.deleteTrip(id)
-    : remoteTrip.deleteTrip(id);
+    : remoteTrip.deleteTrip(id));
 
 // `userId` links the member to a real account, which is what makes a payment confirmable by the
 // person who received it. A guest has no accounts to link to, so the local branch ignores it.
-export const addTripMember = (tripId: string, name: string, userId?: string | null) =>
+export const addTripMember = mutating((tripId: string, name: string, userId?: string | null) =>
   _isGuest
     ? localTrip.addMember(tripId, name)
-    : remoteTrip.addMember(tripId, name, userId);
+    : remoteTrip.addMember(tripId, name, userId));
 
-export const renameTripMember = (tripId: string, memberId: string, name: string) =>
+export const renameTripMember = mutating((tripId: string, memberId: string, name: string) =>
   _isGuest
     ? localTrip.renameMember(tripId, memberId, name)
-    : remoteTrip.renameMember(tripId, memberId, name);
+    : remoteTrip.renameMember(tripId, memberId, name));
 
-export const removeTripMember = (tripId: string, memberId: string) =>
+export const removeTripMember = mutating((tripId: string, memberId: string) =>
   _isGuest
     ? localTrip.removeMember(tripId, memberId)
-    : remoteTrip.removeMember(tripId, memberId);
+    : remoteTrip.removeMember(tripId, memberId));
 
-export const addTripExpense = (tripId: string, data: remoteTrip.ExpenseInput) =>
+export const addTripExpense = mutating((tripId: string, data: remoteTrip.ExpenseInput) =>
   _isGuest
     ? localTrip.addExpense(tripId, data)
-    : remoteTrip.addExpense(tripId, data);
+    : remoteTrip.addExpense(tripId, data));
 
-export const updateTripExpense = (tripId: string, expenseId: string, data: remoteTrip.ExpenseInput) =>
+export const updateTripExpense = mutating((tripId: string, expenseId: string, data: remoteTrip.ExpenseInput) =>
   _isGuest
     ? localTrip.updateExpense(tripId, expenseId, data)
-    : remoteTrip.updateExpense(tripId, expenseId, data);
+    : remoteTrip.updateExpense(tripId, expenseId, data));
 
-export const deleteTripExpense = (tripId: string, expenseId: string) =>
+export const deleteTripExpense = mutating((tripId: string, expenseId: string) =>
   _isGuest
     ? localTrip.deleteExpense(tripId, expenseId)
-    : remoteTrip.deleteExpense(tripId, expenseId);
+    : remoteTrip.deleteExpense(tripId, expenseId));
 
-export const recordTripSettlement = (
+export const recordTripSettlement = mutating((
   tripId: string,
   data: { fromId: string; toId: string; amountMinor: number },
 ) =>
   _isGuest
     ? localTrip.recordSettlement(tripId, data)
-    : remoteTrip.recordSettlement(tripId, data);
+    : remoteTrip.recordSettlement(tripId, data));
 
-export const deleteTripSettlement = (tripId: string, settlementId: string) =>
+export const deleteTripSettlement = mutating((tripId: string, settlementId: string) =>
   _isGuest
     ? localTrip.deleteSettlement(tripId, settlementId)
-    : remoteTrip.deleteSettlement(tripId, settlementId);
+    : remoteTrip.deleteSettlement(tripId, settlementId));

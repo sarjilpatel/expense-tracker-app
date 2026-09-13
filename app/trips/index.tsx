@@ -9,7 +9,8 @@ import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
@@ -48,7 +49,7 @@ export default function TripsListScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusRefresh(useCallback(() => { load(); }, [load]));
 
   const handleCreate = async () => {
     if (!newName.trim()) return;

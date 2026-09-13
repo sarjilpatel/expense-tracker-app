@@ -2,7 +2,6 @@ import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, Alert, Platform, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { GOAL_COLORS as COLORS } from '@/constants/palettes';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -16,6 +15,7 @@ import {
 import { getGoals, createGoal, updateGoal, deleteGoal, Goal } from '@/src/services/dataService';
 
 import { reportError } from '@/src/utils/log';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 const ICONS = [
   'flag-outline', 'home-outline', 'airplane-outline', 'car-outline',
   'school-outline', 'gift-outline', 'heart-outline', 'trophy-outline',
@@ -114,7 +114,7 @@ export default function GoalsScreen() {
   }, [isGuest]);
 
   // Skeleton on the first load only; coming back refreshes silently (W2-13).
-  useFocusEffect(useCallback(() => { if (!loaded.current) setLoading(true); fetchGoals(); }, [fetchGoals]));
+  useFocusRefresh(useCallback(() => { if (!loaded.current) setLoading(true); fetchGoals(); }, [fetchGoals]));
 
   const openAdd = () => {
     setEditGoal(null);

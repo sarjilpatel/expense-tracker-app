@@ -21,7 +21,8 @@ import { View, Text, StyleSheet, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { CURRENCY_META, CurrencyCode } from '@/src/services/preferencesService';
@@ -105,7 +106,7 @@ export default function TripDetailScreen() {
     }
   }, [id]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusRefresh(useCallback(() => { load(); }, [load]));
 
   // The trip's own currency, not the app preference — a Goa trip stays in rupees on a dollar account.
   const meta   = trip ? CURRENCY_META[trip.currency as CurrencyCode] : undefined;

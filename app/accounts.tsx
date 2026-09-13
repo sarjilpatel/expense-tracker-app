@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { getContrastText } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -48,7 +49,7 @@ export default function AccountsScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusRefresh(useCallback(() => { loadData(); }, [loadData]));
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const accountsWithBalance = useMemo(() =>

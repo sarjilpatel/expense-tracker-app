@@ -4,7 +4,8 @@ import {
   Dimensions, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, router } from 'expo-router';
+import { router } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { LineChart, BarChart } from 'react-native-gifted-charts';
 import Animated, {
   FadeIn,
@@ -124,7 +125,7 @@ export default function AnalyticsScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { fetchData(hasData.current); }, [fetchData]));
+  useFocusRefresh(useCallback(() => { fetchData(hasData.current); }, [fetchData]));
 
   useEffect(() => {
     if (!isMounted.current) { isMounted.current = true; return; }

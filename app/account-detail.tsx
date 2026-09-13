@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { getContrastText, hexToRGBA } from '@/constants/theme';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -60,7 +61,7 @@ export default function AccountDetailScreen() {
   }, [id]);
 
   // Only the first load shows a skeleton; coming back to the screen refreshes silently (W2-13).
-  useFocusEffect(useCallback(() => { loadData(!!account); }, [loadData, account]));
+  useFocusRefresh(useCallback(() => { loadData(!!account); }, [loadData, account]));
 
   const balance = useMemo(() => account ? computeAccountBalance(account, transactions, txAccountMap) : 0, [account, transactions, txAccountMap]);
   const income  = useMemo(() => transactions.filter(tx => tx.type === 'income').reduce((s, tx) => s + tx.amount, 0), [transactions]);

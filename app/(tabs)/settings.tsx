@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { Image } from 'expo-image';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
@@ -69,7 +70,7 @@ export default function SettingsScreen() {
     }
   }, [isGuest]);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+  useFocusRefresh(useCallback(() => { fetchData(); }, [fetchData]));
 
   const handleLogout = () =>
     Alert.alert('Logout', 'Are you sure?', [

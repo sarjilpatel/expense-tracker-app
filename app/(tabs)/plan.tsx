@@ -7,7 +7,8 @@
  */
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
@@ -74,7 +75,7 @@ export default function PlanScreen() {
   }, [month, year, prefs.monthlyStart, isGuest]);
 
   // Skeleton on the first load only; a return to the tab refreshes silently (W2-13).
-  useFocusEffect(useCallback(() => { if (!loaded.current) setLoading(true); fetchData(); }, [fetchData]));
+  useFocusRefresh(useCallback(() => { if (!loaded.current) setLoading(true); fetchData(); }, [fetchData]));
 
   const moneyFor = (code: string) => {
     const meta = CURRENCY_META[code as CurrencyCode];

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
+import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
@@ -55,7 +56,7 @@ export default function BudgetScreen() {
   }, [month, year, prefs.monthlyStart]);
 
   // Skeleton on the first load only; a return to the screen refreshes silently (W2-13).
-  useFocusEffect(useCallback(() => { if (!loaded.current) setLoading(true); fetchData(); }, [fetchData]));
+  useFocusRefresh(useCallback(() => { if (!loaded.current) setLoading(true); fetchData(); }, [fetchData]));
 
   const getSpent = (category: string | null) =>
     transactions
