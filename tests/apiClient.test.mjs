@@ -97,7 +97,8 @@ test('concurrent 401s share one refresh instead of stampeding it', async () => {
   __handle('get', '/ping', () => { pings += 1; if (pings <= 2) throw __status(401); return { ok: 1 }; });
   __handle('post', '/auth/refresh', async () => { await held; return { token: 'tok_new' }; });
 
-  const both = Promise.all([apiClient.get('/ping'), apiClient.get('/ping')]);
+  // Two *different* GETs — identical ones would share a single request (see the dedupe test).
+  const both = Promise.all([apiClient.get('/ping'), apiClient.get('/ping', { params: { n: 2 } })]);
   release();
   await both;
 
@@ -117,7 +118,7 @@ test('a failed refresh rejects the queued requests instead of abandoning them', 
   __handle('post', '/auth/refresh', async () => { await held; throw __status(401, { msg: 'expired' }); });
 
   const first  = apiClient.get('/ping');
-  const queued = apiClient.get('/ping');
+  const queued = apiClient.get('/ping', { params: { n: 2 } });
   const settled = [first, queued].map((p) => p.then(() => 'ok', () => 'rejected'));
   release();
 
@@ -199,4 +200,52 @@ test('the calls that outlast a round trip get the long timeout', async () => {
   assert.equal(callsTo('/transactions/insights')[0].timeout, LONG_TIMEOUT_MS);
   assert.equal(callsTo('/auth/update-profile')[0].timeout, LONG_TIMEOUT_MS);
   assert.equal(callsTo('/accounts/import')[0].timeout, LONG_TIMEOUT_MS);
+});
+
+// ── W3-02: burst control ─────────────────────────────────────────────────────
+
+test('identical GETs in flight share one request', async () => {
+  setup();
+  let release;
+  const held = new Promise((r) => { release = r; });
+  __handle('get', '/things', async () => { await held; return { ok: 1 }; });
+
+  const a = apiClient.get('/things', { params: { month: 9 } });
+  const b = apiClient.get('/things', { params: { month: 9 } });
+  const c = apiClient.get('/things', { params: { month: 10 } });
+  release();
+  await Promise.all([a, b, c]);
+
+  assert.equal(callsTo('/things').length, 2, 'same URL + params must be one request; different params another');
+
+  // Settled requests are not served again — the next identical GET is a fresh request.
+  await apiClient.get('/things', { params: { month: 9 } });
+  assert.equal(callsTo('/things').length, 3);
+});
+
+test('a 429 is retried once after Retry-After', async () => {
+  setup();
+  let hits = 0;
+  __handle('get', '/busy', () => {
+    hits += 1;
+    if (hits === 1) {
+      const err = __status(429, { message: 'Too many requests' });
+      err.response.headers = { 'retry-after': '0.01' };
+      throw err;
+    }
+    return { ok: 1 };
+  });
+
+  const res = await apiClient.get('/busy');
+  assert.equal(res.data.ok, 1);
+  assert.equal(hits, 2, 'exactly one retry');
+});
+
+test('a second 429 is reported, not retried forever', async () => {
+  setup();
+  let hits = 0;
+  __handle('get', '/busy', () => { hits += 1; throw __status(429); });
+
+  await assert.rejects(() => apiClient.get('/busy'), (e) => e.response.status === 429);
+  assert.equal(hits, 2);
 });

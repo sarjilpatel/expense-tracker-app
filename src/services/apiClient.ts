@@ -65,10 +65,31 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+/**
+ * Seconds to wait before the one retry of a 429, from the server's `Retry-After` when it sends
+ * one (express-rate-limit does, in seconds), capped so a long window cannot hold a screen hostage.
+ */
+const RETRY_AFTER_MAX_MS = 5000;
+const retryAfterMs = (error: any): number => {
+  const header = error.response?.headers?.['retry-after'];
+  const secs = header !== undefined ? parseFloat(String(header)) : NaN;
+  return Math.min(RETRY_AFTER_MAX_MS, Number.isFinite(secs) && secs > 0 ? secs * 1000 : 1000);
+};
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
+
+    // Too many requests: honour Retry-After and try once more (W3-02). The limiter is per user
+    // now, so a 429 means this device really did burst — one short wait clears it; a second
+    // 429 is reported to the caller like any other failure.
+    if (error.response?.status === 429 && original && !original._retried429) {
+      original._retried429 = true;
+      await sleep(retryAfterMs(error));
+      return apiClient(original);
+    }
 
     // Only attempt refresh on 401, once per request, and not on the auth endpoints that are
     // themselves part of ending a session — refreshing to retry a logout is pointless, and it is
@@ -140,5 +161,22 @@ apiClient.interceptors.response.use(
 apiClient.injectLogout = (logoutFn) => {
   apiClient.logout = logoutFn;
 };
+
+/**
+ * Identical GETs in flight share one request (W3-02). Two screens mounting together — the tab
+ * bar's first paint, a focus refetch racing a pull-to-refresh — used to send the same query twice
+ * and pay for it twice against the rate limit; the second caller now gets the first's promise.
+ * Keyed on URL + params; cleared as soon as the request settles, so nothing is ever served stale.
+ */
+const inflight = new Map<string, Promise<any>>();
+const rawGet = apiClient.get.bind(apiClient);
+apiClient.get = ((url: string, config?: any) => {
+  const key = `${url}|${JSON.stringify(config?.params ?? null)}`;
+  const pending = inflight.get(key);
+  if (pending) return pending;
+  const request = rawGet(url, config).finally(() => inflight.delete(key));
+  inflight.set(key, request);
+  return request;
+}) as typeof apiClient.get;
 
 export default apiClient;

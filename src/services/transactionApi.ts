@@ -37,7 +37,7 @@ export const getTransactions = async (
 const MAX_PAGE_SIZE = 100;
 
 /**
- * Safety valve. 50 pages is 5000 transactions; the global limiter is 60 req/min, so a run that
+ * Safety valve. 50 pages is 5000 transactions; the global limiter is 300 req/min per user, so a run that
  * needs more pages than this would be throttled anyway. Better to stop than to hammer the API.
  */
 const MAX_PAGES = 50;
