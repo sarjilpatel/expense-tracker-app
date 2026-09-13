@@ -30,27 +30,6 @@ class SocketService {
     }
   }
 
-  onNewTransaction(callback: (transaction: any) => void) {
-    if (this.socket) {
-      this.socket.off('new_transaction');
-      this.socket.on('new_transaction', callback);
-    }
-  }
-
-  onTransactionUpdated(callback: (transaction: any) => void) {
-    if (this.socket) {
-      this.socket.off('transaction_updated');
-      this.socket.on('transaction_updated', callback);
-    }
-  }
-
-  onTransactionDeleted(callback: (id: string) => void) {
-    if (this.socket) {
-      this.socket.off('transaction_deleted');
-      this.socket.on('transaction_deleted', callback);
-    }
-  }
-
   /**
    * The server's "something in this group changed" signal (W3-22). A signal, not a payload: the
    * listener pulls the changes feed, which is the one source of rows.
