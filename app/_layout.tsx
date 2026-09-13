@@ -44,7 +44,10 @@ export const unstable_settings = {
 
 // W2-05: four kinds of screen, four option sets. Add a route to the list its kind belongs to.
 const ROOT: NativeStackNavigationOptions = { headerShown: false, animation: 'fade' };
-const PUSH: NativeStackNavigationOptions = { headerShown: false, animation: 'slide_from_right', gestureEnabled: true };
+// `fullScreenGestureEnabled` gives iOS a swipe-back from anywhere on the screen, not just the edge;
+// Android gets predictive back from `app.json` (W2-08) — nothing in the app intercepts hardware
+// back itself, so there was no handler to migrate.
+const PUSH: NativeStackNavigationOptions = { headerShown: false, animation: 'slide_from_right', gestureEnabled: true, fullScreenGestureEnabled: true };
 const EDIT: NativeStackNavigationOptions = { headerShown: false, presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: true };
 const FLOW: NativeStackNavigationOptions = { headerShown: false, animation: 'slide_from_right', gestureEnabled: false };
 
