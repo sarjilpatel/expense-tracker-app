@@ -7,7 +7,7 @@ import { setMode as setDataMode } from '../services/dataService';
 import { setSignedIn } from '@/src/sync/session';
 import { getSyncMeta, updateSyncMeta, resetSyncCursor } from '@/src/sync/meta';
 import { runSync } from '@/src/sync/engine';
-import { applyBackgroundSchedule } from '@/src/sync/scheduler';
+import { applyBackgroundSchedule, noteGroupSignal } from '@/src/sync/scheduler';
 import { seedOutboxFromLocal, clearLocalData } from '@/src/sync/localStore';
 import { logoutUser, syncDeviceTimezone } from '../services/authApi';
 
@@ -95,6 +95,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (user.groupId) {
         socketService.joinGroup(user.groupId.toString());
       }
+      // Another device in the group pushed something: pull it (W3-22). Our own push echoes
+      // back through the room too and is ignored — those rows are already local.
+      socketService.onGroupChanged(({ by }) => { if (by !== String(user._id)) noteGroupSignal(); });
     } else if (!loading && !user) {
       socketService.disconnect();
     }

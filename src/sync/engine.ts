@@ -44,7 +44,7 @@ export interface SyncOutcome {
   error: string | null;
 }
 
-interface Change {
+export interface Change {
   collection: outbox.Collection;
   clientId: string;
   serverId: string;
@@ -57,6 +57,7 @@ const PUSH_BATCH = 200;
 const PULL_PAGE  = 500;
 
 const listeners = new Set<(s: SyncStatus) => void>();
+const changeListeners = new Set<(changes: Change[]) => void>();
 let running: Promise<SyncOutcome> | null = null;
 let status: SyncStatus = { running: false, lastSyncAt: null, lastError: null, pending: 0 };
 
@@ -69,6 +70,12 @@ export function subscribeSync(fn: (s: SyncStatus) => void): () => void {
   listeners.add(fn);
   fn(status);
   return () => { listeners.delete(fn); };
+}
+
+/** Rows a pull just applied — for a screen that is open while another device's edits land. */
+export function subscribeChanges(fn: (changes: Change[]) => void): () => void {
+  changeListeners.add(fn);
+  return () => { changeListeners.delete(fn); };
 }
 
 export async function getSyncStatus(): Promise<SyncStatus> {
@@ -190,13 +197,17 @@ async function pull(outcome: SyncOutcome): Promise<void> {
       timeout: LONG_TIMEOUT_MS,
     });
     const changes: Change[] = data.changes || [];
+    const applied: Change[] = [];
     for (const change of changes) {
       if (pending.has(`${change.collection}:${change.clientId}`)) continue;
       await applyChange(change);
+      applied.push(change);
       outcome.pulled += 1;
     }
     cursor = data.cursor ?? cursor ?? data.serverTime;
-    await updateSyncMeta({ cursor });
+    const groups: { id: string; isPersonal: boolean }[] = data.groups || [];
+    await updateSyncMeta({ cursor, sharedGroupIds: groups.filter((g) => !g.isPersonal).map((g) => g.id) });
+    if (applied.length) changeListeners.forEach((fn) => fn(applied));
     if (!data.hasMore) return;
   }
 }

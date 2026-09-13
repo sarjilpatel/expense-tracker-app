@@ -71,17 +71,31 @@ export async function syncIfDue(reason: SyncReason = 'schedule'): Promise<boolea
 
 let writeTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Called by dataService after every local write. Instant schedule → a debounced run. */
+/**
+ * Called by dataService after every local write. Instant schedule → a debounced run. A write in
+ * a *shared* group runs on the instant path whatever the schedule says (W3-23): the schedule is
+ * the user's backup preference for their own data, and a family ledger hours stale is nobody's.
+ */
 export function noteLocalWrite(): void {
   if (!isSignedIn()) return;
   if (writeTimer) clearTimeout(writeTimer);
   writeTimer = setTimeout(async () => {
     writeTimer = null;
     const meta = await getSyncMeta();
-    if (meta.schedule !== 'instant') return;
-    if (meta.wifiOnly && !(await onWifi())) return;
+    const shared = !!meta.activeGroupId && meta.sharedGroupIds.includes(meta.activeGroupId);
+    if (meta.schedule !== 'instant' && !shared) return;
+    if (meta.wifiOnly && !shared && !(await onWifi())) return;
     runSync('write').catch(() => {});
   }, WRITE_DEBOUNCE_MS);
+}
+
+let signalTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** The server said the group changed (W3-22): pull, debounced so a burst of edits is one run. */
+export function noteGroupSignal(): void {
+  if (!isSignedIn()) return;
+  if (signalTimer) clearTimeout(signalTimer);
+  signalTimer = setTimeout(() => { signalTimer = null; runSync('signal').catch(() => {}); }, 2000);
 }
 
 let appStateSub: { remove: () => void } | null = null;

@@ -11,7 +11,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
-import { runSync } from '@/src/sync/engine';
+import { runSync, subscribeChanges } from '@/src/sync/engine';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -21,7 +21,6 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '@/src/context/AuthContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
 import { getPeriodRange, getPeriodLabel, filterByPeriod, getCalendarMonthsForPeriod } from '@/src/utils/dateUtils';
-import socketService from '@/src/services/socketService';
 import { sendLocalNotification, getLargeTransactionThreshold } from '@/src/services/notificationService';
 import {
   getAllTransactions, deleteTransaction, restoreTransaction, getBudgets,
@@ -124,47 +123,6 @@ export default function HomeScreen() {
     };
   });
 
-  // ── Socket ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    socketService.onNewTransaction((tx) => {
-      if (!user || tx.userId?._id === user._id) return;
-      if (tx.amount >= getLargeTransactionThreshold(tx.currency)) {
-        sendLocalNotification(
-          `New group transaction recorded`,
-          `A large ${tx.type} was added by ${tx.userId?.name || 'a group member'}`
-        );
-      }
-      setAllTransactions(prev => [tx, ...prev]);
-      setSummary(prev => ({
-        ...prev,
-        income:  tx.type === 'income'  ? prev.income  + tx.amount : prev.income,
-        expense: tx.type === 'expense' ? prev.expense + tx.amount : prev.expense,
-        balance: tx.type === 'income'  ? prev.balance + tx.amount : prev.balance - tx.amount,
-      }));
-      setNotifications(prev => [{
-        id: tx._id,
-        type: tx.type,
-        title: `${tx.userId?.name || 'Someone'} added a transaction`,
-        message: `${tx.type === 'expense' ? '-' : '+'}₹${tx.amount} · ${tx.category}`,
-        time: new Date(tx.date || tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
-      }, ...prev].slice(0, 20));
-    });
-    socketService.onTransactionUpdated(updated =>
-      // note is stripped from the socket payload — merge to preserve existing note
-      setAllTransactions(prev => prev.map(tx =>
-        tx._id === updated._id ? { ...tx, ...updated, note: tx.note } : tx
-      ))
-    );
-    socketService.onTransactionDeleted(id =>
-      setAllTransactions(prev => prev.filter(tx => tx._id !== id))
-    );
-    return () => {
-      socketService.off('new_transaction');
-      socketService.off('transaction_updated');
-      socketService.off('transaction_deleted');
-    };
-  }, [user]);
-
   // ── Compute summary from transaction array ────────────────────────────────
   const computeSummary = useCallback((txList: any[]) => {
     const inc = txList.filter((tx: any) => tx.type === 'income').reduce((s: number, tx: any) => s + tx.amount, 0);
@@ -255,6 +213,31 @@ export default function HomeScreen() {
   }, [currentMonth, currentYear, viewMode, computeSummary, prefs.monthlyStart]);
 
   useFocusRefresh(useCallback(() => { fetchData(hasData.current); }, [fetchData]));
+
+  // ── Other devices' changes ────────────────────────────────────────────────
+  // Rows from the rest of the group arrive through the sync engine's pull (W3-22), not as socket
+  // payloads: when one lands while this screen is open, refetch from the local store and note
+  // who added what for the bell.
+  useEffect(() => {
+    return subscribeChanges(changes => {
+      const others = changes.filter(c => c.collection === 'transactions' && !c.deleted && c.row?.userId && String(c.row.userId?._id ?? c.row.userId) !== String(user?._id));
+      for (const c of others) {
+        const tx = c.row;
+        if (tx.amount >= getLargeTransactionThreshold(tx.currency)) {
+          sendLocalNotification('New group transaction recorded', `A large ${tx.type} was added by a group member`);
+        }
+        setNotifications(prev => [{
+          id: c.clientId,
+          type: tx.type,
+          title: 'A group member added a transaction',
+          message: `${tx.type === 'expense' ? '-' : '+'}₹${tx.amount} · ${tx.category}`,
+          time: new Date(tx.date || tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
+        }, ...prev].slice(0, 20));
+      }
+      if (changes.some(c => c.collection === 'transactions' || c.collection === 'budgets')) fetchData(true);
+    });
+  }, [user, fetchData]);
+
 
   const loadAccountMap = useCallback(async () => {
     try {

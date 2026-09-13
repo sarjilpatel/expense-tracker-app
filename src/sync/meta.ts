@@ -16,12 +16,14 @@ export interface SyncMeta {
   lastError: string | null;
   /** The signed-in user's active group; null for a guest. Local reads filter on it. */
   activeGroupId: string | null;
+  /** The user's groups that are shared with someone — a write in one pushes instantly (W3-23). */
+  sharedGroupIds: string[];
   schedule: BackupSchedule;
   wifiOnly: boolean;
 }
 
 export const DEFAULT_META: SyncMeta = {
-  cursor: null, lastSyncAt: null, lastError: null, activeGroupId: null, schedule: 'instant', wifiOnly: false,
+  cursor: null, lastSyncAt: null, lastError: null, activeGroupId: null, sharedGroupIds: [], schedule: 'instant', wifiOnly: false,
 };
 
 let cache: SyncMeta | null = null;

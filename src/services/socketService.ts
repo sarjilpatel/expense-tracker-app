@@ -51,6 +51,17 @@ class SocketService {
     }
   }
 
+  /**
+   * The server's "something in this group changed" signal (W3-22). A signal, not a payload: the
+   * listener pulls the changes feed, which is the one source of rows.
+   */
+  onGroupChanged(callback: (payload: { groupId: string; by: string }) => void) {
+    if (this.socket) {
+      this.socket.off('group_changed');
+      this.socket.on('group_changed', callback);
+    }
+  }
+
   off(event: string) {
     if (this.socket) {
       this.socket.off(event);
