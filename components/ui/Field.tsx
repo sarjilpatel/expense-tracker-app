@@ -18,17 +18,20 @@ export interface FieldProps extends Omit<TextInputProps, 'style'> {
   icon?: React.ComponentProps<typeof Ionicons>['name'];
   /** Trailing content — a unit, a clear button, a picker chevron. */
   right?: React.ReactNode;
+  /** A textarea: this many lines tall, text anchored to the top, grows with content. */
+  lines?: number;
   style?: StyleProp<ViewStyle>;
 }
 
 export const Field = forwardRef<TextInput, FieldProps>(function Field(
-  { label, error, help, icon, right, style, onFocus, onBlur, editable = true, ...input },
+  { label, error, help, icon, right, lines, style, onFocus, onBlur, editable = true, ...input },
   ref,
 ) {
   const { theme } = useTheme();
   const [focused, setFocused] = useState(false);
 
   const border = error ? theme.danger : focused ? theme.tint : theme.border;
+  const area = lines !== undefined && lines > 1;
 
   return (
     <View style={[styles.wrap, style]}>
@@ -36,18 +39,22 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
       <View style={[
         styles.box,
         { backgroundColor: theme.inputBg, borderColor: border, borderWidth: focused || error ? 1.5 : hairline },
+        area && styles.boxArea,
         !editable && styles.readonly,
       ]}>
         {icon && <Ionicons name={icon} size={iconSize.md} color={theme.secondaryText} />}
         <TextInput
           ref={ref}
+          multiline={area || input.multiline}
+          numberOfLines={area ? lines : input.numberOfLines}
+          textAlignVertical={area ? 'top' : input.textAlignVertical}
           {...input}
           editable={editable}
           accessibilityLabel={input.accessibilityLabel ?? label}
           placeholderTextColor={theme.secondaryText}
           onFocus={(e) => { setFocused(true); onFocus?.(e); }}
           onBlur={(e) => { setFocused(false); onBlur?.(e); }}
-          style={[type.body, styles.input, { color: theme.text }]}
+          style={[type.body, styles.input, { color: theme.text }, area && { minHeight: lines * type.body.lineHeight + space.md }]}
         />
         {right}
       </View>
@@ -65,6 +72,7 @@ const styles = StyleSheet.create({
   label:    { marginLeft: space.xs },
   box:      { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderRadius: radius.md, paddingHorizontal: space.md, minHeight: 48 },
   input:    { flex: 1, paddingVertical: space.sm },
+  boxArea:  { alignItems: 'flex-start' },
   readonly: { opacity: 0.6 },
   hint:     { marginLeft: space.xs },
 });

@@ -10,7 +10,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
-import { Currency } from '@/constants/theme';
 import { addTransaction, getCurrentGroup, getTransactions, getAccounts, setTxAccount } from '@/src/services/dataService';
 import type { Category } from '@/src/services/dataService';
 import { invalidateAllTransactionCache } from '@/src/cache/transactionCache';
@@ -18,9 +17,10 @@ import type { Account } from '@/src/services/accountService';
 import { saveReceipt } from '@/src/services/receiptService';
 import { CategoryPicker } from '@/components/transaction/CategoryPicker';
 import { AccountPicker } from '@/components/transaction/AccountPicker';
-import { AmountKeypad } from '@/components/transaction/AmountKeypad';
+import { AmountField } from '@/components/transaction/AmountField';
+import { CalculatorSheet, type CalculatorHandle } from '@/components/transaction/CalculatorSheet';
 import { RecurringToggle } from '@/components/transaction/RecurringToggle';
-import { space, radius, type as text, tabular, icon as iconSize } from '@/constants/tokens';
+import { space, radius, type as text, icon as iconSize } from '@/constants/tokens';
 import { Screen, Card, Row, Touchable, Button, Sheet, Field, Chip, type SheetHandle } from '@/components/ui';
 
 function fmtDate(d: Date) {
@@ -61,8 +61,9 @@ export default function AddTransactionScreen() {
   const [recentCategories, setRecentCategories] = useState<{ income: string[]; expense: string[] }>({ income: [], expense: [] });
 
   const [successToast, setSuccessToast] = useState(false);
-  const [showKeypad, setShowKeypad]     = useState(true);
-  const [showCategory, setShowCategory]           = useState(false);
+  const categorySheet = useRef<SheetHandle>(null);
+  const calculator    = useRef<CalculatorHandle>(null);
+  const amountInput   = useRef<TextInput>(null);
   const [iosPicker, setIosPicker]                 = useState<{ mode: 'date' | 'time' } | null>(null);
   const iosPickerSheet = useRef<SheetHandle>(null);
 
@@ -247,6 +248,8 @@ export default function AddTransactionScreen() {
         resetForm();
         setSuccessToast(true);
         if (andContinue) {
+          // Straight back to the number pad for the next one.
+          setTimeout(() => amountInput.current?.focus(), 50);
           setTimeout(() => setSuccessToast(false), 1500);
         } else {
           setTimeout(() => { setSuccessToast(false); router.back(); }, 1200);
@@ -275,6 +278,7 @@ export default function AddTransactionScreen() {
       resetForm();
       setSuccessToast(true);
       if (andContinue) {
+        setTimeout(() => amountInput.current?.focus(), 50);
         setTimeout(() => setSuccessToast(false), 1500);
       } else {
         setTimeout(() => { setSuccessToast(false); router.back(); }, 1200);
@@ -298,10 +302,17 @@ export default function AddTransactionScreen() {
     <Switch value={value} onValueChange={onChange} trackColor={{ false: theme.border, true: accent }} thumbColor={theme.card} accessibilityLabel={label} />
   );
 
+  const calcButton = (
+    <Touchable onPress={() => calculator.current?.present(amount)} size={36} style={S.headerBtn} accessibilityLabel="Calculator" rippleBorderless>
+      <Ionicons name="calculator-outline" size={iconSize.lg} color={theme.text} />
+    </Touchable>
+  );
+
   return (
     <Animated.View style={animStyle}>
       <Screen
         title="New transaction"
+        right={calcButton}
         keyboard
         footer={(
           <View style={S.footer}>
@@ -323,17 +334,8 @@ export default function AddTransactionScreen() {
           ))}
         </View>
 
-        {/* Amount */}
-        <Card onPress={() => setShowKeypad(true)} accessibilityLabel={`Amount ${amount || '0'}, tap to edit`} style={[S.hero, showKeypad && { borderColor: accent }]}>
-          <Text style={[text.overline, { color: theme.secondaryText }]}>Amount</Text>
-          <View style={S.heroRow}>
-            <Text style={[text.heading, { color: accent }]}>{Currency.symbol}</Text>
-            <Text style={[text.display, tabular, { color: amount ? theme.text : theme.secondaryText, flex: 1 }]} numberOfLines={1} adjustsFontSizeToFit>
-              {amount || '0'}
-            </Text>
-            {showKeypad && <View style={[S.cursor, { backgroundColor: accent }]} />}
-          </View>
-        </Card>
+        {/* Amount — the OS number pad; the calculator is in the header. */}
+        <AmountField ref={amountInput} value={amount} onChange={setAmount} accent={accent} autoFocus />
 
         {/* Details */}
         <Card padded={false} style={{ marginTop: space.md }}>
@@ -353,7 +355,7 @@ export default function AddTransactionScreen() {
               title="Category"
               right={<Text style={[text.body, { color: category ? theme.text : theme.secondaryText }]}>{category || 'Select'}</Text>}
               chevron
-              onPress={() => setShowCategory(true)}
+              onPress={() => categorySheet.current?.present()}
             />
           ) : (
             <Row icon="swap-horizontal-outline" title="Category" right={<Text style={[text.body, { color: theme.secondaryText }]}>Transfer (auto)</Text>} />
@@ -366,22 +368,6 @@ export default function AddTransactionScreen() {
               <Row icon="arrow-down-circle-outline" iconColor={theme.income}  title="To"   right={<AccountPicker accounts={accounts} selectedId={toAccountId}   onChange={setToAccountId}   theme={theme} />} />
             </>
           )}
-          <Row
-            icon="document-text-outline"
-            title="Note"
-            right={(
-              <TextInput
-                style={[text.body, S.inlineInput, { color: theme.text }]}
-                placeholder="Brief note…"
-                placeholderTextColor={theme.secondaryText}
-                value={note}
-                onChangeText={setNote}
-                returnKeyType="done"
-                blurOnSubmit
-                accessibilityLabel="Note"
-              />
-            )}
-          />
           {type !== 'transfer' && (
             <Row icon="repeat" title="Repeat" right={toggle(isRecurring, setIsRecurring, 'Repeat this transaction')} />
           )}
@@ -402,9 +388,11 @@ export default function AddTransactionScreen() {
           </View>
         )}
 
-        {/* Description + receipt */}
+        {/* Note, description + receipt */}
         <Card style={{ marginTop: space.md }}>
-          <Text style={[text.overline, { color: theme.secondaryText, marginBottom: space.sm }]}>Description & attachment</Text>
+          <Text style={[text.overline, { color: theme.secondaryText, marginBottom: space.sm }]}>Note</Text>
+          <Field placeholder="What was this for?" lines={2} value={note} onChangeText={setNote} accessibilityLabel="Note" />
+          <Text style={[text.overline, { color: theme.secondaryText, marginTop: space.md, marginBottom: space.sm }]}>Description & attachment</Text>
           <View style={S.descRow}>
             {receiptUri && (
               <View style={S.thumbWrap}>
@@ -414,7 +402,7 @@ export default function AddTransactionScreen() {
                 </Touchable>
               </View>
             )}
-            <Field placeholder="Add more details…" multiline value={description} onChangeText={setDescription} style={{ flex: 1 }} accessibilityLabel="Description" />
+            <Field placeholder="Add more details…" lines={3} value={description} onChangeText={setDescription} style={{ flex: 1 }} accessibilityLabel="Description" />
             <Touchable onPress={pickReceipt} size={44} style={[S.cameraBtn, { backgroundColor: theme.cardAlt }]} accessibilityLabel={receiptUri ? 'Change receipt' : 'Attach receipt'}>
               <Ionicons name="camera-outline" size={iconSize.md} color={receiptUri ? accent : theme.secondaryText} />
             </Touchable>
@@ -439,19 +427,10 @@ export default function AddTransactionScreen() {
         </Sheet>
       )}
 
-      <AmountKeypad
-        visible={showKeypad}
-        value={amount}
-        onChange={setAmount}
-        onClose={() => setShowKeypad(false)}
-        onDone={() => setShowKeypad(false)}
-        accentColor={accent}
-        theme={theme}
-      />
+      <CalculatorSheet ref={calculator} onUse={setAmount} accentColor={accent} theme={theme} />
 
       <CategoryPicker
-        visible={showCategory}
-        onClose={() => setShowCategory(false)}
+        ref={categorySheet}
         categories={categories}
         value={category}
         type={type === 'transfer' ? 'expense' : type}
@@ -468,12 +447,9 @@ export default function AddTransactionScreen() {
 
 const S = StyleSheet.create({
   chips:       { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
-  hero:        { marginTop: space.md },
-  heroRow:     { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
-  cursor:      { width: 2, height: 36, borderRadius: radius.sm },
+  headerBtn:   { width: 36, height: 36, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
   dateRow:     { flexDirection: 'row', gap: space.xs },
   dateBtn:     { paddingHorizontal: space.md, paddingVertical: space.xs, borderRadius: radius.sm },
-  inlineInput: { minWidth: 140, textAlign: 'right', paddingVertical: 0 },
   descRow:     { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
   thumbWrap:   { width: 56, height: 56 },
   thumb:       { width: 56, height: 56, borderRadius: radius.sm },

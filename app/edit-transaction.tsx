@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Switch, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, Switch, StyleSheet, Alert, Platform } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 
 import { useTheme } from '@/src/context/ThemeContext';
@@ -13,11 +14,11 @@ import type { Account } from '@/src/services/accountService';
 
 import { CategoryPicker } from '@/components/transaction/CategoryPicker';
 import { AccountPicker } from '@/components/transaction/AccountPicker';
-import { AmountKeypad } from '@/components/transaction/AmountKeypad';
+import { AmountField } from '@/components/transaction/AmountField';
+import { CalculatorSheet, type CalculatorHandle } from '@/components/transaction/CalculatorSheet';
 import { RecurringToggle } from '@/components/transaction/RecurringToggle';
-import { Currency } from '@/constants/theme';
-import { space, radius, type as text, tabular } from '@/constants/tokens';
-import { Screen, Card, Row, Touchable, Button, Sheet, Chip, Skeleton, type SheetHandle } from '@/components/ui';
+import { space, radius, type as text, icon as iconSize } from '@/constants/tokens';
+import { Screen, Card, Row, Touchable, Button, Sheet, Field, Chip, Skeleton, type SheetHandle } from '@/components/ui';
 
 function fmtDate(d: Date) {
   const dd   = String(d.getDate()).padStart(2, '0');
@@ -70,8 +71,8 @@ export default function EditTransactionScreen() {
   // from "cleared" and only issue a write when it actually changed.
   const [initialAccountId, setInitialAccountId]   = useState<string | null>(null);
 
-  const [showKeypad, setShowKeypad]     = useState(false);
-  const [showCategory, setShowCategory] = useState(false);
+  const categorySheet = useRef<SheetHandle>(null);
+  const calculator    = useRef<CalculatorHandle>(null);
   const animValue = useSharedValue(0);
   const hasAnimatedOut = useRef(false);
 
@@ -201,6 +202,11 @@ export default function EditTransactionScreen() {
     <Animated.View style={animStyle}>
       <Screen
         title="Edit transaction"
+        right={(
+          <Touchable onPress={() => calculator.current?.present(amount)} size={36} style={S.headerBtn} accessibilityLabel="Calculator" rippleBorderless>
+            <Ionicons name="calculator-outline" size={iconSize.lg} color={theme.text} />
+          </Touchable>
+        )}
         keyboard
         footer={(
           <View style={S.footer}>
@@ -221,16 +227,7 @@ export default function EditTransactionScreen() {
           ))}
         </View>
 
-        <Card onPress={() => setShowKeypad(true)} accessibilityLabel={`Amount ${amount || '0'}, tap to edit`} style={[S.hero, showKeypad && { borderColor: accent }]}>
-          <Text style={[text.overline, { color: theme.secondaryText }]}>Amount</Text>
-          <View style={S.heroRow}>
-            <Text style={[text.heading, { color: accent }]}>{Currency.symbol}</Text>
-            <Text style={[text.display, tabular, { color: amount ? theme.text : theme.secondaryText, flex: 1 }]} numberOfLines={1} adjustsFontSizeToFit>
-              {amount || '0'}
-            </Text>
-            {showKeypad && <View style={[S.cursor, { backgroundColor: accent }]} />}
-          </View>
-        </Card>
+        <AmountField value={amount} onChange={setAmount} accent={accent} />
 
         <Card padded={false} style={{ marginTop: space.md }}>
           <Row
@@ -248,27 +245,16 @@ export default function EditTransactionScreen() {
             title="Category"
             right={<Text style={[text.body, { color: category ? theme.text : theme.secondaryText }]}>{category || 'Select'}</Text>}
             chevron
-            onPress={() => setShowCategory(true)}
+            onPress={() => categorySheet.current?.present()}
           />
           <Row icon="wallet-outline" title="Account" right={<AccountPicker accounts={accounts} selectedId={selectedAccountId} onChange={setSelectedAccountId} theme={theme} />} />
-          <Row
-            icon="document-text-outline"
-            title="Note"
-            right={(
-              <TextInput
-                style={[text.body, S.inlineInput, { color: theme.text }]}
-                placeholder="Brief note…"
-                placeholderTextColor={theme.secondaryText}
-                value={note}
-                onChangeText={setNote}
-                returnKeyType="done"
-                blurOnSubmit
-                accessibilityLabel="Note"
-              />
-            )}
-          />
           <Row icon="repeat" title="Repeat" right={toggle(isRecurring, setIsRecurring, 'Repeat this transaction')} />
           <Row icon="lock-closed-outline" title="Private" subtitle="Hidden from other group members" right={toggle(isPrivate, setIsPrivate, 'Private')} last />
+        </Card>
+
+        <Card style={{ marginTop: space.md }}>
+          <Text style={[text.overline, { color: theme.secondaryText, marginBottom: space.sm }]}>Note</Text>
+          <Field placeholder="What was this for?" lines={3} value={note} onChangeText={setNote} accessibilityLabel="Note" />
         </Card>
 
         {isRecurring && (
@@ -295,19 +281,16 @@ export default function EditTransactionScreen() {
         </Sheet>
       )}
 
-      <AmountKeypad visible={showKeypad} value={amount} onChange={setAmount} onClose={() => setShowKeypad(false)} onDone={() => setShowKeypad(false)} accentColor={accent} theme={theme} />
-      <CategoryPicker visible={showCategory} onClose={() => setShowCategory(false)} categories={displayCategories} value={category} type={type} onTypeChange={handleTypeChange} onChange={setCategory} theme={theme} />
+      <CalculatorSheet ref={calculator} onUse={setAmount} accentColor={accent} theme={theme} />
+      <CategoryPicker ref={categorySheet} categories={displayCategories} value={category} type={type} onTypeChange={handleTypeChange} onChange={setCategory} theme={theme} />
     </Animated.View>
   );
 }
 
 const S = StyleSheet.create({
   chips:       { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
-  hero:        { marginTop: space.md },
-  heroRow:     { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
-  cursor:      { width: 2, height: 36, borderRadius: radius.sm },
+  headerBtn:   { width: 36, height: 36, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
   dateRow:     { flexDirection: 'row', gap: space.xs },
   dateBtn:     { paddingHorizontal: space.md, paddingVertical: space.xs, borderRadius: radius.sm },
-  inlineInput: { minWidth: 140, textAlign: 'right', paddingVertical: 0 },
   footer:      { flexDirection: 'row', gap: space.sm },
 });

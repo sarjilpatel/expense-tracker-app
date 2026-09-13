@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
@@ -15,8 +15,9 @@ interface Category {
 }
 
 interface Props {
-  visible: boolean;
-  onClose: () => void;
+  /** Optional — a caller holding a ref calls `present()` instead and leaves this out. */
+  visible?: boolean;
+  onClose?: () => void;
   categories: Category[];
   value: string | null;
   type: 'income' | 'expense';
@@ -30,16 +31,27 @@ interface Props {
 
 /**
  * The category picker, on the shared `Sheet` (W2-11). It used to be a hand-rolled Modal with its
- * own slide animation and backdrop; the `visible` prop is kept so callers are unchanged.
+ * own slide animation and backdrop.
+ *
+ * Prefer the ref: `ref.current?.present()` on tap. Driving it through `visible` means a tap that
+ * sets state already `true` — after a dismiss the caller did not hear about, or a `present()`
+ * that ran before the sheet host mounted — does nothing, which is how it "sometimes did not
+ * open". `visible` is still honoured for the callers that have it.
  */
-export function CategoryPicker({
+export const CategoryPicker = forwardRef<SheetHandle, Props>(function CategoryPicker({
   visible, onClose, categories, value, type: kind, onTypeChange, onChange, theme,
   loading, onRetry, recentCategories,
-}: Props) {
+}, ref) {
   const sheet = useRef<SheetHandle>(null);
   const [search, setSearch] = useState('');
 
+  useImperativeHandle(ref, () => ({
+    present: () => sheet.current?.present(),
+    dismiss: () => sheet.current?.dismiss(),
+  }), []);
+
   useEffect(() => {
+    if (visible === undefined) return;
     if (visible) sheet.current?.present();
     else sheet.current?.dismiss();
   }, [visible]);
@@ -66,7 +78,7 @@ export function CategoryPicker({
       title="Category"
       scroll
       snapPoints={['75%']}
-      onDismiss={() => { setSearch(''); onClose(); }}
+      onDismiss={() => { setSearch(''); onClose?.(); }}
     >
       <View style={S.top}>
         <Field
@@ -139,7 +151,7 @@ export function CategoryPicker({
       )}
     </Sheet>
   );
-}
+});
 
 const S = StyleSheet.create({
   top:       { flexDirection: 'row', alignItems: 'center', gap: space.sm },

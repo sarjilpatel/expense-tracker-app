@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, KeyboardAvoidingView, Platform, StyleSheet, RefreshControl,
+  View, Text, ScrollView, KeyboardAvoidingView, StyleSheet, RefreshControl,
   type StyleProp, type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -99,7 +99,9 @@ export function Screen({
   return (
     <View style={[styles.flex, { backgroundColor: theme.background }]} testID={testID}>
       {keyboard
-        ? <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{inner}</KeyboardAvoidingView>
+        // `padding` on Android too: with edge-to-edge the window is not resized for the keyboard,
+        // so without this a field near the bottom of a form sits behind it.
+        ? <KeyboardAvoidingView style={styles.flex} behavior="padding">{inner}</KeyboardAvoidingView>
         : inner}
     </View>
   );
