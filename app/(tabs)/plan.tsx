@@ -127,7 +127,7 @@ export default function PlanScreen() {
             return (
               <Row
                 key={g._id}
-                emoji={g.icon}
+                icon={g.icon as any}
                 iconBg={g.color}
                 title={g.name}
                 subtitle={`${formatAmount(g.savedAmount)} of ${formatAmount(g.targetAmount)}`}
