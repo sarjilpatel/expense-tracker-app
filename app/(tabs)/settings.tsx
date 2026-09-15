@@ -34,13 +34,16 @@ const GRID_TILES = [
 
 export default function SettingsScreen() {
   const { theme } = useTheme();
-  const { isGuest, logout } = useAuth();
+  const { isGuest, logout, user: authUser } = useAuth();
 
+  // The session already knows who is signed in, so the profile card renders on the first frame
+  // from that and the server's copy (the photo, mostly) replaces it when it lands. Only the group
+  // section has nothing local to draw from; it alone waits, and only until the first answer.
   const [user,      setUser]      = useState<any>(null);
   const [group,     setGroup]     = useState<any>(null);
-  const [myGroups,  setMyGroups]  = useState<any[]>([]);
+  const [myGroups,  setMyGroups]  = useState<any[] | null>(null);
   const [sync,      setSync]      = useState<SyncStatus>({ running: false, lastSyncAt: null, lastError: null, pending: 0 });
-  const [loading,   setLoading]   = useState(!isGuest);
+  const profile = user ?? authUser;
 
   const deleteSheet = useRef<SheetHandle>(null);
   const [deletePassword,  setDeletePassword]  = useState('');
@@ -48,7 +51,7 @@ export default function SettingsScreen() {
   const [deleteError,     setDeleteError]     = useState('');
 
   const fetchData = useCallback(async () => {
-    if (isGuest) { setLoading(false); return; }
+    if (isGuest) return;
     try {
       // The group list, not just the active group, is what decides whether the group section
       // offers create-or-join or a way into manage-group — see GroupSection. A failure on either
@@ -63,8 +66,7 @@ export default function SettingsScreen() {
       setMyGroups(Array.isArray(groupList) ? groupList : []);
     } catch (e) {
       reportError(e);
-    } finally {
-      setLoading(false);
+      setMyGroups(g => g ?? []);
     }
   }, [isGuest]);
 
@@ -123,18 +125,6 @@ export default function SettingsScreen() {
     }
   };
 
-  if (loading) {
-    return (
-      <Screen title="More" onBack={false}>
-        <Skeleton.Group style={{ paddingTop: space.sm }}>
-          <Skeleton.Block height={76} round={radius.lg} />
-          <Skeleton.Block height={64} round={radius.lg} />
-          <Skeleton.Block height={140} round={radius.lg} />
-        </Skeleton.Group>
-      </Screen>
-    );
-  }
-
   return (
     <Screen title="More" onBack={false}>
       {/* ── Account ── */}
@@ -152,13 +142,13 @@ export default function SettingsScreen() {
         <Card style={{ marginTop: space.sm }}>
           <View style={S.profile}>
             <View style={[S.avatar, { backgroundColor: hexToRGBA(theme.tint, 0.15) }]}>
-              {user?.profilePhoto
-                ? <Image source={{ uri: user.profilePhoto }} style={S.avatarImg} accessibilityLabel="Profile photo" />
-                : <Text style={[type.heading, { color: theme.tint }]}>{user?.name?.charAt(0)?.toUpperCase() || 'U'}</Text>}
+              {profile?.profilePhoto
+                ? <Image source={{ uri: profile.profilePhoto }} style={S.avatarImg} accessibilityLabel="Profile photo" />
+                : <Text style={[type.heading, { color: theme.tint }]}>{profile?.name?.charAt(0)?.toUpperCase() || 'U'}</Text>}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[type.bodyStrong, { color: theme.text }]} numberOfLines={1}>{user?.name || 'User'}</Text>
-              <Text style={[type.label, { color: theme.secondaryText }]} numberOfLines={1}>{user?.email || ''}</Text>
+              <Text style={[type.bodyStrong, { color: theme.text }]} numberOfLines={1}>{profile?.name || 'User'}</Text>
+              <Text style={[type.label, { color: theme.secondaryText }]} numberOfLines={1}>{profile?.email || ''}</Text>
             </View>
             <Chip size="sm" tone={sync.pending > 0 ? 'warning' : sync.lastSyncAt ? 'income' : 'neutral'} icon={sync.pending > 0 ? 'cloud-upload-outline' : 'cloud-done-outline'} label={sync.running ? 'Backing up…' : sync.pending > 0 ? `${sync.pending} waiting` : sync.lastSyncAt ? 'Backed up' : 'Not yet'} />
           </View>
@@ -168,7 +158,13 @@ export default function SettingsScreen() {
         </Card>
       )}
 
-      {!isGuest && <GroupSection group={group} groups={myGroups} />}
+      {!isGuest && (myGroups
+        ? <GroupSection group={group} groups={myGroups} />
+        : <>
+            <SectionHeader title="Group" />
+            <Skeleton.Group><Skeleton.Block height={64} round={radius.lg} /></Skeleton.Group>
+          </>
+      )}
 
       {/* ── Destinations ── */}
       <SectionHeader title="Settings" />

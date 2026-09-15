@@ -12,6 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { __reset as resetStorage } from './stubs/asyncStorage.mjs';
+const { __resetLocalStores } = await import('../src/services/local/jsonStore.ts');
 
 const { getLocalTransactions, addLocalTransaction } =
   await import('../src/services/local/localTransactionService.ts');
@@ -19,6 +20,7 @@ const { getLocalTransactions, addLocalTransaction } =
 /** Seeds the given notes (one transaction each) and returns the notes a query matches. */
 async function found(notes, query, extra = {}) {
   resetStorage();
+  __resetLocalStores();
   for (const note of notes) {
     await addLocalTransaction({
       amount: 100, type: 'expense', category: extra.category ?? 'Food',
@@ -58,6 +60,7 @@ test('the category is still matched as a substring', async () => {
 
 test('a transaction with no note is not a crash and not a match', async () => {
   resetStorage();
+  __resetLocalStores();
   await addLocalTransaction({ amount: 100, type: 'expense', category: 'Food', date: '2026-09-01T00:00:00.000Z' });
   assert.deepEqual(await getLocalTransactions(undefined, undefined, 'coffee'), []);
 });

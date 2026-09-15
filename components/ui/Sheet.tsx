@@ -1,5 +1,5 @@
-import React, { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, Keyboard, type StyleProp, type ViewStyle } from 'react-native';
+import React, { createContext, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Keyboard, Platform, type StyleProp, type ViewStyle } from 'react-native';
 import {
   BottomSheetModal, BottomSheetBackdrop, BottomSheetView, BottomSheetScrollView,
   type BottomSheetBackdropProps,
@@ -25,6 +25,12 @@ import { Touchable } from './Touchable';
  *
  * `BottomSheetModalProvider` must wrap the app once (it does, in `app/_layout.tsx`).
  */
+/**
+ * True once the sheet has finished sliding in. `Field` reads it to hold an `autoFocus` until then:
+ * a keyboard rising during the slide resizes the sheet before it has measured itself.
+ */
+export const SheetOpenContext = createContext(false);
+
 export interface SheetHandle {
   present: () => void;
   dismiss: () => void;
@@ -43,7 +49,7 @@ export interface SheetProps {
   /** Show an × in the header. Default true when there is a title. */
   closeButton?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
-  /** A sheet holding inputs grows with the keyboard; a picker does not need to. Default `form`. */
+  /** A sheet holding inputs rises with the keyboard; a picker does not need to. Default `form`. */
   keyboard?: 'form' | 'none';
   /** False locks the sheet open: no drag-down, no backdrop tap, no ×. For a flow mid-write. */
   dismissable?: boolean;
@@ -67,6 +73,19 @@ export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
 
   const points = useMemo(() => snapPoints, [snapPoints]);
 
+  // A tall scrolling form (snapped at 85%, say) rises with the keyboard only as far as the top of
+  // the screen, and the keyboard still covers its lower part; the sheet keeps its snapped height.
+  // Padding the content by the keyboard's height lets the last fields scroll up into view.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!scroll || keyboard !== 'form') return;
+    const ios = Platform.OS === 'ios';
+    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', e => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, [scroll, keyboard]);
+
   // The scrim: tap to dismiss, fades with the sheet. `appearsOnIndex={0}` so it is there from the
   // first snap point — the default of 1 leaves a content-height sheet with no backdrop at all.
   const backdrop = useCallback((props: BottomSheetBackdropProps) => (
@@ -87,8 +106,6 @@ export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
     </View>
   );
 
-  const Body = scroll ? BottomSheetScrollView : BottomSheetView;
-
   return (
     <BottomSheetModal
       ref={modal}
@@ -97,23 +114,38 @@ export const Sheet = forwardRef<SheetHandle, SheetProps>(function Sheet(
       enablePanDownToClose={dismissable}
       backdropComponent={backdrop}
       onDismiss={onDismiss}
+      onChange={index => setOpen(index >= 0)}
       handleComponent={handle ? undefined : null}
       handleIndicatorStyle={{ backgroundColor: theme.border }}
       backgroundStyle={{ backgroundColor: theme.card, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
-      // Android back closes the sheet rather than the screen behind it.
-      android_keyboardInputMode="adjustResize"
-      keyboardBehavior={keyboard === 'form' ? 'extend' : 'interactive'}
+      // A form sheet has to move itself out from under the keyboard: `interactive` raises it by
+      // the keyboard's height, `extend` only opens it to its top snap point, which for a sheet
+      // sized to its content is where it already is. And `adjustPan`, not `adjustResize` — the
+      // library reads `adjustResize` as a promise that the window shrinks for the keyboard and
+      // then does nothing itself, but with edge-to-edge the window never shrinks (see `Screen`).
+      // Both together are what kept a field low in a sheet behind the keyboard.
+      android_keyboardInputMode="adjustPan"
+      keyboardBehavior={keyboard === 'form' ? 'interactive' : 'extend'}
       keyboardBlurBehavior="restore"
     >
-      {header}
-      <Body
-        style={styles.body}
-        contentContainerStyle={scroll ? [styles.content, { paddingBottom: insets.bottom + space.lg }, contentStyle] : undefined}
-      >
+      <SheetOpenContext.Provider value={open}>
         {scroll
-          ? children
-          : <View style={[styles.content, { paddingBottom: insets.bottom + space.lg }, contentStyle]}>{children}</View>}
-      </Body>
+          ? <>
+              {header}
+              <BottomSheetScrollView
+                style={styles.body}
+                contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space.lg + keyboardHeight }, contentStyle]}
+              >
+                {children}
+              </BottomSheetScrollView>
+            </>
+          // A content-sized sheet is as tall as this view measures, so the header has to be inside
+          // it: outside, the sheet came up a header short and the body was squeezed over the title.
+          : <BottomSheetView>
+              {header}
+              <View style={[styles.content, { paddingBottom: insets.bottom + space.lg }, contentStyle]}>{children}</View>
+            </BottomSheetView>}
+      </SheetOpenContext.Provider>
     </BottomSheetModal>
   );
 });

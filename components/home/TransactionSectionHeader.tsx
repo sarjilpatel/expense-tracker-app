@@ -40,6 +40,7 @@ export function TransactionSectionHeader({ section, theme }: Props) {
           borderBottomWidth: StyleSheet.hairlineWidth,
           borderBottomColor: theme.separator,
           marginHorizontal: 8,
+          overflow: 'hidden',
         }
       ]}
       onPress={() =>

@@ -52,7 +52,7 @@ export default function LoginScreen() {
 
   return (
     <Screen onBack={false} keyboard>
-      <AuthHero title="Expense Tracker" subtitle="Sign in to your account" />
+      <AuthHero title="WatchMyWallet" subtitle="Sign in to your account" />
 
       <View style={S.form}>
         <Field

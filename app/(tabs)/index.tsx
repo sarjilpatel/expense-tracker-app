@@ -125,14 +125,18 @@ export default function HomeScreen() {
     return { income: inc, expense: exp, balance: inc - exp };
   }, []);
 
-  // ── Fetch: cache-first, then background API sync ──────────────────────────
-  const fetchData = useCallback(async (isSilent = false) => {
+  // ── Fetch: the local store, which answers from memory ─────────────────────
+  // The Monthly tab reads the whole year; every other tab reads the month. That is the only thing
+  // about the view mode the fetch cares about, so switching between Daily, Weekly, Calendar, Total
+  // and Note re-renders what is already loaded and fetches nothing.
+  const isMonthlyView = viewMode === 'monthly';
+  const fetchData = useCallback(async () => {
     const monthlyStart = prefs.monthlyStart;
-    const isMonthlyView = viewMode === 'monthly';
     const monthParam = isMonthlyView ? undefined : currentMonth;
 
-    // The local store answers instantly; a skeleton only on the very first load.
-    if (!isSilent) setMonthLoading(true);
+    // A skeleton only before anything has ever loaded. A month change or a view switch keeps
+    // what is on screen until the new rows land, which is a frame later — the read is in memory.
+    if (!hasData.current) setMonthLoading(true);
 
     try {
       let txData: any[];
@@ -180,9 +184,9 @@ export default function HomeScreen() {
       setMonthLoading(false);
       contentOpacity.value = withTiming(1, { duration: 220 });
     }
-  }, [currentMonth, currentYear, viewMode, computeSummary, prefs.monthlyStart]);
+  }, [currentMonth, currentYear, isMonthlyView, computeSummary, prefs.monthlyStart]);
 
-  useFocusRefresh(useCallback(() => { fetchData(hasData.current); }, [fetchData]));
+  useFocusRefresh(useCallback(() => { fetchData(); }, [fetchData]));
 
   // ── Other devices' changes ────────────────────────────────────────────────
   // Rows from the rest of the group arrive through the sync engine's pull (W3-22), not as socket
@@ -204,7 +208,7 @@ export default function HomeScreen() {
           time: new Date(tx.date || tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
         }, ...prev].slice(0, 20));
       }
-      if (changes.some(c => c.collection === 'transactions' || c.collection === 'budgets')) fetchData(true);
+      if (changes.some(c => c.collection === 'transactions' || c.collection === 'budgets')) fetchData();
     });
   }, [user, fetchData]);
 
@@ -233,13 +237,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!isMounted.current) { isMounted.current = true; return; }
-    hasData.current = false;
-    setAllTransactions([]);
-    fetchData(false);
-  }, [currentMonth, currentYear, viewMode]);
+    fetchData();
+  }, [currentMonth, currentYear, isMonthlyView]);
 
   // Pull-to-refresh is a sync, not a refetch: the device already has the data; the server may have more (W3-20).
-  const onRefresh = async () => { setRefreshing(true); await runSync('manual').catch(() => {}); fetchData(true); };
+  const onRefresh = async () => { setRefreshing(true); await runSync('manual').catch(() => {}); fetchData(); };
 
   // ── Month navigation ──────────────────────────────────────────────────────
   const changeMonth = useCallback((delta: number, isGesture = false) => {
@@ -452,7 +454,9 @@ export default function HomeScreen() {
         hasReceipt={!!receiptMap[flatItem.item._id] || !!flatItem.item.receiptKey}
         onPress={handleEdit}
         onLongPress={(id) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openActionSheet(flatItem.item); }}
-        isFirst={flatItem.isFirst}
+        // The day header is the top of this card, so the first row is not a first edge: no top
+        // border, no top corners.
+        isFirst={false}
         isLast={flatItem.isLast}
       />
     );

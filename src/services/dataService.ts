@@ -77,6 +77,9 @@ const tripPayload = (t: Trip): Record<string, unknown> => ({
 export const getTransactions = (month?: number, year?: number, search?: string) =>
   localTx.getLocalTransactions(month, year, search);
 
+/** Recently used categories per type, for the add form's chips. */
+export const getRecentCategories = (limit?: number) => localTx.getLocalRecentCategories(limit);
+
 /** Every matching transaction. The local store has no pages, so this is the same read. */
 export const getAllTransactions = (month?: number, year?: number, search?: string) =>
   localTx.getLocalTransactions(month, year, search);

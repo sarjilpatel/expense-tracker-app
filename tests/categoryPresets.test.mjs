@@ -17,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { __reset as resetStorage } from './stubs/asyncStorage.mjs';
+const { __resetLocalStores } = await import('../src/services/local/jsonStore.ts');
 import { __reset as resetSecure } from './stubs/secureStore.mjs';
 import { __reset as resetAxios, __handle, __calls } from './stubs/axios.mjs';
 
@@ -29,6 +30,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 function setup(guest) {
   resetStorage();
+  __resetLocalStores();
   resetSecure({ token: 'tok', refreshToken: 'ref' });
   resetAxios();
   dataService.setMode(guest);
@@ -94,6 +96,8 @@ test('the default list is not mutated by what a user adds', async () => {
   await dataService.applyCategoryPreset('travel');
 
   resetStorage();
+
+  __resetLocalStores();
   const { categories } = await localCat.getLocalCategories();
 
   assert.ok(!categories.some(c => c.name === 'Flights'), 'a fresh device starts from the defaults');

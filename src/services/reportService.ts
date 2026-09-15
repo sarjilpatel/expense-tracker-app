@@ -119,7 +119,7 @@ function buildHTML(
   </table>
 
   <div class="footer">
-    <span>Expense Tracker · ${groupName}</span>
+    <span>WatchMyWallet · ${groupName}</span>
     <span>Generated ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
   </div>
 </body>

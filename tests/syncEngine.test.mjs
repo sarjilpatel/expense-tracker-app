@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 
 import { __reset as resetSecure } from './stubs/secureStore.mjs';
 import { __reset as resetStorage } from './stubs/asyncStorage.mjs';
+const { __resetLocalStores } = await import('../src/services/local/jsonStore.ts');
 import { __reset as resetAxios, __handle, __calls, __status } from './stubs/axios.mjs';
 
 const outbox     = await import('../src/sync/outbox.ts');
@@ -22,6 +23,7 @@ const localCat   = await import('../src/services/local/localCategoryService.ts')
 function setup({ signedIn = true, groupId = 'g-home' } = {}) {
   resetSecure({ token: 'tok', refreshToken: 'ref' });
   resetStorage({});
+  __resetLocalStores();
   resetAxios();
   meta.__resetSyncMetaCache();
   session.setSignedIn(signedIn);

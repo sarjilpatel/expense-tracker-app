@@ -52,11 +52,14 @@ export const TransactionRow = memo(function TransactionRow({ item, index, theme,
             borderTopWidth: isFirst ? StyleSheet.hairlineWidth : 0,
             borderBottomColor: isLast ? theme.border : theme.separator,
             marginHorizontal: marginHorizontal,
-            borderTopLeftRadius: radius.sm,
-            borderTopRightRadius: radius.sm,
-            borderBottomLeftRadius: isLast ? 10 : 0,
-            borderBottomRightRadius: isLast ? 10 : 0,
-            marginTop: 0,
+            // One card per group: only the outer corners are rounded. A radius on every row's top
+            // edge left a notch of page background at each seam, so the group read as a stack of
+            // pills instead of one surface hanging off its day header.
+            borderTopLeftRadius:     isFirst ? radius.md : 0,
+            borderTopRightRadius:    isFirst ? radius.md : 0,
+            borderBottomLeftRadius:  isLast  ? radius.md : 0,
+            borderBottomRightRadius: isLast  ? radius.md : 0,
+            overflow: 'hidden',
           }
         ]}
         onPress={() => onPress(item)}

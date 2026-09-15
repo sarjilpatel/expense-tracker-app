@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSyncMeta } from '@/src/sync/meta';
+import { JsonStore } from './jsonStore';
 import type { Category } from '../groupApi';
 import { CATEGORY_PRESETS, findPreset } from '@/constants/categoryPresets';
 
@@ -21,31 +21,30 @@ const DEFAULT_CATEGORIES: Category[] = [
   { _id: 'dc_13', name: 'Gift',          icon: 'gift-outline',                emoji: '🎁', type: 'income'  },
 ];
 
+// Seeded with the defaults when there is nothing on disk. `get()` hands back a copy, so a caller
+// pushing onto it cannot mutate DEFAULT_CATEGORIES for the life of the process — which once let
+// clearing local data reseed the "defaults" with someone's custom categories still in them.
+const store = new JsonStore<Category[] | null>(KEY, () => null);
+
 async function load(): Promise<Category[]> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    if (raw) {
-      const cats: Category[] = JSON.parse(raw);
-      let migrated = false;
-      const updated = cats.map(cat => {
-        if (!cat.emoji) {
-          const def = DEFAULT_CATEGORIES.find(d => d._id === cat._id);
-          if (def?.emoji) { migrated = true; return { ...cat, emoji: def.emoji }; }
-        }
-        return cat;
-      });
-      if (migrated) await AsyncStorage.setItem(KEY, JSON.stringify(updated));
-      return updated;
-    }
-    await AsyncStorage.setItem(KEY, JSON.stringify(DEFAULT_CATEGORIES));
-    return [...DEFAULT_CATEGORIES];
-  } catch {
+  const cats = await store.get();
+  if (!cats) {
+    await store.set([...DEFAULT_CATEGORIES]);
     return [...DEFAULT_CATEGORIES];
   }
+  let migrated = false;
+  const updated = cats.map(cat => {
+    if (!cat.emoji) {
+      const def = DEFAULT_CATEGORIES.find(d => d._id === cat._id);
+      if (def?.emoji) { migrated = true; return { ...cat, emoji: def.emoji }; }
+    }
+    return cat;
+  });
+  if (migrated) await store.set(updated);
+  return updated;
 }
-// Both returns copy. Callers push onto what load() hands back, so returning the array itself let
-// an added category mutate DEFAULT_CATEGORIES for the life of the process — after which clearing
-// local data reseeded the "defaults" with someone's custom categories still in them.
+
+const persist = (cats: Category[]) => store.set(cats);
 
 /** The active group's categories when signed in (plus any not yet pushed); everything as a guest. */
 async function inScope(cats: Category[]): Promise<Category[]> {
@@ -83,7 +82,7 @@ export async function addLocalCategory(
     ...(emoji ? { emoji } : {}),
   };
   cats.push(cat);
-  await AsyncStorage.setItem(KEY, JSON.stringify(cats));
+  await persist(cats);
   return cats;
 }
 
@@ -103,7 +102,7 @@ export async function applyLocalPreset(key: string): Promise<{ categories: Categ
 
   if (added.length) {
     cats.push(...added);
-    await AsyncStorage.setItem(KEY, JSON.stringify(cats));
+    await persist(cats);
   }
   return { categories: cats, added: added.length };
 }
@@ -111,7 +110,7 @@ export async function applyLocalPreset(key: string): Promise<{ categories: Categ
 export async function removeLocalCategory(id: string): Promise<Category[]> {
   const cats = await load();
   const filtered = cats.filter(c => c._id !== id);
-  await AsyncStorage.setItem(KEY, JSON.stringify(filtered));
+  await persist(filtered);
   return filtered;
 }
 
@@ -120,7 +119,7 @@ export async function getAllLocalCategories(): Promise<Category[]> {
 }
 
 export async function clearLocalCategories(): Promise<void> {
-  await AsyncStorage.removeItem(KEY);
+  await store.clear();
 }
 
 // ── Sync support (W3) ─────────────────────────────────────────────────────────
@@ -132,11 +131,11 @@ export async function upsertLocalCategory(row: Category & { groupId?: string | n
   const all = await load();
   const idx = all.findIndex(c => c._id === row._id);
   if (idx === -1) all.push(row); else all[idx] = { ...all[idx], ...row };
-  await AsyncStorage.setItem(KEY, JSON.stringify(all));
+  await persist(all);
 }
 
 export async function dropLocalCategory(id: string): Promise<void> {
   const all = await load();
   const next = all.filter(c => c._id !== id);
-  if (next.length !== all.length) await AsyncStorage.setItem(KEY, JSON.stringify(next));
+  if (next.length !== all.length) await persist(next);
 }

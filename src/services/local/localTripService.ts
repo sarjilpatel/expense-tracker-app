@@ -11,8 +11,8 @@
  * that came off the server are the same object to a screen — which is also what lets the sync
  * engine push a whole trip as one row without translating anything.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSyncMeta } from '@/src/sync/meta';
+import { JsonStore } from './jsonStore';
 import {
   normaliseTrip,
   type Trip,
@@ -31,19 +31,14 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+const store = new JsonStore<Trip[]>(KEY, () => []);
+
 async function loadAll(): Promise<Trip[]> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.map(normaliseTrip) : [];
-  } catch {
-    return [];
-  }
+  const parsed = await store.get();
+  return Array.isArray(parsed) ? parsed.map(normaliseTrip) : [];
 }
 
-async function persist(trips: Trip[]): Promise<void> {
-  await AsyncStorage.setItem(KEY, JSON.stringify(trips));
-}
+const persist = (trips: Trip[]) => store.set(trips);
 
 /**
  * Loads every trip, hands `mutate` the one asked for, then persists and returns it.
@@ -249,7 +244,7 @@ export async function deleteSettlement(tripId: string, settlementId: string): Pr
 }
 
 export async function clearAllTrips(): Promise<void> {
-  await AsyncStorage.removeItem(KEY);
+  await store.clear();
 }
 
 // ── Sync support (W3) ─────────────────────────────────────────────────────────

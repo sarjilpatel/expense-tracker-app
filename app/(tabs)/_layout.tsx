@@ -1,4 +1,4 @@
-import { Tabs, router, usePathname } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { Touchable } from '@/components/ui';
@@ -41,8 +41,6 @@ const CustomAddButton = ({ theme }: { theme: any }) => {
 
 export default function TabLayout() {
   const { theme } = useTheme();
-  const pathname = usePathname();
-  const isAddScreen = pathname === '/add' || pathname === '/add-transaction';
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -117,7 +115,9 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-      {!isAddScreen && <CustomAddButton theme={theme} />}
+      {/* Always mounted: the add modal covers it anyway, and hiding it on the route change re-rendered
+          the whole tab bar at the exact moment the modal started to slide, and again as it closed. */}
+      <CustomAddButton theme={theme} />
     </View>
   );
 }

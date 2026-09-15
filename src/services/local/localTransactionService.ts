@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSyncMeta } from '@/src/sync/meta';
+import { JsonStore } from './jsonStore';
 
 const KEY = '@local_transactions_v1';
 
@@ -29,16 +29,9 @@ function genId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-async function load(): Promise<LocalTransaction[]> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-async function persist(data: LocalTransaction[]): Promise<void> {
-  await AsyncStorage.setItem(KEY, JSON.stringify(data));
-}
+const store = new JsonStore<LocalTransaction[]>(KEY, () => []);
+const load    = () => store.get();
+const persist = (data: LocalTransaction[]) => store.set(data);
 
 /**
  * Splits a note the same way the server's blind index does (W1-28), so a query returns the same
@@ -85,9 +78,40 @@ export async function getLocalTransactions(
       (!!term && noteWords(tx.note).includes(term))
     );
   }
-  return all.sort(
-    (a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime()
-  );
+  return sortNewest(all);
+}
+
+const when = (tx: LocalTransaction) => new Date(tx.date || tx.createdAt).getTime();
+
+// Parse each date once, not twice per comparison — on a few thousand rows the difference is
+// tens of milliseconds of JS time, spent while a screen is trying to animate in.
+function sortNewest(rows: LocalTransaction[]): LocalTransaction[] {
+  return rows
+    .map(tx => ({ t: when(tx), tx }))
+    .sort((a, b) => b.t - a.t)
+    .map(x => x.tx);
+}
+
+/**
+ * The categories used most recently, newest first, at most `limit` per type. One pass over the
+ * list; the add form shows these as chips and used to sort the whole history to get them.
+ */
+export async function getLocalRecentCategories(limit = 6): Promise<{ income: string[]; expense: string[] }> {
+  const rows = await inScope(await load());
+  const latest = new Map<string, number>();
+  for (const tx of rows) {
+    if (!tx.category || (tx.type !== 'income' && tx.type !== 'expense')) continue;
+    const key = tx.type + '|' + tx.category;
+    const t = when(tx);
+    if (t > (latest.get(key) ?? -Infinity)) latest.set(key, t);
+  }
+  const ranked = [...latest.entries()].sort((a, b) => b[1] - a[1]).map(([key]) => key);
+  const out = { income: [] as string[], expense: [] as string[] };
+  for (const key of ranked) {
+    const [type, category] = key.split('|') as ['income' | 'expense', string];
+    if (out[type].length < limit) out[type].push(category);
+  }
+  return out;
 }
 
 export async function addLocalTransaction(
@@ -207,7 +231,7 @@ export async function getAllLocalTransactions(): Promise<LocalTransaction[]> {
 }
 
 export async function clearAllLocalTransactions(): Promise<void> {
-  await AsyncStorage.removeItem(KEY);
+  await store.clear();
 }
 
 // ── Sync support (W3) ─────────────────────────────────────────────────────────

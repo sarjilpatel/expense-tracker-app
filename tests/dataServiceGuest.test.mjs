@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 
 import { __reset as resetSecure } from './stubs/secureStore.mjs';
 import { __reset as resetStorage } from './stubs/asyncStorage.mjs';
+const { __resetLocalStores } = await import('../src/services/local/jsonStore.ts');
 import { __reset as resetAxios, __handle, __calls } from './stubs/axios.mjs';
 
 const dataService = await import('../src/services/dataService.ts');
@@ -20,6 +21,7 @@ const outbox = await import('../src/sync/outbox.ts');
 function setup(guest) {
   resetSecure({ token: 'tok', refreshToken: 'ref' });
   resetStorage({});
+  __resetLocalStores();
   resetAxios();
 
   for (const url of ['/goals', '/trips']) {
@@ -133,4 +135,20 @@ test("a guest trip starts with the device's user as a member, marked isSelf", as
   assert.equal(made.members.length, 1);
   assert.equal(made.members[0].isSelf, true);
   assert.equal(made.members[0].userId, null, 'a guest has no account id yet');
+});
+
+test('recent categories come newest first, one entry per category, capped per type', async () => {
+  setup(true);
+  const add = (type, category, date) => dataService.addTransaction({ amount: 1, type, category, date });
+  await add('expense', 'Food',   '2026-01-01');
+  await add('expense', 'Fuel',   '2026-03-01');
+  await add('expense', 'Food',   '2026-02-01');   // older than its Fuel neighbour, newer than its first use
+  await add('income',  'Salary', '2026-01-15');
+  await add('expense', 'Rent',   '2026-04-01');
+
+  const recent = await dataService.getRecentCategories(2);
+  assert.deepEqual(recent, { income: ['Salary'], expense: ['Rent', 'Fuel'] });
+
+  const all = await dataService.getRecentCategories();
+  assert.deepEqual(all.expense, ['Rent', 'Fuel', 'Food']);
 });

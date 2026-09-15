@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Switch, StyleSheet, Alert, Platform } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { updateTransaction, getCurrentGroup, getAccounts, setTxAccount, removeTxAccount, getTxAccountMap } from '@/src/services/dataService';
@@ -17,7 +16,7 @@ import { AmountField } from '@/components/transaction/AmountField';
 import { CalculatorSheet, type CalculatorHandle } from '@/components/transaction/CalculatorSheet';
 import { RecurringToggle } from '@/components/transaction/RecurringToggle';
 import { space, radius, type as text, icon as iconSize } from '@/constants/tokens';
-import { Screen, Card, Row, Touchable, Button, Sheet, Field, Chip, Skeleton, type SheetHandle } from '@/components/ui';
+import { Screen, Card, Row, Touchable, Button, Sheet, Field, Chip, type SheetHandle } from '@/components/ui';
 
 function fmtDate(d: Date) {
   const dd   = String(d.getDate()).padStart(2, '0');
@@ -62,7 +61,6 @@ export default function EditTransactionScreen() {
         : 'monthly'
     );
   const [loading, setLoading]   = useState(false);
-  const [fetching, setFetching] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts]     = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -72,19 +70,6 @@ export default function EditTransactionScreen() {
 
   const categorySheet = useRef<SheetHandle>(null);
   const calculator    = useRef<CalculatorHandle>(null);
-  const animValue = useSharedValue(0);
-  const hasAnimatedOut = useRef(false);
-
-  const animStyle = useAnimatedStyle(() => ({
-    flex: 1,
-    opacity: animValue.value,
-    transform: [{ translateY: (1 - animValue.value) * 50 }],
-  }));
-
-  useEffect(() => {
-    animValue.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.cubic) });
-  }, []);
-
   const [iosPicker, setIosPicker]       = useState<{ mode: 'date' | 'time' } | null>(null);
   const iosPickerSheet = useRef<SheetHandle>(null);
 
@@ -99,25 +84,8 @@ export default function EditTransactionScreen() {
           setInitialAccountId(map[txId as string]);
         }
       } catch {}
-      finally { setFetching(false); }
     })();
   }, [txId]);
-
-  const navigation = useNavigation();
-  useEffect(() => {
-    const unsub = (navigation as any).addListener('beforeRemove', (e: any) => {
-      if (hasAnimatedOut.current) return;
-      e.preventDefault();
-      hasAnimatedOut.current = true;
-      const action = e.data.action;
-      const dispatch = () => (navigation as any).dispatch(action);
-      animValue.value = withTiming(0, { duration: 120, easing: Easing.in(Easing.cubic) }, (finished) => {
-        'worklet';
-        if (finished) runOnJS(dispatch)();
-      });
-    });
-    return unsub;
-  }, [navigation]);
 
   const openDatePicker = () => {
     if (Platform.OS === 'android') {
@@ -185,19 +153,10 @@ export default function EditTransactionScreen() {
     <Switch value={value} onValueChange={onChange} trackColor={{ false: theme.border, true: accent }} thumbColor={theme.card} accessibilityLabel={label} />
   );
 
-  if (fetching) {
-    return (
-      <Screen title="Edit transaction">
-        <Skeleton.Group style={{ paddingTop: space.md }}>
-          <Skeleton.Block height={100} round={radius.lg} />
-          <Skeleton.Row /><Skeleton.Row /><Skeleton.Row />
-        </Skeleton.Group>
-      </Screen>
-    );
-  }
-
+  // The form is prefilled from the route params; the categories, accounts and the account link
+  // come from memory a tick later. Nothing here is worth a skeleton.
   return (
-    <Animated.View style={animStyle}>
+    <>
       <Screen
         title="Edit transaction"
         right={(
@@ -281,7 +240,7 @@ export default function EditTransactionScreen() {
 
       <CalculatorSheet ref={calculator} onUse={setAmount} accentColor={accent} theme={theme} />
       <CategoryPicker ref={categorySheet} categories={displayCategories} value={category} type={type} onTypeChange={handleTypeChange} onChange={setCategory} theme={theme} />
-    </Animated.View>
+    </>
   );
 }
 

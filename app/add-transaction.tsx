@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, TextInput, Switch, StyleSheet, Alert, Platform } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, runOnJS } from 'react-native-reanimated';
+import { View, Text, TextInput, Switch, StyleSheet, Alert, Platform, Keyboard } from 'react-native';
 import { Image } from 'expo-image';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
@@ -11,7 +10,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
-import { addTransaction, getCurrentGroup, getTransactions, getAccounts, setTxAccount } from '@/src/services/dataService';
+import { addTransaction, getCurrentGroup, getRecentCategories, getAccounts } from '@/src/services/dataService';
 import type { Category } from '@/src/services/dataService';
 import type { Account } from '@/src/services/accountService';
 import { saveReceipt } from '@/src/services/receiptService';
@@ -67,19 +66,7 @@ export default function AddTransactionScreen() {
   const [iosPicker, setIosPicker]                 = useState<{ mode: 'date' | 'time' } | null>(null);
   const iosPickerSheet = useRef<SheetHandle>(null);
 
-  const animValue = useSharedValue(0);
-  const hasAnimatedOut = useRef(false);
-
-  const animStyle = useAnimatedStyle(() => ({
-    flex: 1,
-    opacity: animValue.value,
-    transform: [{ translateY: (1 - animValue.value) * 50 }],
-  }));
-
-  useEffect(() => {
-    animValue.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.cubic) });
-  }, []);
-
+  const leaving = useRef(false);
 
   const { prefillDate, prefillAccountId, prefillAmount, prefillType, prefillCategory, prefillNote } =
     useLocalSearchParams<{ prefillDate?: string; prefillAccountId?: string; prefillAmount?: string; prefillType?: string; prefillCategory?: string; prefillNote?: string }>();
@@ -108,12 +95,10 @@ export default function AddTransactionScreen() {
   const loadData = useCallback(async () => {
     setCategoriesFetching(true);
     try {
-      const [g, accs, txs] = await Promise.all([
+      const [g, accs, recent] = await Promise.all([
         getCurrentGroup(),
         getAccounts(),
-        // Newest 50 is deliberate here — this only feeds the 6 most-recent category chips,
-        // so paging the whole history would be wasted work.
-        (getTransactions() as Promise<any[]>).catch(() => []),
+        getRecentCategories(6).catch(() => ({ income: [], expense: [] })),
       ]);
       setCategories(g.categories || []);
       setAccounts(accs);
@@ -122,52 +107,40 @@ export default function AddTransactionScreen() {
         if (!fromAccountId) setFromAccountId(accs[0].id);
         if (!toAccountId && accs.length > 1) setToAccountId(accs[1].id);
       }
-      if (Array.isArray(txs)) {
-        const seen = new Set<string>();
-        const recent: { income: string[]; expense: string[] } = { income: [], expense: [] };
-        for (const tx of txs) {
-          if (!tx.category || !tx.type) continue;
-          const key = tx.type + '|' + tx.category;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          if (tx.type === 'income' && recent.income.length < 6) recent.income.push(tx.category);
-          if (tx.type === 'expense' && recent.expense.length < 6) recent.expense.push(tx.category);
-        }
-        setRecentCategories(recent);
-      }
+      setRecentCategories(recent);
     } catch {}
     finally { setCategoriesFetching(false); }
   }, [selectedAccountId, fromAccountId, toAccountId]);
 
   useFocusRefresh(useCallback(() => { loadData(); }, [loadData]));
 
+  // The modal's own slide covers entering and leaving; the only reason to intercept a dismiss is
+  // the dirty check. A JS fade layered on top of the native transition is what made closing drag.
   const navigation = useNavigation();
+
+  // The keyboard comes up once the slide has finished, not during it: raising it mid-transition
+  // resizes the form while the screen is still moving, which is most of what made opening stutter.
+  // The fallback covers a device with animations off, where `transitionEnd` may never fire.
+  useEffect(() => {
+    let done = false;
+    const focus = () => { if (done) return; done = true; amountInput.current?.focus(); };
+    const unsub = (navigation as any).addListener('transitionEnd', (e: any) => { if (!e.data?.closing) focus(); });
+    const fallback = setTimeout(focus, 450);
+    return () => { unsub(); clearTimeout(fallback); };
+  }, [navigation]);
   const isDirty = !!(amount || category || note || description || receiptUri);
   useEffect(() => {
     const unsub = (navigation as any).addListener('beforeRemove', (e: any) => {
-      if (hasAnimatedOut.current) return;
+      if (!isDirty || leaving.current) return;
       e.preventDefault();
-      const performExit = () => {
-        hasAnimatedOut.current = true;
-        const action = e.data.action;
-        const dispatch = () => (navigation as any).dispatch(action);
-        animValue.value = withTiming(0, { duration: 120, easing: Easing.in(Easing.cubic) }, (finished) => {
-          'worklet';
-          if (finished) runOnJS(dispatch)();
-        });
-      };
-      if (isDirty) {
-        Alert.alert(
-          'Discard changes?',
-          'You have unsaved data. Leave without saving?',
-          [
-            { text: 'Keep editing', style: 'cancel' },
-            { text: 'Discard', style: 'destructive', onPress: performExit },
-          ],
-        );
-      } else {
-        performExit();
-      }
+      Alert.alert(
+        'Discard changes?',
+        'You have unsaved data. Leave without saving?',
+        [
+          { text: 'Keep editing', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => { leaving.current = true; (navigation as any).dispatch(e.data.action); } },
+        ],
+      );
     });
     return unsub;
   }, [navigation, isDirty]);
@@ -215,6 +188,23 @@ export default function AddTransactionScreen() {
     setReceiptUri(null); setIsPrivate(false);
   };
 
+  // After a save. "Save" leaves at once — the keyboard and the modal go together, and Home is
+  // the confirmation; the toast only stays for "Continue", where the form stays open.
+  const afterSave = (andContinue: boolean) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!andContinue) {
+      leaving.current = true;
+      Keyboard.dismiss();
+      router.back();
+      return;
+    }
+    resetForm();
+    setSuccessToast(true);
+    // Straight back to the number pad for the next one.
+    setTimeout(() => amountInput.current?.focus(), 50);
+    setTimeout(() => setSuccessToast(false), 1500);
+  };
+
   const doSave = async (andContinue = false) => {
     const parsed = parseFloat(amount);
     if (!amount || isNaN(parsed) || parsed <= 0) { Alert.alert('Enter Amount', 'Please enter a valid amount.'); return; }
@@ -229,30 +219,18 @@ export default function AddTransactionScreen() {
         const fullNote = [note, description].filter(Boolean).join(' — ');
         const dateIso = date.toISOString();
 
-        const outTx = await addTransaction({
+        await addTransaction({
           amount: parsed, type: 'expense', category: 'Transfer',
           note: fullNote ? `Transfer to ${toAcc?.name} · ${fullNote}` : `Transfer to ${toAcc?.name}`,
-          date: dateIso, currency: prefs.currency, isPrivate,
+          date: dateIso, currency: prefs.currency, isPrivate, accountId: fromAccountId,
         });
-        const inTx = await addTransaction({
+        await addTransaction({
           amount: parsed, type: 'income', category: 'Transfer',
           note: fullNote ? `Transfer from ${fromAcc?.name} · ${fullNote}` : `Transfer from ${fromAcc?.name}`,
-          date: dateIso, currency: prefs.currency, isPrivate,
+          date: dateIso, currency: prefs.currency, isPrivate, accountId: toAccountId,
         });
 
-        if (outTx?._id) await setTxAccount(outTx._id, fromAccountId);
-        if (inTx?._id)  await setTxAccount(inTx._id, toAccountId);
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        resetForm();
-        setSuccessToast(true);
-        if (andContinue) {
-          // Straight back to the number pad for the next one.
-          setTimeout(() => amountInput.current?.focus(), 50);
-          setTimeout(() => setSuccessToast(false), 1500);
-        } else {
-          setTimeout(() => { setSuccessToast(false); router.back(); }, 1200);
-        }
+        afterSave(andContinue);
       } catch (err: any) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Error', err.msg || err.message || 'Failed to save transfer');
@@ -268,19 +246,10 @@ export default function AddTransactionScreen() {
         amount: parsed, type, category, note: fullNote,
         date: date.toISOString(), currency: prefs.currency,
         isRecurring, recurrenceFrequency: isRecurring ? recurrenceFrequency : null,
-        isPrivate,
+        isPrivate, accountId: selectedAccountId ?? undefined,
       });
-      if (selectedAccountId && newTx?._id) await setTxAccount(newTx._id, selectedAccountId);
       if (receiptUri && newTx?._id) await saveReceipt(newTx._id, receiptUri).catch(() => {});
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      resetForm();
-      setSuccessToast(true);
-      if (andContinue) {
-        setTimeout(() => amountInput.current?.focus(), 50);
-        setTimeout(() => setSuccessToast(false), 1500);
-      } else {
-        setTimeout(() => { setSuccessToast(false); router.back(); }, 1200);
-      }
+      afterSave(andContinue);
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', err.msg || err.message || 'Failed to save');
@@ -307,7 +276,7 @@ export default function AddTransactionScreen() {
   );
 
   return (
-    <Animated.View style={animStyle}>
+    <>
       <Screen
         title="New transaction"
         right={calcButton}
@@ -333,7 +302,7 @@ export default function AddTransactionScreen() {
         </View>
 
         {/* Amount — the OS number pad; the calculator is in the header. */}
-        <AmountField ref={amountInput} value={amount} onChange={setAmount} accent={accent} autoFocus />
+        <AmountField ref={amountInput} value={amount} onChange={setAmount} accent={accent} />
 
         {/* Details */}
         <Card padded={false} style={{ marginTop: space.md }}>
@@ -439,7 +408,7 @@ export default function AddTransactionScreen() {
         onRetry={loadData}
         recentCategories={recentCategories[type === 'transfer' ? 'expense' : type]}
       />
-    </Animated.View>
+    </>
   );
 }
 

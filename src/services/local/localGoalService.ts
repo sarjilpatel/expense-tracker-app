@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Goal } from '../goalApi';
 import { getSyncMeta } from '@/src/sync/meta';
+import { JsonStore } from './jsonStore';
 
 /**
  * Goals on the device (W3-13). Goals were the one collection with no local branch — a guest could
@@ -13,16 +13,9 @@ export type LocalGoal = Omit<Goal, 'groupId' | 'userId'> & { groupId?: string | 
 
 const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
-async function load(): Promise<LocalGoal[]> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-async function persist(rows: LocalGoal[]): Promise<void> {
-  await AsyncStorage.setItem(KEY, JSON.stringify(rows));
-}
+const store = new JsonStore<LocalGoal[]>(KEY, () => []);
+const load    = () => store.get();
+const persist = (rows: LocalGoal[]) => store.set(rows);
 
 async function inScope(rows: LocalGoal[]): Promise<LocalGoal[]> {
   const { activeGroupId } = await getSyncMeta();
@@ -82,7 +75,7 @@ export async function getAllLocalGoals(): Promise<LocalGoal[]> {
 }
 
 export async function clearLocalGoals(): Promise<void> {
-  await AsyncStorage.removeItem(KEY);
+  await store.clear();
 }
 
 // ── Sync support (W3) ─────────────────────────────────────────────────────────

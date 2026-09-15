@@ -72,7 +72,7 @@ export default function ManageGroupScreen() {
   const handleShare = async () => {
     if (!group?.joinCode) return;
     await Share.share({
-      message: `Join my expense group "${group.name}" on Expense Tracker!\nCode: ${group.joinCode}`,
+      message: `Join my expense group "${group.name}" on WatchMyWallet!\nCode: ${group.joinCode}`,
     });
   };
 

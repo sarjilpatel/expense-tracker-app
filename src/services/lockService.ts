@@ -90,7 +90,7 @@ export async function setBiometricEnabled(enabled: boolean): Promise<void> {
 export async function authenticateWithBiometric(): Promise<boolean> {
   try {
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock Expense Tracker',
+      promptMessage: 'Unlock WatchMyWallet',
       cancelLabel: 'Use PIN',
       disableDeviceFallback: true,
     });

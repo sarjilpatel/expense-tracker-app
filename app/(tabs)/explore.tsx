@@ -70,8 +70,10 @@ export default function AnalyticsScreen() {
   }));
 
   // ── Data fetching ─────────────────────────────────────────────────────────
-  const fetchData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
+  const fetchData = useCallback(async () => {
+    // A skeleton only before anything has ever loaded; the analytics come from memory, and the
+    // month slide covers the swap.
+    if (!hasData.current) setLoading(true);
     try {
       const [analyticsData, budgetData] = await Promise.all([
         getAnalytics(currentMonth, currentYear),
@@ -102,12 +104,11 @@ export default function AnalyticsScreen() {
     }
   }, []);
 
-  useFocusRefresh(useCallback(() => { fetchData(hasData.current); }, [fetchData]));
+  useFocusRefresh(useCallback(() => { fetchData(); }, [fetchData]));
 
   useEffect(() => {
     if (!isMounted.current) { isMounted.current = true; return; }
-    hasData.current = false;
-    fetchData(false);
+    fetchData();
   }, [currentMonth, currentYear]);
 
   useEffect(() => {
@@ -117,7 +118,7 @@ export default function AnalyticsScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await runSync('manual').catch(() => {});
-    fetchData(true);
+    fetchData();
     if (viewMode === 'trends') fetchTrend();
   };
 

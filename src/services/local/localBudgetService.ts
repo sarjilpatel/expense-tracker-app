@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { JsonStore } from './jsonStore';
 
 const KEY = '@local_budgets_v1';
 
@@ -16,16 +16,9 @@ function genId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-async function load(): Promise<LocalBudget[]> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-async function persist(data: LocalBudget[]): Promise<void> {
-  await AsyncStorage.setItem(KEY, JSON.stringify(data));
-}
+const store = new JsonStore<LocalBudget[]>(KEY, () => []);
+const load    = () => store.get();
+const persist = (data: LocalBudget[]) => store.set(data);
 
 export async function getLocalBudgets(month?: number, year?: number): Promise<LocalBudget[]> {
   const all = await load();
@@ -76,7 +69,7 @@ export async function getAllLocalBudgets(): Promise<LocalBudget[]> {
 }
 
 export async function clearLocalBudgets(): Promise<void> {
-  await AsyncStorage.removeItem(KEY);
+  await store.clear();
 }
 
 // ── Sync support (W3) ─────────────────────────────────────────────────────────

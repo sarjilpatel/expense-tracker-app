@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/src/context/ThemeContext';
 import { THEME_PRESETS, ThemePreset, getContrastText } from '@/constants/theme';
@@ -56,8 +55,6 @@ export default function CustomizationScreen() {
 
   return (
     <Screen title="Customize">
-      <Stack.Screen options={{ contentStyle: { backgroundColor: theme.background } }} />
-
       {/* ── Live preview: built from the same primitives the app uses, so it is a true preview ── */}
       <Card style={{ marginTop: space.sm }}>
         <Text style={[type.overline, { color: theme.secondaryText }]}>Available balance</Text>
