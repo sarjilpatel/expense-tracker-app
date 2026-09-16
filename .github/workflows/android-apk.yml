@@ -1,0 +1,170 @@
+# Every push to main builds a release APK and emails it.
+#
+# The APK is ~30 MB (arm64, R8 on), which is over Gmail's 25 MB attachment limit, so the
+# mail normally carries a download link to the workflow artifact and the file is attached
+# only when it fits (ATTACH_LIMIT_MB below). The artifact is kept for 30 days.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   EXPO_PUBLIC_API_URL, EXPO_PUBLIC_SOCKET_URL   baked into the JS bundle at build time
+#   MAIL_USERNAME, MAIL_PASSWORD                  Gmail address + an App Password (needs 2-step verification)
+#   MAIL_TO                                       where the mail goes
+# Optional — release signing (without these the APK is signed with the debug keystore,
+# which installs fine for testing but can never go to Play, and the two signatures cannot
+# update each other, so switch once and uninstall the old build):
+#   ANDROID_KEYSTORE_BASE64                       `base64 -w0 release.keystore`
+#   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ATTACH_LIMIT_MB: 24
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CI: 1
+      EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
+      EXPO_PUBLIC_SOCKET_URL: ${{ secrets.EXPO_PUBLIC_SOCKET_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+
+      # A build that fails its own tests is not worth mailing.
+      - run: npm test
+
+      # android/ is gitignored; generate it from app.json.
+      - run: npx expo prebuild -p android --no-install
+
+      - name: Configure Gradle
+        run: |
+          # R8 on a New-Architecture RN app needs a large heap; the template ships 2 GB and
+          # the build thrashes for the better part of an hour on it. The user-home file wins
+          # over the project one, which prebuild has just rewritten.
+          mkdir -p ~/.gradle
+          echo "org.gradle.jvmargs=-Xmx6144m -XX:MaxMetaspaceSize=1024m" >> ~/.gradle/gradle.properties
+          # Make each build identifiable in the phone's App info.
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          chmod +x android/gradlew
+
+      - name: Release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64 secret — signing with the debug keystore."
+            exit 0
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
+          # The template signs release with the debug key; a later android {} block overrides it.
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file('release.keystore')
+                      storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                      keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                      keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+
+      - name: Build APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        # arm64 only: every phone from the last decade, and a third of the universal size.
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+
+      - name: Collect APK
+        id: apk
+        run: |
+          short=$(echo "${{ github.sha }}" | cut -c1-7)
+          name="WatchMyWallet-${{ github.run_number }}-${short}.apk"
+          mv android/app/build/outputs/apk/release/app-release.apk "$name"
+          bytes=$(stat -c %s "$name")
+          mb=$(( bytes / 1048576 ))
+          echo "name=$name"   >> "$GITHUB_OUTPUT"
+          echo "mb=$mb"       >> "$GITHUB_OUTPUT"
+          if [ "$mb" -le "$ATTACH_LIMIT_MB" ]; then
+            echo "attach=$name" >> "$GITHUB_OUTPUT"
+          else
+            echo "attach="      >> "$GITHUB_OUTPUT"
+          fi
+          echo "APK: $name ($mb MB)" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        id: artifact
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.name }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Write mail body
+        id: body
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || 'manual build' }}
+        run: |
+          # First line of the commit message, for the subject.
+          echo "title=$(printf '%s' "$COMMIT_MESSAGE" | head -n1 | cut -c1-80)" >> "$GITHUB_OUTPUT"
+          {
+            echo "<p><b>WatchMyWallet</b> build #${{ github.run_number }} — ${{ steps.apk.outputs.mb }} MB, arm64, versionCode ${{ github.run_number }}</p>"
+            if [ -n "${{ steps.apk.outputs.attach }}" ]; then
+              echo "<p>The APK is attached.</p>"
+            else
+              echo "<p>The APK is over the ${ATTACH_LIMIT_MB} MB attachment limit, so it is not attached. Download it here (GitHub login needed, kept 30 days):</p>"
+            fi
+            echo "<p><a href=\"${{ steps.artifact.outputs.artifact-url }}\">${{ steps.apk.outputs.name }}</a><br>"
+            echo "<a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">Workflow run</a></p>"
+            echo "<p><b>Commit</b> <a href=\"${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}\">${{ github.sha }}</a> by ${{ github.event.head_commit.author.name || github.actor }}</p>"
+            echo "<pre>$(printf '%s' "$COMMIT_MESSAGE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')</pre>"
+          } > mail-body.html
+
+      - name: Email the APK
+        uses: dawidd6/action-send-mail@v22
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          from: WatchMyWallet CI <${{ secrets.MAIL_USERNAME }}>
+          to: ${{ secrets.MAIL_TO }}
+          subject: "WatchMyWallet APK #${{ github.run_number }} — ${{ steps.body.outputs.title }}"
+          html_body: file://mail-body.html
+          attachments: ${{ steps.apk.outputs.attach }}

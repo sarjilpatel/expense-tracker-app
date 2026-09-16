@@ -22,9 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": true,
-      "package": "com.watchmywallet",
-      "enableProguardInProductionBuilds": true,
-      "enableShrinkResourcesInReleaseBuilds": true
+      "package": "com.watchmywallet"
     },
     "web": {
       "output": "static",
@@ -60,7 +58,16 @@
           "cameraPermission": "$(PRODUCT_NAME) needs access to your camera to capture receipts."
         }
       ],
-      "expo-background-task"
+      "expo-background-task",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
