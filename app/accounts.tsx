@@ -102,6 +102,16 @@ export default function AccountsScreen() {
             </View>
           </Card>
 
+          <Card padded={false} style={{ marginTop: space.md }}>
+            <Row
+              icon="swap-horizontal-outline"
+              title="Transfer money"
+              subtitle="Move money between your accounts"
+              onPress={() => router.push('/add-transfer')}
+              last
+            />
+          </Card>
+
           <SectionHeader title="My accounts" count={accounts.length} />
           <Card padded={false}>
             {accountsWithBalance.map((acc, i) => {

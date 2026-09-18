@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
+import { Platform } from 'react-native';
 
 const PIN_HASH_KEY  = 'lock_pin_hash';
 const ENABLED_KEY   = 'lock_enabled';
@@ -10,11 +11,17 @@ const BIOMETRIC_KEY = 'lock_biometric_enabled';
 const BG_TIME_KEY   = '@lock_bg_time';
 const LOCK_TIMEOUT  = 5 * 60 * 1000; // 5 minutes
 
+// SecureStore is native-only. The web app keeps the same feature available with its regular
+// device storage rather than failing during startup before the user reaches the Home screen.
+const secureGet = (key: string) => Platform.OS === 'web' ? AsyncStorage.getItem(key) : SecureStore.getItemAsync(key);
+const secureSet = (key: string, value: string) => Platform.OS === 'web' ? AsyncStorage.setItem(key, value) : SecureStore.setItemAsync(key, value);
+const secureDelete = (key: string) => Platform.OS === 'web' ? AsyncStorage.removeItem(key) : SecureStore.deleteItemAsync(key);
+
 async function getOrCreateSalt(): Promise<string> {
-  let salt = await SecureStore.getItemAsync(SALT_KEY);
+  let salt = await secureGet(SALT_KEY);
   if (!salt) {
     salt = Crypto.randomUUID();
-    await SecureStore.setItemAsync(SALT_KEY, salt);
+    await secureSet(SALT_KEY, salt);
   }
   return salt;
 }
@@ -26,27 +33,27 @@ async function hashPin(pin: string): Promise<string> {
 
 export async function setPin(pin: string): Promise<void> {
   const hash = await hashPin(pin);
-  await SecureStore.setItemAsync(PIN_HASH_KEY, hash);
-  await SecureStore.setItemAsync(ENABLED_KEY, 'true');
+  await secureSet(PIN_HASH_KEY, hash);
+  await secureSet(ENABLED_KEY, 'true');
 }
 
 export async function verifyPin(pin: string): Promise<boolean> {
-  const storedHash = await SecureStore.getItemAsync(PIN_HASH_KEY);
+  const storedHash = await secureGet(PIN_HASH_KEY);
   if (!storedHash) return false;
   const hash = await hashPin(pin);
   return hash === storedHash;
 }
 
 export async function isLockEnabled(): Promise<boolean> {
-  const val = await SecureStore.getItemAsync(ENABLED_KEY);
+  const val = await secureGet(ENABLED_KEY);
   return val === 'true';
 }
 
 export async function disableLock(): Promise<void> {
-  await SecureStore.deleteItemAsync(PIN_HASH_KEY);
-  await SecureStore.deleteItemAsync(ENABLED_KEY);
-  await SecureStore.deleteItemAsync(SALT_KEY);
-  await SecureStore.deleteItemAsync(BIOMETRIC_KEY);
+  await secureDelete(PIN_HASH_KEY);
+  await secureDelete(ENABLED_KEY);
+  await secureDelete(SALT_KEY);
+  await secureDelete(BIOMETRIC_KEY);
 }
 
 export async function recordBackground(): Promise<void> {
@@ -79,12 +86,12 @@ export async function isBiometricAvailable(): Promise<boolean> {
 }
 
 export async function getBiometricEnabled(): Promise<boolean> {
-  const val = await SecureStore.getItemAsync(BIOMETRIC_KEY);
+  const val = await secureGet(BIOMETRIC_KEY);
   return val === 'true';
 }
 
 export async function setBiometricEnabled(enabled: boolean): Promise<void> {
-  await SecureStore.setItemAsync(BIOMETRIC_KEY, enabled ? 'true' : 'false');
+  await secureSet(BIOMETRIC_KEY, enabled ? 'true' : 'false');
 }
 
 export async function authenticateWithBiometric(): Promise<boolean> {

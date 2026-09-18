@@ -1,7 +1,6 @@
 import React, { forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, type TextInputProps, type StyleProp, type ViewStyle } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { BottomSheetTextInput, useBottomSheetInternal } from '@gorhom/bottom-sheet';
 import { useTheme } from '@/src/context/ThemeContext';
 import { space, radius, type, icon as iconSize, hairline } from '@/constants/tokens';
 import { SheetOpenContext } from './Sheet';
@@ -35,18 +34,12 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
   const border = error ? theme.danger : focused ? theme.tint : theme.border;
   const area = lines !== undefined && lines > 1;
 
-  // Inside a `Sheet` the input must be the sheet's own. The sheet only reacts to the keyboard
-  // once one of its inputs has reported focus to it; a plain `TextInput` never does, so the
-  // keyboard event is parked and the sheet stays where it is, with the field underneath.
-  const inSheet = useBottomSheetInternal(true) !== null;
-  const Input = (inSheet ? BottomSheetTextInput : TextInput) as typeof TextInput;
-
-  // In a sheet, `autoFocus` waits for the slide to finish (see `SheetOpenContext`); the keyboard
-  // rising mid-slide is what made the sheet come up misplaced.
+  // In a sheet, `autoFocus` waits for the slide to finish (see `SheetOpenContext`) so the keyboard
+  // does not interrupt its entrance animation.
   const inner = useRef<TextInput>(null);
   useImperativeHandle(ref, () => inner.current as TextInput, []);
   const sheetOpen = useContext(SheetOpenContext);
-  const deferFocus = inSheet && !!input.autoFocus;
+  const deferFocus = sheetOpen && !!input.autoFocus;
   useEffect(() => {
     if (deferFocus && sheetOpen) inner.current?.focus();
   }, [deferFocus, sheetOpen]);
@@ -61,7 +54,7 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field(
         !editable && styles.readonly,
       ]}>
         {icon && <Ionicons name={icon} size={iconSize.md} color={theme.secondaryText} />}
-        <Input
+        <TextInput
           ref={inner}
           multiline={area || input.multiline}
           numberOfLines={area ? lines : input.numberOfLines}

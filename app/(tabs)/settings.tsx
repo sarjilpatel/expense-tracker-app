@@ -152,9 +152,15 @@ export default function SettingsScreen() {
             </View>
             <Chip size="sm" tone={sync.pending > 0 ? 'warning' : sync.lastSyncAt ? 'income' : 'neutral'} icon={sync.pending > 0 ? 'cloud-upload-outline' : 'cloud-done-outline'} label={sync.running ? 'Backing up…' : sync.pending > 0 ? `${sync.pending} waiting` : sync.lastSyncAt ? 'Backed up' : 'Not yet'} />
           </View>
-          <Touchable onPress={openDelete} haptic="none" style={S.deleteLink} accessibilityLabel="Delete account">
-            <Text style={[type.label, { color: theme.secondaryText }]}>Delete account</Text>
-          </Touchable>
+          <View style={S.profileActions}>
+            <Touchable onPress={() => router.push('/edit-profile')} haptic="selection" style={S.profileLink} accessibilityLabel="Edit profile">
+              <Ionicons name="create-outline" size={iconSize.sm} color={theme.tint} />
+              <Text style={[type.label, { color: theme.tint }]}>Edit profile</Text>
+            </Touchable>
+            <Touchable onPress={openDelete} haptic="none" style={S.profileLink} accessibilityLabel="Delete account">
+              <Text style={[type.label, { color: theme.secondaryText }]}>Delete account</Text>
+            </Touchable>
+          </View>
         </Card>
       )}
 
@@ -209,7 +215,8 @@ const S = StyleSheet.create({
   profile:    { flexDirection: 'row', alignItems: 'center', gap: space.md },
   avatar:     { width: 52, height: 52, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   avatarImg:  { width: 52, height: 52 },
-  deleteLink: { alignSelf: 'flex-end', marginTop: space.sm, paddingVertical: space.xs, paddingHorizontal: space.xs },
+  profileActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: space.sm },
+  profileLink:    { flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingVertical: space.xs },
   grid:       { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile:       { width: '48%', flexGrow: 1, gap: space.xs },
   tileIcon:   { width: 44, height: 44, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', marginBottom: space.xs },

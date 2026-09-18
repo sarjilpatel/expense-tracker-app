@@ -217,13 +217,9 @@ export default function EditTransactionScreen() {
         {isRecurring && (
           <View style={{ marginTop: space.md }}>
             <RecurringToggle
-              enabled={isRecurring}
               frequency={recurrenceFrequency}
-              onToggle={() => setIsRecurring(v => !v)}
               onFrequencyChange={setRecurrenceFrequency}
               tintColor={accent}
-              textColor={theme.text}
-              borderColor={theme.border}
             />
           </View>
         )}

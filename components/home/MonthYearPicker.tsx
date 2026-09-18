@@ -20,10 +20,6 @@ const MONTHS_ENGLISH = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-/**
- * Month + year chooser on the shared `Sheet` (W2-11). It used to be an absolutely positioned
- * popover that each caller wrapped in its own scrim; the caller now just toggles `visible`.
- */
 export function MonthYearPicker({
   visible, onClose, selectedMonth, selectedYear, onSelect, showYearOnly = false,
 }: MonthYearPickerProps) {

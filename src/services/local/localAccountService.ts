@@ -71,6 +71,14 @@ export async function removeLocalTxAccount(txId: string): Promise<void> {
   await txMap.set(map);
 }
 
+export async function removeLocalTxAccounts(txIds: string[]): Promise<void> {
+  if (txIds.length === 0) return;
+  const removed = new Set(txIds);
+  const map = await getLocalTxAccountMap();
+  const next = Object.fromEntries(Object.entries(map).filter(([txId]) => !removed.has(txId)));
+  await txMap.set(next);
+}
+
 export async function clearLocalAccounts(): Promise<void> {
   await Promise.all([accounts.clear(), txMap.clear()]);
 }

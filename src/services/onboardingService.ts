@@ -6,6 +6,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * theme, starter categories — and a returning user on a new phone should see it again.
  */
 const KEY = '@welcome_seen_v1';
+type WelcomeSeenListener = (seen: boolean) => void;
+
+const listeners = new Set<WelcomeSeenListener>();
+
+function notifyWelcomeSeen(seen: boolean) {
+  listeners.forEach(listener => listener(seen));
+}
 
 export async function hasSeenWelcome(): Promise<boolean> {
   try { return (await AsyncStorage.getItem(KEY)) === 'true'; }
@@ -14,4 +21,10 @@ export async function hasSeenWelcome(): Promise<boolean> {
 
 export async function markWelcomeSeen(): Promise<void> {
   try { await AsyncStorage.setItem(KEY, 'true'); } catch {}
+  notifyWelcomeSeen(true);
+}
+
+export function subscribeWelcomeSeen(listener: WelcomeSeenListener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }

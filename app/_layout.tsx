@@ -6,9 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { ActivityIndicator, View, Text, StyleSheet, AppState, Appearance } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { enableFreeze } from 'react-native-screens';
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as SystemUI from 'expo-system-ui';
 
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { PreferencesProvider } from '@/src/context/PreferencesContext';
@@ -24,7 +22,7 @@ import { getSyncMeta } from '@/src/sync/meta';
 import { startForegroundScheduler } from '@/src/sync/scheduler';
 import LockScreen from '@/app/lock';
 import { shouldLock, recordBackground, clearBackgroundTime } from '@/src/services/lockService';
-import { hasSeenWelcome } from '@/src/services/onboardingService';
+import { hasSeenWelcome, subscribeWelcomeSeen } from '@/src/services/onboardingService';
 import { radius, space, type } from '@/constants/tokens';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
@@ -33,24 +31,18 @@ SplashScreen.preventAutoHideAsync();
 // they neither render nor run effects until they are visible again (W2-14).
 enableFreeze(true);
 
-// Set Android Activity window background immediately on module load.
-// This is what shows through during native slide animations — not fixable from JS-layer styles alone.
-SystemUI.setBackgroundColorAsync(
-  Appearance.getColorScheme() === 'dark' ? Colors.dark.background : Colors.light.background
-);
-
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 // W2-05: four kinds of screen, four option sets. Add a route to the list its kind belongs to.
-const ROOT: NativeStackNavigationOptions = { headerShown: false, animation: 'fade' };
+const ROOT: NativeStackNavigationOptions = { headerShown: false, animation: 'default' };
 // `fullScreenGestureEnabled` gives iOS a swipe-back from anywhere on the screen, not just the edge;
 // Android gets predictive back from `app.json` (W2-08) — nothing in the app intercepts hardware
 // back itself, so there was no handler to migrate.
-const PUSH: NativeStackNavigationOptions = { headerShown: false, animation: 'slide_from_right', gestureEnabled: true, fullScreenGestureEnabled: true };
-const EDIT: NativeStackNavigationOptions = { headerShown: false, presentation: 'modal', animation: 'slide_from_bottom', gestureEnabled: true };
-const FLOW: NativeStackNavigationOptions = { headerShown: false, animation: 'slide_from_right', gestureEnabled: false };
+const PUSH: NativeStackNavigationOptions = { headerShown: false, animation: 'default', gestureEnabled: true, fullScreenGestureEnabled: true };
+const EDIT: NativeStackNavigationOptions = { headerShown: false, presentation: 'modal', animation: 'default', gestureEnabled: true };
+const FLOW: NativeStackNavigationOptions = { headerShown: false, animation: 'default', gestureEnabled: false };
 
 const PUSH_SCREENS = [
   'accounts', 'account-detail', 'budget', 'goals', 'search', 'manage-group', 'manage-categories',
@@ -86,6 +78,7 @@ function RootLayoutNav() {
       setLockChecked(true);
     });
     hasSeenWelcome().then(setWelcomeSeen);
+    return subscribeWelcomeSeen(setWelcomeSeen);
   }, []);
 
   // AppState-based lock
@@ -206,10 +199,7 @@ export default function RootLayout() {
           <PreferencesProvider>
             <LanguageProvider>
               <AuthProvider>
-                {/* Hosts every <Sheet> (components/ui) — one provider, mounted once, above the navigator. */}
-                <BottomSheetModalProvider>
-                  <RootLayoutNav />
-                </BottomSheetModalProvider>
+                <RootLayoutNav />
               </AuthProvider>
             </LanguageProvider>
           </PreferencesProvider>

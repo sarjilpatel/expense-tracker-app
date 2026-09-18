@@ -78,7 +78,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // background — what shows through native transitions — is repainted to the active scheme the
   // moment the saved override resolves, not left on whatever module load guessed.
   useEffect(() => {
-    Appearance.setColorScheme(overrides.themeMode && overrides.themeMode !== 'system' ? overrides.themeMode : null);
+    if (typeof Appearance.setColorScheme === 'function') {
+      Appearance.setColorScheme(overrides.themeMode && overrides.themeMode !== 'system' ? overrides.themeMode : null);
+    }
   }, [overrides.themeMode]);
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(Colors[activeScheme].background).catch(() => {});

@@ -72,6 +72,21 @@ test('an edit and a delete of the same unsynced row collapse in the outbox', asy
   assert.equal((await outbox.peek()).length, 0, 'created and deleted before a sync: nothing to send');
 });
 
+test('clearing transaction history works locally and does not require an account', async () => {
+  setup(true);
+  const expense = await dataService.addTransaction({ amount: 25, type: 'expense', category: 'Food', date: '2026-09-18' });
+  await dataService.addTransaction({ amount: 50, type: 'income', category: 'Salary', date: '2026-09-18' });
+  const account = await dataService.saveAccount({ name: 'Cash', type: 'cash', openingBalance: 0, color: '#000000', icon: 'cash-outline' });
+  await dataService.setTxAccount(expense._id, account.id);
+
+  await dataService.clearTransactions();
+
+  assert.deepEqual(await dataService.getAllTransactions(), []);
+  assert.deepEqual(await dataService.getTxAccountMap(), {}, 'clearing history also clears transaction-to-account links');
+  assert.deepEqual((await outbox.peek()).map(entry => entry.collection), ['accounts'], 'unsynced transactions are discarded while accounts stay intact');
+  assert.equal(__calls().length, 0, 'clearing a guest history never reaches the network');
+});
+
 test('setMode changes nothing about reads — both modes read the device', async () => {
   setup(true);
   await dataService.createGoal(NEW_GOAL);

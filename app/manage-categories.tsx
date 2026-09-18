@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { StyleSheet, View, Text, Alert } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { EmojiPickerModal } from '@/components/EmojiPickerModal';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useLanguage } from '@/src/i18n/LanguageContext';
+import { useAuth } from '@/src/context/AuthContext';
 import { Currency } from '@/constants/theme';
 import { space, radius, type, icon as iconSize } from '@/constants/tokens';
 import {
@@ -33,6 +34,7 @@ const TYPES: { key: CategoryType; label: string }[] = [
 export default function ManageCategoriesScreen() {
   const { t } = useLanguage();
   const { theme } = useTheme();
+  const { isGuest } = useAuth();
   const { type: typeParam } = useLocalSearchParams<{ type?: string }>();
 
   const [categories, setCategories]     = useState<Category[]>([]);
@@ -184,7 +186,15 @@ export default function ManageCategoriesScreen() {
   }
 
   return (
-    <Screen title={t('category_management')} keyboard>
+    <Screen
+      title={t('category_management')}
+      keyboard
+      right={!isGuest ? (
+        <Touchable onPress={() => router.push({ pathname: '/import-categories', params: { type: selectedType } })} size={36} style={S.importBtn} accessibilityLabel="Import categories" rippleBorderless>
+          <Ionicons name="download-outline" size={iconSize.md} color={theme.tint} />
+        </Touchable>
+      ) : undefined}
+    >
       {/* ── Add ── */}
       <SectionHeader title="Add category" />
       <View style={S.chips}>
@@ -323,5 +333,6 @@ const S = StyleSheet.create({
   nameField:    { flex: 1 },
   actions:      { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   actionBtn:    { width: 32, height: 32, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
+  importBtn:    { width: 36, height: 36, borderRadius: radius.full, justifyContent: 'center', alignItems: 'center' },
   sheetActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.lg },
 });

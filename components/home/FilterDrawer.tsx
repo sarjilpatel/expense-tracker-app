@@ -27,7 +27,6 @@ interface Props {
   current: FilterState;
 }
 
-/** The home-screen filter, on the shared `Sheet` (W2-11). `visible` drives present/dismiss. */
 export function FilterDrawer({ visible, onClose, onApply, availableCategories, current }: Props) {
   const { theme } = useTheme();
   const sheet = useRef<SheetHandle>(null);

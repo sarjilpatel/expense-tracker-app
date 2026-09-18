@@ -682,17 +682,7 @@ export default function AnalyticsScreen() {
           )}
         </Sheet>
 
-        {/* Month/Year Picker */}
-        <MonthYearPicker
-          visible={showDatePicker}
-          onClose={() => setShowDatePicker(false)}
-          selectedMonth={currentMonth}
-          selectedYear={currentYear}
-          onSelect={(month, year) => {
-            setCurrentMonth(month);
-            setCurrentYear(year);
-          }}
-        />
+
 
       </ThemedView>
     </GestureDetector>

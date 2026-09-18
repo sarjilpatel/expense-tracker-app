@@ -110,6 +110,22 @@ export const deleteTransaction = async (id: string) => {
   return result;
 };
 
+/** Remove the transaction history from this device and queue matching server deletes when needed. */
+export const clearTransactions = async () => {
+  const transactions = await localTx.getAllLocalTransactions();
+  await localTx.clearAllLocalTransactions();
+  await localAcct.removeLocalTxAccounts(transactions.map(tx => tx._id));
+  await outbox.enqueueMany(transactions.map(tx => ({
+    collection: 'transactions' as const,
+    op: 'delete' as const,
+    clientId: tx._id,
+    payload: {},
+    groupId: tx.groupId ? String(tx.groupId) : null,
+  })));
+  bumpDataVersion();
+  noteLocalWrite();
+};
+
 /**
  * Undo of a delete. The row is gone from the device — the delete queued above is a tombstone on
  * the server once pushed — so a restore re-creates it from what the caller still holds.

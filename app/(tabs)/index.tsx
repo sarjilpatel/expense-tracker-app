@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  View, Text, RefreshControl,
+  View, Text, RefreshControl, TextInput,
   Alert, ScrollView, StyleSheet, Dimensions,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, runOnJS,
+  useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
@@ -31,11 +31,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedView } from '@/components/themed-view';
 import { SkeletonLoader } from '@/components/SkeletonLoader';
 import { space, type as text, icon as iconSize, radius } from '@/constants/tokens';
-import { Card, Row, Touchable, Button, Sheet, Amount, type SheetHandle } from '@/components/ui';
+import { Card, Row, Touchable, Button, Sheet, Amount, Field, type SheetHandle } from '@/components/ui';
 
 import { ViewModeTabs, HomeViewMode } from '@/components/home/ViewModeTabs';
 import { FilterDrawer, FilterState, DEFAULT_FILTERS } from '@/components/home/FilterDrawer';
 import { TransactionRow } from '@/components/home/TransactionRow';
+import { MonthYearPicker } from '@/components/home/MonthYearPicker';
 import { TransactionSectionHeader } from '@/components/home/TransactionSectionHeader';
 import { CalendarView } from '@/components/home/CalendarView';
 import { MonthlyView } from '@/components/home/MonthlyView';
@@ -43,7 +44,6 @@ import { TotalView } from '@/components/home/TotalView';
 import { WeeklyView } from '@/components/home/WeeklyView';
 import { NoteView } from '@/components/home/NoteView';
 import { NotificationsModal, Notification } from '@/components/home/NotificationsModal';
-import { MonthYearPicker } from '@/components/home/MonthYearPicker';
 
 import { reportError } from '@/src/utils/log';
 const EmptyWalletIllustration = ({ theme }: { theme: any }) => (
@@ -86,12 +86,9 @@ export default function HomeScreen() {
   const { theme } = useTheme();
   const { prefs, formatAmount } = usePreferences();
   const { top } = useSafeAreaInsets();
-
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [summary, setSummary] = useState({ income: 0, expense: 0, balance: 0 });
   const [refreshing, setRefreshing] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [budget, setBudget] = useState<any>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -99,8 +96,12 @@ export default function HomeScreen() {
   const [monthLoading, setMonthLoading] = useState(false);
   const [accountNameMap, setAccountNameMap] = useState<Record<string, string>>({});
   const [receiptMap, setReceiptMap] = useState<Record<string, string>>({});
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [undoState, setUndoState] = useState<{ txId: string; tx: any; accountId?: string } | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -264,8 +265,8 @@ export default function HomeScreen() {
         });
       }
 
-      translateX.value = withTiming(0, { duration: 250 });
-      contentOpacity.value = withTiming(1, { duration: 250 });
+      translateX.value = withTiming(0, { duration: 200 });
+      contentOpacity.value = withTiming(1, { duration: 200 });
     };
 
     if (isGesture) {
@@ -289,14 +290,14 @@ export default function HomeScreen() {
         const threshold = SCREEN_WIDTH * 0.25;
         if (e.translationX < -threshold) {
           // Swipe right-to-left: Next month
-          translateX.value = withTiming(-SCREEN_WIDTH, { duration: 200 }, (finished) => {
+          translateX.value = withTiming(-SCREEN_WIDTH, { duration: 150 }, (finished) => {
             if (finished) {
               runOnJS(changeMonth)(1, true);
             }
           });
         } else if (e.translationX > threshold) {
           // Swipe left-to-right: Previous month
-          translateX.value = withTiming(SCREEN_WIDTH, { duration: 200 }, (finished) => {
+          translateX.value = withTiming(SCREEN_WIDTH, { duration: 150 }, (finished) => {
             if (finished) {
               runOnJS(changeMonth)(-1, true);
             }
@@ -322,12 +323,26 @@ export default function HomeScreen() {
     const max = parseFloat(activeFilters.amountMax);
     if (!isNaN(min)) txs = txs.filter((tx: any) => tx.amount >= min);
     if (!isNaN(max)) txs = txs.filter((tx: any) => tx.amount <= max);
+    if (searchQuery.trim().length > 0) {
+      const q = searchQuery.toLowerCase();
+      txs = txs.filter((tx: any) =>
+        (tx.note && tx.note.toLowerCase().includes(q)) ||
+        (tx.category && tx.category.toLowerCase().includes(q)) ||
+        (accountNameMap[tx._id] && accountNameMap[tx._id].toLowerCase().includes(q))
+      );
+    }
     return txs;
-  }, [allTransactions, activeFilters]);
+  }, [allTransactions, activeFilters, searchQuery, accountNameMap]);
 
   const filteredSections = useMemo(() => {
     return buildSections(filteredTransactions);
   }, [filteredTransactions]);
+
+  const activeFilterCount =
+    (activeFilters.type !== 'all' ? 1 : 0) +
+    activeFilters.categories.length +
+    (activeFilters.amountMin ? 1 : 0) +
+    (activeFilters.amountMax ? 1 : 0);
 
   const ITEM_HEIGHT   = 56;
   const HEADER_HEIGHT = 46;
@@ -560,37 +575,81 @@ export default function HomeScreen() {
   };
 
   return (
-    <GestureDetector gesture={swipeGesture}>
-      <ThemedView style={[styles.container, { paddingTop: top + 8 }]}>
+    <ThemedView style={[styles.container, { paddingTop: top + space.sm }]}>
 
         {/* Compact Header */}
         <View style={styles.topBlock}>
           <View style={styles.header}>
-            <View style={styles.monthSelector}>
-              <Touchable onPress={() => changeMonth(-1)} size={28} haptic="selection" accessibilityLabel="Previous month" rippleBorderless>
-                <Ionicons name="chevron-back" size={iconSize.md} color={theme.text} />
-              </Touchable>
-              <Touchable onPress={() => setShowDatePicker(true)} haptic="selection" accessibilityLabel="Choose month">
-                <Text style={[text.heading, { color: theme.text }]}>
-                  {viewMode === 'monthly' ? String(currentYear) : `${MONTHS[currentMonth - 1]} ${currentYear}`}
-                </Text>
-              </Touchable>
-              <Touchable onPress={() => changeMonth(1)} size={28} haptic="selection" accessibilityLabel="Next month" rippleBorderless>
-                <Ionicons name="chevron-forward" size={iconSize.md} color={theme.text} />
-              </Touchable>
-            </View>
-            <View style={styles.headerIcons}>
-              <Touchable style={styles.headerIconBtn} size={32} onPress={() => setShowFilterDrawer(true)} accessibilityLabel="Filters" rippleBorderless>
-                <Ionicons name="filter-outline" size={iconSize.md} color={activeFilters.type !== 'all' || activeFilters.categories.length > 0 || activeFilters.amountMin || activeFilters.amountMax ? theme.tint : theme.text} />
-              </Touchable>
-              <Touchable style={styles.headerIconBtn} size={32} onPress={() => router.push('/search')} accessibilityLabel="Search" rippleBorderless>
-                <Ionicons name="search-outline" size={iconSize.md} color={theme.text} />
-              </Touchable>
-              <Touchable style={styles.headerIconBtn} size={32} onPress={() => setShowNotifications(true)} accessibilityLabel={notifications.length > 0 ? `Notifications, ${notifications.length} new` : 'Notifications'} rippleBorderless>
-                <Ionicons name="options-outline" size={iconSize.md} color={theme.text} />
-                {notifications.length > 0 && <View style={[styles.notifDot, { backgroundColor: theme.danger, borderColor: theme.background }]} />}
-              </Touchable>
-            </View>
+            {isSearching ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: space.sm, height: 36, backgroundColor: theme.inputBg, borderRadius: radius.md, paddingHorizontal: space.sm }}>
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder={t('search') || 'Search...'}
+                  placeholderTextColor={theme.secondaryText}
+                  autoFocus
+                  style={[text.body, { flex: 1, color: theme.text, paddingVertical: 0, height: 36 }]}
+                  accessibilityLabel="Search transactions"
+                />
+                <Touchable
+                  style={styles.headerIconBtn}
+                  size={32}
+                  onPress={() => {
+                    setIsSearching(false);
+                    setSearchQuery('');
+                  }}
+                  accessibilityLabel="Cancel search"
+                  rippleBorderless
+                >
+                  <Ionicons name="close" size={iconSize.md} color={theme.text} />
+                </Touchable>
+              </View>
+            ) : (
+              <>
+                <View style={styles.monthSelector}>
+                  <Touchable onPress={() => changeMonth(-1)} size={28} haptic="selection" accessibilityLabel="Previous month" rippleBorderless>
+                    <Ionicons name="chevron-back" size={iconSize.md} color={theme.text} />
+                  </Touchable>
+                  <Touchable onPress={() => setShowDatePicker(true)} haptic="selection" accessibilityLabel="Choose month">
+                    <Text style={[text.heading, { color: theme.text }]}>
+                      {viewMode === 'monthly' ? String(currentYear) : `${MONTHS[currentMonth - 1]} ${currentYear}`}
+                    </Text>
+                  </Touchable>
+                  <Touchable onPress={() => changeMonth(1)} size={28} haptic="selection" accessibilityLabel="Next month" rippleBorderless>
+                    <Ionicons name="chevron-forward" size={iconSize.md} color={theme.text} />
+                  </Touchable>
+                </View>
+                <View style={styles.headerIcons}>
+                  <Touchable
+                    style={[styles.headerIconBtn, activeFilterCount > 0 && { backgroundColor: theme.tint }]}
+                    size={32}
+                    onPress={() => setShowFilterDrawer(true)}
+                    accessibilityLabel={activeFilterCount > 0 ? `Filters, ${activeFilterCount} active` : 'Filters'}
+                    rippleBorderless
+                  >
+                    <Ionicons name={activeFilterCount > 0 ? 'filter' : 'filter-outline'} size={iconSize.md} color={activeFilterCount > 0 ? theme.tintText : theme.text} />
+                  </Touchable>
+                  {activeFilterCount > 0 && (
+                    <Touchable
+                      style={styles.headerIconBtn}
+                      size={32}
+                      onPress={() => setActiveFilters(DEFAULT_FILTERS)}
+                      accessibilityLabel="Clear filters"
+                      rippleBorderless
+                    >
+                      <Ionicons name="close-circle-outline" size={iconSize.md} color={theme.tint} />
+                    </Touchable>
+                  )}
+                  <Touchable style={styles.headerIconBtn} size={32} onPress={() => setIsSearching(true)} accessibilityLabel="Search" rippleBorderless>
+                    <Ionicons name="search-outline" size={iconSize.md} color={theme.text} />
+                  </Touchable>
+                  <Touchable style={styles.headerIconBtn} size={32} onPress={() => setShowNotifications(true)} accessibilityLabel={notifications.length > 0 ? `Notifications, ${notifications.length} new` : 'Notifications'} rippleBorderless>
+                    <Ionicons name="options-outline" size={iconSize.md} color={theme.text} />
+                    {notifications.length > 0 && <View style={[styles.notifDot, { backgroundColor: theme.danger, borderColor: theme.background }]} />}
+                  </Touchable>
+                </View>
+              </>
+            )}
           </View>
 
           <ViewModeTabs
@@ -626,23 +685,16 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* View content */}
+        
+
+      {/* Keep horizontal month swipes inside the transaction area so they never intercept header taps. */}
+      <GestureDetector gesture={swipeGesture}>
         <Animated.View style={[{ flex: 1 }, contentAnimStyle]}>
           {renderModeContent()}
         </Animated.View>
+      </GestureDetector>
 
-        {/* Month/Year Picker */}
-        <MonthYearPicker
-          visible={showDatePicker}
-          onClose={() => setShowDatePicker(false)}
-          selectedMonth={currentMonth}
-          selectedYear={currentYear}
-          onSelect={(month, year) => {
-            setCurrentMonth(month);
-            setCurrentYear(year);
-          }}
-          showYearOnly={viewMode === 'monthly'}
-        />
+        
 
         {/* Notifications */}
         <NotificationsModal
@@ -652,14 +704,7 @@ export default function HomeScreen() {
           theme={theme}
         />
 
-        {/* Filter drawer */}
-        <FilterDrawer
-          visible={showFilterDrawer}
-          onClose={() => setShowFilterDrawer(false)}
-          onApply={setActiveFilters}
-          availableCategories={availableCategories}
-          current={activeFilters}
-        />
+        
 
         {/* Long-press actions */}
         <Sheet ref={actionSheetRef} onDismiss={() => setActionSheet(null)} keyboard="none">
@@ -687,29 +732,50 @@ export default function HomeScreen() {
           </View>
         )}
 
-      </ThemedView>
-    </GestureDetector>
+        {/* Month/Year Picker */}
+        <MonthYearPicker
+          visible={showDatePicker}
+          onClose={() => setShowDatePicker(false)}
+          selectedMonth={currentMonth}
+          selectedYear={currentYear}
+          onSelect={(month, year) => {
+            setCurrentMonth(month);
+            setCurrentYear(year);
+          }}
+          showYearOnly={viewMode === 'monthly'}
+        />
+
+        {/* Filter Drawer */}
+        <FilterDrawer
+          visible={showFilterDrawer}
+          onClose={() => setShowFilterDrawer(false)}
+          onApply={setActiveFilters}
+          availableCategories={availableCategories as string[]}
+          current={activeFilters}
+        />
+
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container:     { flex: 1 },
   actionPreview: { alignItems: 'center', gap: 2, marginBottom: space.md },
-  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 36, marginBottom: 8 },
-  monthSelector: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerIcons:   { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: 36, marginBottom: space.sm },
+  monthSelector: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  headerIcons:   { flexDirection: 'row', gap: space.sm, alignItems: 'center' },
   headerIconBtn: { width: 32, height: 32, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center' },
   notifDot:      { position: 'absolute', top: 2, right: 2, width: 7, height: 7, borderRadius: radius.full, borderWidth: 1.5 },
 
   topBlock: {
-    marginHorizontal: 8,
-    marginBottom: 4,
+    marginHorizontal: space.sm,
+    marginBottom: space.xs,
   },
 
   summaryRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 2,
+    gap: space.sm,
+    marginTop: space.xs,
   },
   summaryCard:   { flex: 1, alignItems: 'center', gap: 2, paddingVertical: space.sm, paddingHorizontal: space.xs },
 

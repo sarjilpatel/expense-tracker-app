@@ -1,11 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { Switch, Alert } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { Switch, Alert, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useTheme } from '@/src/context/ThemeContext';
 import { isLockEnabled, disableLock, isBiometricAvailable, getBiometricEnabled, setBiometricEnabled } from '@/src/services/lockService';
 import { requestNotificationPermissions, scheduleDailyReminder, cancelDailyReminder, getReminderTime, saveReminderTime } from '@/src/services/notificationService';
 import { PinSetupModal } from '@/components/PinSetupModal';
-import { Screen, Card, Row, SectionHeader } from '@/components/ui';
+import { Screen, Card, Row, SectionHeader, Button, Sheet, type SheetHandle } from '@/components/ui';
 
 export default function SecurityScreen() {
   const { theme } = useTheme();
@@ -16,6 +17,8 @@ export default function SecurityScreen() {
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const [reminderEnabled,  setReminderEnabled]       = useState(false);
   const [reminderTime,     setReminderTime]          = useState<{ hour: number; minute: number } | null>(null);
+  const [pickerTime,       setPickerTime]            = useState(() => new Date());
+  const reminderSheet = useRef<SheetHandle>(null);
 
   useFocusEffect(useCallback(() => {
     isLockEnabled().then(setLockEnabled).catch(() => {});
@@ -49,21 +52,44 @@ export default function SecurityScreen() {
     setBiometricEnabledState(!biometricEnabled);
   };
 
+  const updateReminderTime = async (date: Date) => {
+    const hour = date.getHours();
+    const minute = date.getMinutes();
+    await scheduleDailyReminder(hour, minute);
+    await saveReminderTime(hour, minute);
+    setReminderTime({ hour, minute });
+  };
+
   const handleToggleReminder = () => {
     if (reminderEnabled) {
       cancelDailyReminder().then(() => { setReminderEnabled(false); setReminderTime(null); });
       return;
     }
-    const defaultHour = 20;
-    const defaultMin  = 0;
-    requestNotificationPermissions().then(granted => {
+    const defaultHour = reminderTime?.hour ?? 20;
+    const defaultMin  = reminderTime?.minute ?? 0;
+    requestNotificationPermissions().then(async granted => {
       if (!granted) { Alert.alert('Permission Required', 'Enable notifications in device settings.'); return; }
-      scheduleDailyReminder(defaultHour, defaultMin);
-      saveReminderTime(defaultHour, defaultMin);
+      await scheduleDailyReminder(defaultHour, defaultMin);
+      await saveReminderTime(defaultHour, defaultMin);
       setReminderEnabled(true);
       setReminderTime({ hour: defaultHour, minute: defaultMin });
-      Alert.alert('Reminder set', 'You\'ll get a daily check-in at 8:00 PM.');
     });
+  };
+
+  const openReminderTime = () => {
+    const value = new Date();
+    value.setHours(reminderTime?.hour ?? 20, reminderTime?.minute ?? 0, 0, 0);
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value,
+        mode: 'time',
+        is24Hour: false,
+        onChange: (_, selected) => { if (selected) updateReminderTime(selected); },
+      });
+      return;
+    }
+    setPickerTime(value);
+    reminderSheet.current?.present();
   };
 
   // The switch is the one control the platform draws itself; it takes the accent for "on" the
@@ -111,9 +137,24 @@ export default function SecurityScreen() {
           title="Daily reminder"
           subtitle={reminderLabel}
           right={toggle(reminderEnabled, handleToggleReminder, 'Daily reminder')}
-          last
+          last={!reminderEnabled}
         />
+        {reminderEnabled && (
+          <Row
+            icon="time-outline"
+            title="Reminder time"
+            subtitle="Choose when to be reminded"
+            right={undefined}
+            onPress={openReminderTime}
+            last
+          />
+        )}
       </Card>
+
+      <Sheet ref={reminderSheet} title="Reminder time" keyboard="none">
+        <DateTimePicker value={pickerTime} mode="time" display="spinner" onChange={(_, date) => { if (date) setPickerTime(date); }} style={{ width: '100%' }} />
+        <Button label="Save reminder time" onPress={async () => { await updateReminderTime(pickerTime); reminderSheet.current?.dismiss(); }} />
+      </Sheet>
 
       <PinSetupModal
         visible={showPinSetup}

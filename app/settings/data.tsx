@@ -9,9 +9,10 @@ import * as XLSX from 'xlsx';
 import * as DocumentPicker from 'expo-document-picker';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
-import { getAllTransactions, getCurrentGroup as getCategoryData } from '@/src/services/dataService';
+import { addTransaction, clearTransactions, getAllTransactions, getCurrentGroup as getCategoryData } from '@/src/services/dataService';
 import { BackupSection } from '@/components/settings/BackupSection';
 import apiClient from '@/src/services/apiClient';
+import { clearLocalData } from '@/src/sync/localStore';
 import { generateMonthlyPDF } from '@/src/services/reportService';
 import { space, type, icon as iconSize } from '@/constants/tokens';
 import {
@@ -39,6 +40,22 @@ export default function DataScreen() {
   const [exportShowCustom,  setExportShowCustom]  = useState(false);
   const [exportDateTarget,  setExportDateTarget]  = useState<'from' | 'to' | null>(null);
   const exportSheet = useRef<SheetHandle>(null);
+
+  const importTransactions = async (rows: any[]): Promise<number> => {
+    const transactions = rows
+      .map(row => ({
+        date:     row.date || row.Date || new Date().toISOString(),
+        type:     String(row.type || row.Type || 'expense').toLowerCase() === 'income' ? 'income' : 'expense',
+        category: String(row.category || row.Category || 'Other'),
+        amount:   Number(row.amount ?? row.Amount ?? 0),
+        note:     String(row.note || row.Note || ''),
+        currency: String(row.currency || row.Currency || 'INR'),
+      }))
+      .filter(tx => Number.isFinite(tx.amount) && tx.amount > 0);
+
+    for (const transaction of transactions) await addTransaction(transaction);
+    return transactions.length;
+  };
 
 
 
@@ -82,7 +99,11 @@ export default function DataScreen() {
     if (Platform.OS === 'android') {
       DateTimePickerAndroid.open({
         value: current, mode: 'date', maximumDate: new Date(),
-        onChange: (_, d) => { if (d) { target === 'from' ? setExportCustomFrom(d) : setExportCustomTo(d); } },
+        onChange: (_, d) => {
+          if (!d) return;
+          if (target === 'from') setExportCustomFrom(d);
+          else setExportCustomTo(d);
+        },
       });
     } else {
       setExportDateTarget(target);
@@ -92,6 +113,10 @@ export default function DataScreen() {
   const runExport = async (range: { from: Date; to: Date; label: string }) => {
     const type = exportSheetType;
     if (!type) return;
+    if (range.from > range.to) {
+      Alert.alert('Choose a valid range', 'The start date must be before the end date.');
+      return;
+    }
     exportSheet.current?.dismiss();
     setExporting(true);
     try {
@@ -206,13 +231,13 @@ export default function DataScreen() {
       const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
       const parsed = JSON.parse(content);
       if (!parsed.transactions) { Alert.alert('Invalid file', 'Not a valid backup file.'); return; }
-      Alert.alert('Restore Backup', `Import ${parsed.transactions.length} transactions? This will ADD them to existing data.`, [
+      Alert.alert('Restore Backup', `Import ${parsed.transactions.length} transactions? This will add them to existing data.`, [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Import', onPress: async () => {
           setWorking(true);
           try {
-            await apiClient.post('/transactions/import-json', { transactions: parsed.transactions });
-            Alert.alert('Done', 'Backup restored successfully.');
+            const imported = await importTransactions(parsed.transactions);
+            Alert.alert('Done', `${imported} ${imported === 1 ? 'transaction' : 'transactions'} restored.`);
           } catch (e: any) { Alert.alert('Import failed', e?.message); }
           finally { setWorking(false); }
         }},
@@ -245,8 +270,8 @@ export default function DataScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Import', onPress: async () => {
           try {
-            await apiClient.post('/transactions/import-json', { transactions });
-            Alert.alert('Done', `${transactions.length} transactions imported.`);
+            const imported = await importTransactions(transactions);
+            Alert.alert('Done', `${imported} ${imported === 1 ? 'transaction' : 'transactions'} imported.`);
           } catch (e: any) { Alert.alert('Import failed', e?.message); }
           finally { setWorking(false); }
         }},
@@ -263,7 +288,7 @@ export default function DataScreen() {
       { text: 'Reset', style: 'destructive', onPress: async () => {
         setWorking(true);
         try {
-          await apiClient.delete('/transactions/all');
+          await clearTransactions();
           Alert.alert('Done', 'All transactions deleted.');
         } catch (e: any) { Alert.alert('Error', e?.message); }
         finally { setWorking(false); }
@@ -279,8 +304,11 @@ export default function DataScreen() {
       { text: 'Delete Everything', style: 'destructive', onPress: async () => {
         setWorking(true);
         try {
-          await apiClient.delete('/user/all-data');
-          await logout();
+          if (isGuest) await clearLocalData();
+          else {
+            await apiClient.delete('/user/all-data');
+            await logout();
+          }
           router.replace('/(tabs)');
         } catch (e: any) { Alert.alert('Error', e?.message); setWorking(false); }
       }},
@@ -376,7 +404,11 @@ export default function DataScreen() {
                   mode="date"
                   display="spinner"
                   maximumDate={new Date()}
-                  onChange={(_, d) => { if (d) { exportDateTarget === 'from' ? setExportCustomFrom(d) : setExportCustomTo(d); } }}
+                  onChange={(_, d) => {
+                    if (!d) return;
+                    if (exportDateTarget === 'from') setExportCustomFrom(d);
+                    else setExportCustomTo(d);
+                  }}
                   style={{ width: '100%' }}
                 />
               </View>
