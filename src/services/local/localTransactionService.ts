@@ -16,6 +16,8 @@ export interface LocalTransaction {
   recurrenceFrequency?: string;
   isPrivate?: boolean;
   currency?: string;
+  /** The savings goal this transaction contributes to, when it is a goal contribution. */
+  goalId?: string | null;
   // Present on rows that have been through the server: who wrote it and which group it is in.
   userId?: string | { _id: string; name?: string; profilePhoto?: string } | null;
   groupId?: string | null;

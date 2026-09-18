@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, Alert, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { setBudget } from '@/src/services/dataService';
@@ -17,9 +17,11 @@ const CATEGORIES = [
 export default function AddBudgetScreen() {
   const { theme } = useTheme();
   const picker = useRef<SheetHandle>(null);
+  const params = useLocalSearchParams<{ category?: string; amount?: string; month?: string; year?: string }>();
+  const isEditing = params.amount !== undefined;
 
-  const [category, setCategory] = useState<string | null | undefined>(undefined);
-  const [amount,   setAmount]   = useState('');
+  const [category, setCategory] = useState<string | null | undefined>(() => params.category === undefined ? undefined : params.category === '__monthly_total__' ? null : params.category);
+  const [amount,   setAmount]   = useState(() => params.amount ?? '');
   const [loading,  setLoading]  = useState(false);
 
   const chosen = CATEGORIES.find(c => c.key === category);
@@ -29,11 +31,10 @@ export default function AddBudgetScreen() {
     if (!amount)                { Alert.alert('Missing', 'Please enter an amount.');   return; }
     setLoading(true);
     try {
-      const now = new Date();
       await setBudget({
         amount:   parseFloat(amount),
-        month:    now.getMonth() + 1,
-        year:     now.getFullYear(),
+        month:    params.month ? Number(params.month) : undefined,
+        year:     params.year ? Number(params.year) : undefined,
         category: category,
       });
       router.back();
@@ -45,7 +46,7 @@ export default function AddBudgetScreen() {
   };
 
   return (
-    <Screen title="Add budget" keyboard>
+    <Screen title={isEditing ? 'Edit budget' : 'Add budget'} keyboard>
       <Text style={[type.label, S.label, { color: theme.secondaryText }]}>Category</Text>
       <Touchable onPress={() => picker.current?.present()} style={[S.pickerField, { backgroundColor: theme.inputBg, borderColor: theme.border }]} accessibilityLabel={chosen ? `Category: ${chosen.label}` : 'Select category'}>
         {chosen && <Text style={S.emoji}>{chosen.emoji}</Text>}
@@ -65,7 +66,7 @@ export default function AddBudgetScreen() {
         style={{ marginTop: space.lg }}
       />
 
-      <Button label="Save budget" onPress={handleSave} loading={loading} style={{ marginTop: space.xl }} />
+      <Button label={isEditing ? 'Save changes' : 'Save budget'} onPress={handleSave} loading={loading} style={{ marginTop: space.xl }} />
 
       <Sheet ref={picker} title="Category" scroll snapPoints={['60%']} keyboard="none">
         <View style={S.chips}>

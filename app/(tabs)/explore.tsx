@@ -4,7 +4,7 @@ import {
   Dimensions, RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { runSync } from '@/src/sync/engine';
 import { LineChart, BarChart } from 'react-native-gifted-charts';
@@ -14,7 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme } from '@/src/context/ThemeContext';
-import { getAnalytics, getTrend, getAllTransactions, getBudgets } from '@/src/services/dataService';
+import { getAnalytics, getTrend, getAllTransactions, getEffectiveBudgets } from '@/src/services/dataService';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
@@ -38,13 +38,14 @@ type ViewMode = 'overview' | 'trends';
 type ActiveTab = 'expense' | 'income' | 'total' | 'budget';
 
 export default function AnalyticsScreen() {
+  const params = useLocalSearchParams<{ tab?: string }>();
   const { t } = useLanguage();
   const { user } = useAuth();
   const { theme } = useTheme();
   const { top } = useSafeAreaInsets();
 
   const [viewMode, setViewMode]           = useState<ViewMode>('overview');
-  const [activeTab, setActiveTab]         = useState<ActiveTab>('expense');
+  const [activeTab, setActiveTab]         = useState<ActiveTab>(() => params.tab === 'budget' ? 'budget' : 'expense');
   const [budgets, setBudgets]             = useState<any[]>([]);
   const [loading, setLoading]             = useState(false);
   const [trendLoading, setTrendLoading]   = useState(false);
@@ -77,7 +78,7 @@ export default function AnalyticsScreen() {
     try {
       const [analyticsData, budgetData] = await Promise.all([
         getAnalytics(currentMonth, currentYear),
-        getBudgets(currentMonth, currentYear).catch(() => []),
+        getEffectiveBudgets(currentMonth, currentYear).catch(() => []),
       ]);
       setData(analyticsData);
       setBudgets(Array.isArray(budgetData) ? budgetData : []);
@@ -112,8 +113,22 @@ export default function AnalyticsScreen() {
   }, [currentMonth, currentYear]);
 
   useEffect(() => {
+    if (params.tab === 'budget') setActiveTab('budget');
+  }, [params.tab]);
+
+  useEffect(() => {
     if (viewMode === 'trends' && trendData.length === 0) fetchTrend();
   }, [viewMode]);
+
+  const editBudget = (budget: any) => router.push({
+    pathname: '/add-budget',
+    params: {
+      category: budget.category ?? '__monthly_total__',
+      amount: String(budget.amount),
+      month: String(budget.month),
+      year: String(budget.year),
+    },
+  });
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -366,8 +381,8 @@ export default function AnalyticsScreen() {
                             <View style={styles.budgetCardHeader}>
                               <Ionicons name="wallet-outline" size={18} color={mainColor} />
                               <ThemedText style={styles.budgetCardTitle}>Monthly Budget</ThemedText>
-                              <Touchable onPress={() => router.push('/budget')} size={28} accessibilityLabel="Budget settings" rippleBorderless>
-                                <Ionicons name="settings-outline" size={iconSize.sm} color={theme.secondaryText} />
+                              <Touchable onPress={() => editBudget(mainBudget)} size={28} accessibilityLabel="Edit monthly budget" rippleBorderless>
+                                <Ionicons name="create-outline" size={iconSize.sm} color={theme.tint} />
                               </Touchable>
                             </View>
                             <View style={styles.budgetAmountRow}>
@@ -387,8 +402,8 @@ export default function AnalyticsScreen() {
                             </View>
                           </View>
                         ) : (
-                          <Card>
-                            <EmptyState compact icon="wallet-outline" title="No monthly budget set" action={{ label: 'Set budget', onPress: () => router.push('/budget') }} />
+                          <Card padded={false}>
+                            <Row icon="wallet-outline" title="Set a monthly budget" subtitle="Choose a limit for this month" onPress={() => router.push('/add-budget')} last />
                           </Card>
                         )}
 
@@ -396,7 +411,9 @@ export default function AnalyticsScreen() {
                           <>
                             <View style={styles.sectionHeader}>
                               <ThemedText type="subtitle">Category Budgets</ThemedText>
-                              <Ionicons name="grid-outline" size={16} color={theme.secondaryText} />
+                              <Touchable onPress={() => router.push('/add-budget')} size={28} accessibilityLabel="Add category budget" rippleBorderless>
+                                <Ionicons name="add" size={iconSize.md} color={theme.tint} />
+                              </Touchable>
                             </View>
                             <View style={[styles.catSection, { backgroundColor: theme.card, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border }]}>
                               {catBudgets.map((b: any, i: number) => {
@@ -404,17 +421,18 @@ export default function AnalyticsScreen() {
                                 const pct = b.amount > 0 ? Math.min((catSpent / b.amount) * 100, 100) : 0;
                                 const bColor = pct >= 100 ? theme.expense : pct >= 80 ? theme.warning : theme.income;
                                 return (
-                                  <View key={i} style={styles.catBudgetRow}>
+                                  <Touchable key={i} onPress={() => editBudget(b)} style={styles.catBudgetRow} accessibilityLabel={`Edit ${b.category} budget`}>
                                     <View style={styles.catBudgetTop}>
                                       <Text style={[styles.catBudgetName, { color: theme.text }]}>{b.category}</Text>
-                                      <Text style={[styles.catBudgetAmt, { color: bColor }]}>
-                                        {Currency.format(catSpent)} / {Currency.format(b.amount)}
-                                      </Text>
+                                      <View style={styles.catBudgetValue}>
+                                        <Text style={[styles.catBudgetAmt, { color: bColor }]}>{Currency.format(catSpent)} / {Currency.format(b.amount)}</Text>
+                                        <Ionicons name="create-outline" size={iconSize.sm} color={theme.secondaryText} />
+                                      </View>
                                     </View>
                                     <View style={[styles.budgetTrack, { backgroundColor: theme.border }]}>
                                       <View style={[styles.budgetFill, { width: `${pct}%` as any, backgroundColor: bColor }]} />
                                     </View>
-                                  </View>
+                                  </Touchable>
                                 );
                               })}
                             </View>
@@ -763,6 +781,7 @@ const styles = StyleSheet.create({
   budgetSetBtnText:   { ...text.label },
   catBudgetRow:       { gap: space.sm, marginBottom: space.md },
   catBudgetTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  catBudgetValue:     { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   catBudgetName:      { ...text.label },
   catBudgetAmt:       { ...text.label },
 });

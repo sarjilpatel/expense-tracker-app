@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Alert, Platform, StyleSheet } from 'react-nativ
 import Svg, { Circle } from 'react-native-svg';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import { GOAL_COLORS as COLORS } from '@/constants/palettes';
 import { useTheme } from '@/src/context/ThemeContext';
 import { Currency, getContrastText, hexToRGBA } from '@/constants/theme';
@@ -11,7 +12,7 @@ import {
   Screen, Card, Touchable, Button, Sheet, Field, Amount, EmptyState, Chip, Skeleton,
   type SheetHandle,
 } from '@/components/ui';
-import { getGoals, createGoal, updateGoal, deleteGoal, Goal } from '@/src/services/dataService';
+import { getGoals, getAllTransactions, createGoal, updateGoal, deleteGoal, Goal } from '@/src/services/dataService';
 
 import { reportError } from '@/src/utils/log';
 import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
@@ -91,17 +92,21 @@ export default function GoalsScreen() {
   const [saving,    setSaving]    = useState(false);
   const [editGoal,  setEditGoal]  = useState<Goal | null>(null);
   const [form,      setForm]      = useState<FormState>(EMPTY_FORM);
-  const [fundsGoal, setFundsGoal] = useState<Goal | null>(null);
-  const [fundsAmt,  setFundsAmt]  = useState('');
+  const [contributions, setContributions] = useState<Record<string, number>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const loaded = useRef(false);
 
   const formSheet  = useRef<SheetHandle>(null);
-  const fundsSheet = useRef<SheetHandle>(null);
 
   const fetchGoals = useCallback(async () => {
     try {
-      setGoals(await getGoals());
+      const [savedGoals, transactions] = await Promise.all([getGoals(), getAllTransactions()]);
+      const totals = (transactions as any[]).reduce<Record<string, number>>((result, tx) => {
+        if (tx.goalId) result[tx.goalId] = (result[tx.goalId] ?? 0) + Number(tx.amount || 0);
+        return result;
+      }, {});
+      setGoals(savedGoals);
+      setContributions(totals);
       loaded.current = true;
     } catch (e) {
       reportError(e);
@@ -156,29 +161,6 @@ export default function GoalsScreen() {
       formSheet.current?.dismiss();
     } catch (e: any) {
       Alert.alert('Error', e?.msg || 'Could not save goal.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const openFunds = (goal: Goal) => {
-    setFundsGoal(goal);
-    setFundsAmt('');
-    fundsSheet.current?.present();
-  };
-
-  const handleAddFunds = async () => {
-    if (!fundsGoal) return;
-    const amt = parseFloat(fundsAmt);
-    if (!amt || amt <= 0) { Alert.alert('Error', 'Enter a valid amount.'); return; }
-    setSaving(true);
-    try {
-      const updated = await updateGoal(fundsGoal._id, { addAmount: amt });
-      setGoals(g => g.map(x => x._id === updated._id ? updated : x));
-      fundsSheet.current?.dismiss();
-      setFundsAmt('');
-    } catch (e: any) {
-      Alert.alert('Error', e?.msg || 'Could not add funds.');
     } finally {
       setSaving(false);
     }
@@ -255,10 +237,12 @@ export default function GoalsScreen() {
       ) : (
         <View style={S.list}>
           {goals.map(goal => {
-            const status    = getStatus(goal);
-            const sColor    = statusColor(status, goal);
-            const progress  = Math.min(goal.savedAmount / goal.targetAmount, 1);
-            const remaining = Math.max(0, goal.targetAmount - goal.savedAmount);
+            const savedAmount = goal.savedAmount + (contributions[goal._id] ?? 0);
+            const computedGoal = { ...goal, savedAmount };
+            const status    = getStatus(computedGoal);
+            const sColor    = statusColor(status, computedGoal);
+            const progress  = Math.min(savedAmount / goal.targetAmount, 1);
+            const remaining = Math.max(0, goal.targetAmount - savedAmount);
             return (
               <Card key={goal._id}>
                 <View style={S.cardTop}>
@@ -267,7 +251,7 @@ export default function GoalsScreen() {
                   </View>
                   <View style={{ flex: 1, gap: space.xs }}>
                     <Text style={[type.bodyStrong, { color: theme.text }]} numberOfLines={1}>{goal.name}</Text>
-                    <View style={{ flexDirection: 'row' }}>{statusChip(status, goal)}</View>
+                    <View style={{ flexDirection: 'row' }}>{statusChip(status, computedGoal)}</View>
                   </View>
                   <Touchable onPress={() => handleDelete(goal)} size={28} style={S.trash} accessibilityLabel={`Delete ${goal.name}`} rippleBorderless>
                     <Ionicons name="trash-outline" size={iconSize.sm} color={theme.secondaryText} />
@@ -282,7 +266,7 @@ export default function GoalsScreen() {
                     </View>
                   </View>
                   <View style={S.amounts}>
-                    <Amount value={goal.savedAmount} role="heading" />
+                    <Amount value={savedAmount} role="heading" />
                     <Text style={[type.label, { color: theme.secondaryText }]}>of {Currency.format(goal.targetAmount)}</Text>
                     {remaining > 0 && <Text style={[type.label, { color: theme.secondaryText }]}>{Currency.format(remaining)} to go</Text>}
                     <View style={S.deadline}>
@@ -293,8 +277,8 @@ export default function GoalsScreen() {
                 </View>
 
                 <View style={S.actions}>
-                  <Button size="sm" icon="add" label="Add funds" onPress={() => openFunds(goal)} style={{ flex: 1 }} block />
-                  <Button size="sm" variant="secondary" icon="create-outline" label="Edit" onPress={() => openEdit(goal)} />
+                  <Button size="sm" icon="add" label="Add contribution" onPress={() => router.push({ pathname: '/add-transaction', params: { prefillGoalId: goal._id, prefillType: 'savings' } })} style={{ flex: 1 }} block />
+                  <Button size="sm" variant="secondary" icon="list-outline" label="Details" onPress={() => router.push({ pathname: '/goals/[id]', params: { id: goal._id } })} />
                 </View>
               </Card>
             );
@@ -374,19 +358,6 @@ export default function GoalsScreen() {
         <Button label={editGoal ? 'Save changes' : 'Create goal'} onPress={saveGoal} loading={saving} style={{ marginTop: space.xl }} />
       </Sheet>
 
-      {/* ── Add funds ── */}
-      <Sheet ref={fundsSheet} title={fundsGoal ? `Add to ${fundsGoal.name}` : 'Add funds'}>
-        <Field
-          label="Amount"
-          value={fundsAmt}
-          onChangeText={setFundsAmt}
-          placeholder="0"
-          keyboardType="numeric"
-          autoFocus
-          right={<Text style={[type.bodyStrong, { color: theme.secondaryText }]}>{Currency.symbol}</Text>}
-        />
-        <Button label="Add funds" onPress={handleAddFunds} loading={saving} disabled={!fundsAmt} style={{ marginTop: space.lg }} />
-      </Sheet>
     </Screen>
   );
 }

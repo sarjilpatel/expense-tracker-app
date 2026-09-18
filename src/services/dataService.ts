@@ -61,7 +61,7 @@ async function queue(collection: Collection, op: outbox.OutboxOp, clientId: stri
 /** The fields of a transaction the server takes, in the shape it takes them. */
 function txPayload(tx: Partial<localTx.LocalTransaction>, accountId?: string | null): Record<string, unknown> {
   const p: Record<string, unknown> = {};
-  for (const k of ['amount', 'type', 'category', 'note', 'date', 'currency', 'isRecurring', 'recurrenceFrequency', 'isPrivate', 'createdAt'] as const) {
+  for (const k of ['amount', 'type', 'category', 'note', 'date', 'currency', 'isRecurring', 'recurrenceFrequency', 'isPrivate', 'goalId', 'createdAt'] as const) {
     if (tx[k] !== undefined) p[k] = tx[k];
   }
   if (accountId !== undefined) p.accountId = accountId;
@@ -87,6 +87,10 @@ export const getAllTransactions = (month?: number, year?: number, search?: strin
 /** Search across ALL time periods — no month/year filter. */
 export const searchAllTransactions = (query: string) =>
   localTx.getLocalTransactions(undefined, undefined, query);
+
+/** Contributions are ordinary transactions, so this history stays correct after edits or deletes. */
+export const getGoalContributions = async (goalId: string) =>
+  (await localTx.getLocalTransactions()).filter(tx => tx.goalId === goalId);
 
 export const addTransaction = async (data: any) => {
   const { accountId, ...fields } = data;
@@ -221,6 +225,26 @@ export async function getPrevMonthCarryForward(month: number, year: number): Pro
 // ── Budgets ───────────────────────────────────────────────────────────────────
 
 export const getBudgets = (month?: number, year?: number) => localBudg.getLocalBudgets(month, year);
+
+/**
+ * Budgets are configured once, then apply to later monthly cycles until the user changes them.
+ * A budget explicitly set for the requested cycle always wins over an older configuration.
+ */
+export async function getEffectiveBudgets(month: number, year: number) {
+  const all = await localBudg.getAllLocalBudgets();
+  const requestedPeriod = year * 12 + month;
+  const latestByCategory = new Map<string, localBudg.LocalBudget>();
+
+  [...all]
+    .filter(b => b.year * 12 + b.month <= requestedPeriod)
+    .sort((a, b) => (b.year * 12 + b.month) - (a.year * 12 + a.month))
+    .forEach(b => {
+      const key = b.category ?? '__monthly_total__';
+      if (!latestByCategory.has(key)) latestByCategory.set(key, b);
+    });
+
+  return [...latestByCategory.values()];
+}
 
 export const setBudget = async (data: { amount: number; month?: number; year?: number; category?: string | null }) => {
   const before = new Set((await localBudg.getAllLocalBudgets()).map(b => b._id));

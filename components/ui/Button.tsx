@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, ActivityIndicator, View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
-import { hexToRGBA } from '@/constants/theme';
+import { getContrastText, hexToRGBA } from '@/constants/theme';
 import { space, radius, type, icon as iconSize, hairline } from '@/constants/tokens';
 import { Touchable, type HapticKind } from './Touchable';
 
@@ -29,19 +29,21 @@ export interface ButtonProps {
   /** Stretch to the container width. Default true for `md`, false for `sm`. */
   block?: boolean;
   haptic?: HapticKind;
+  /** Optional semantic background for a primary action. Its foreground is derived for contrast. */
+  color?: string;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 }
 
 export function Button({
   label, onPress, variant = 'primary', size = 'md', icon, iconRight = false,
-  loading = false, disabled = false, block, haptic, style, accessibilityLabel,
+  loading = false, disabled = false, block, haptic, color, style, accessibilityLabel,
 }: ButtonProps) {
   const { theme } = useTheme();
   const stretch = block ?? size === 'md';
 
   const palette = {
-    primary:   { bg: theme.tint,   fg: theme.tintText,   border: 'transparent' },
+    primary:   { bg: color ?? theme.tint, fg: color ? getContrastText(color) : theme.tintText, border: 'transparent' },
     secondary: { bg: 'transparent', fg: theme.text,      border: theme.border },
     ghost:     { bg: 'transparent', fg: theme.tint,      border: 'transparent' },
     danger:    { bg: theme.danger, fg: theme.expenseText, border: 'transparent' },

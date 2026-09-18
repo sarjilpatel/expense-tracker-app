@@ -6,6 +6,8 @@ import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import { Image } from 'expo-image';
 import { useTheme } from '@/src/context/ThemeContext';
 import { useAuth } from '@/src/context/AuthContext';
+import { usePreferences } from '@/src/context/PreferencesContext';
+import { ordinalSuffix } from '@/src/services/preferencesService';
 import { getProfile, deleteAccount as deleteAccountApi } from '@/src/services/authApi';
 import { getMyGroups, getCurrentGroup } from '@/src/services/groupApi';
 import { runSync, getSyncStatus, subscribeSync, type SyncStatus } from '@/src/sync/engine';
@@ -35,6 +37,7 @@ const GRID_TILES = [
 export default function SettingsScreen() {
   const { theme } = useTheme();
   const { isGuest, logout, user: authUser } = useAuth();
+  const { prefs, updatePrefs } = usePreferences();
 
   // The session already knows who is signed in, so the profile card renders on the first frame
   // from that and the server's copy (the photo, mostly) replaces it when it lands. Only the group
@@ -46,6 +49,7 @@ export default function SettingsScreen() {
   const profile = user ?? authUser;
 
   const deleteSheet = useRef<SheetHandle>(null);
+  const cycleSheet = useRef<SheetHandle>(null);
   const [deletePassword,  setDeletePassword]  = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteError,     setDeleteError]     = useState('');
@@ -172,6 +176,19 @@ export default function SettingsScreen() {
           </>
       )}
 
+      <SectionHeader title="Preferences" />
+      <Card padded={false}>
+        <Row
+          icon="calendar-number-outline"
+          title="Month starts on"
+          subtitle="Used for transactions, reports and budgets"
+          right={<Text style={[type.bodyStrong, { color: theme.tint }]}>{ordinalSuffix(prefs.monthlyStart)}</Text>}
+          onPress={() => cycleSheet.current?.present()}
+          chevron
+          last
+        />
+      </Card>
+
       {/* ── Destinations ── */}
       <SectionHeader title="Settings" />
       <Card padded={false} style={{ marginBottom: space.lg }}>
@@ -209,6 +226,20 @@ export default function SettingsScreen() {
         />
         <Button label="Delete my account" variant="danger" onPress={confirmDeleteAccount} loading={deletingAccount} style={{ marginTop: space.lg }} />
       </Sheet>
+
+      <Sheet ref={cycleSheet} title="Month start" scroll keyboard="none">
+        <Text style={[type.label, { color: theme.secondaryText, marginBottom: space.md }]}>Choose the day your month begins. Transactions, reports and budgets use this cycle.</Text>
+        <View style={S.dayGrid}>
+          {Array.from({ length: 28 }, (_, index) => index + 1).map(day => (
+            <Chip
+              key={day}
+              label={ordinalSuffix(day)}
+              selected={prefs.monthlyStart === day}
+              onPress={async () => { await updatePrefs({ monthlyStart: day }); cycleSheet.current?.dismiss(); }}
+            />
+          ))}
+        </View>
+      </Sheet>
     </Screen>
   );
 }
@@ -222,4 +253,5 @@ const S = StyleSheet.create({
   grid:       { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile:       { width: '48%', flexGrow: 1, gap: space.xs },
   tileIcon:   { width: 44, height: 44, borderRadius: radius.md, justifyContent: 'center', alignItems: 'center', marginBottom: space.xs },
+  dayGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
 });

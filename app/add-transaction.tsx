@@ -10,8 +10,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
-import { addTransaction, getCurrentGroup, getRecentCategories, getAccounts } from '@/src/services/dataService';
-import type { Category } from '@/src/services/dataService';
+import { addTransaction, getCurrentGroup, getRecentCategories, getAccounts, getGoals } from '@/src/services/dataService';
+import type { Category, Goal } from '@/src/services/dataService';
 import type { Account } from '@/src/services/accountService';
 import { saveReceipt } from '@/src/services/receiptService';
 import { CategoryPicker } from '@/components/transaction/CategoryPicker';
@@ -21,6 +21,8 @@ import { CalculatorSheet, type CalculatorHandle } from '@/components/transaction
 import { RecurringToggle } from '@/components/transaction/RecurringToggle';
 import { space, radius, type as text, icon as iconSize } from '@/constants/tokens';
 import { Screen, Card, Row, Touchable, Button, Sheet, Field, Chip, type SheetHandle } from '@/components/ui';
+
+const SAVINGS_BLUE = '#3B82F6';
 
 function fmtDate(d: Date) {
   const dd   = String(d.getDate()).padStart(2, '0');
@@ -39,7 +41,7 @@ export default function AddTransactionScreen() {
   const { theme } = useTheme();
   const { prefs } = usePreferences();
 
-  const [type, setType]             = useState<'income' | 'expense' | 'transfer'>('expense');
+  const [type, setType]             = useState<'income' | 'expense' | 'transfer' | 'savings'>('expense');
   const [amount, setAmount]         = useState('');
   const [category, setCategory]     = useState<string | null>(null);
   const [note, setNote]             = useState('');
@@ -52,15 +54,18 @@ export default function AddTransactionScreen() {
   const [toAccountId, setToAccountId]             = useState<string | null>(null);
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [isPrivate, setIsPrivate]   = useState(false);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts]     = useState<Account[]>([]);
+  const [goals, setGoals]           = useState<Goal[]>([]);
   const [loading, setLoading]       = useState(false);
   const [categoriesFetching, setCategoriesFetching] = useState(false);
   const [recentCategories, setRecentCategories] = useState<{ income: string[]; expense: string[] }>({ income: [], expense: [] });
 
   const [successToast, setSuccessToast] = useState(false);
   const categorySheet = useRef<SheetHandle>(null);
+  const goalSheet     = useRef<SheetHandle>(null);
   const calculator    = useRef<CalculatorHandle>(null);
   const amountInput   = useRef<TextInput>(null);
   const [iosPicker, setIosPicker]                 = useState<{ mode: 'date' | 'time' } | null>(null);
@@ -68,8 +73,8 @@ export default function AddTransactionScreen() {
 
   const leaving = useRef(false);
 
-  const { prefillDate, prefillAccountId, prefillAmount, prefillType, prefillCategory, prefillNote } =
-    useLocalSearchParams<{ prefillDate?: string; prefillAccountId?: string; prefillAmount?: string; prefillType?: string; prefillCategory?: string; prefillNote?: string }>();
+  const { prefillDate, prefillAccountId, prefillAmount, prefillType, prefillCategory, prefillNote, prefillGoalId } =
+    useLocalSearchParams<{ prefillDate?: string; prefillAccountId?: string; prefillAmount?: string; prefillType?: string; prefillCategory?: string; prefillNote?: string; prefillGoalId?: string }>();
 
 
 
@@ -85,23 +90,29 @@ export default function AddTransactionScreen() {
       setFromAccountId(prefillAccountId as string);
     }
     if (prefillAmount) setAmount(prefillAmount as string);
-    if (prefillType && (prefillType === 'income' || prefillType === 'expense' || prefillType === 'transfer')) {
-      setType(prefillType as 'income' | 'expense' | 'transfer');
+    if (prefillType && (prefillType === 'income' || prefillType === 'expense' || prefillType === 'transfer' || prefillType === 'savings')) {
+      setType(prefillType as 'income' | 'expense' | 'transfer' | 'savings');
     }
     if (prefillCategory) setCategory(prefillCategory as string);
     if (prefillNote) setNote(prefillNote as string);
-  }, [prefillDate, prefillAccountId, prefillAmount, prefillType, prefillCategory, prefillNote]);
+    if (prefillGoalId) {
+      setSelectedGoalId(prefillGoalId as string);
+      setType('savings');
+    }
+  }, [prefillDate, prefillAccountId, prefillAmount, prefillType, prefillCategory, prefillNote, prefillGoalId]);
 
   const loadData = useCallback(async () => {
     setCategoriesFetching(true);
     try {
-      const [g, accs, recent] = await Promise.all([
+      const [g, accs, recent, savedGoals] = await Promise.all([
         getCurrentGroup(),
         getAccounts(),
         getRecentCategories(6).catch(() => ({ income: [], expense: [] })),
+        getGoals().catch(() => [] as Goal[]),
       ]);
       setCategories(g.categories || []);
       setAccounts(accs);
+      setGoals(savedGoals);
       if (accs.length > 0) {
         if (!selectedAccountId) setSelectedAccountId(accs[0].id);
         if (!fromAccountId) setFromAccountId(accs[0].id);
@@ -128,7 +139,7 @@ export default function AddTransactionScreen() {
     const fallback = setTimeout(focus, 450);
     return () => { unsub(); clearTimeout(fallback); };
   }, [navigation]);
-  const isDirty = !!(amount || category || note || description || receiptUri);
+  const isDirty = !!(amount || category || note || description || receiptUri || selectedGoalId);
   useEffect(() => {
     const unsub = (navigation as any).addListener('beforeRemove', (e: any) => {
       if (!isDirty || leaving.current) return;
@@ -169,10 +180,11 @@ export default function AddTransactionScreen() {
     }
   };
 
-  const handleTypeChange = (t: 'income' | 'expense' | 'transfer') => {
+  const handleTypeChange = (t: 'income' | 'expense' | 'transfer' | 'savings') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setType(t);
     setCategory(null);
+    if (t !== 'savings') setSelectedGoalId(null);
   };
 
   const pickReceipt = async () => {
@@ -185,7 +197,7 @@ export default function AddTransactionScreen() {
   const resetForm = () => {
     setAmount(''); setCategory(null); setNote(''); setDescription('');
     setDate(new Date()); setIsRecurring(false); setSelectedAccountId(null);
-    setReceiptUri(null); setIsPrivate(false);
+    setReceiptUri(null); setIsPrivate(false); setSelectedGoalId(null);
   };
 
   // After a save. "Save" leaves at once — the keyboard and the modal go together, and Home is
@@ -238,15 +250,20 @@ export default function AddTransactionScreen() {
       return;
     }
 
-    if (!category) { Alert.alert('Select Category', 'Please select a category.'); return; }
+    if (type === 'savings' && !selectedGoalId) {
+      Alert.alert('Choose a Goal', 'Select the savings goal this contribution is for.');
+      return;
+    }
+    if (type !== 'savings' && !category) { Alert.alert('Select Category', 'Please select a category.'); return; }
     setLoading(true);
     try {
       const fullNote = [note, description].filter(Boolean).join(' — ');
       const newTx = await addTransaction({
-        amount: parsed, type, category, note: fullNote,
+        amount: parsed, type: type === 'savings' ? 'expense' : type, category: type === 'savings' ? 'Savings' : category,
         date: date.toISOString(), currency: prefs.currency,
         isRecurring, recurrenceFrequency: isRecurring ? recurrenceFrequency : null,
         isPrivate, accountId: selectedAccountId ?? undefined,
+        goalId: type === 'savings' ? selectedGoalId ?? undefined : undefined,
       });
       if (receiptUri && newTx?._id) await saveReceipt(newTx._id, receiptUri).catch(() => {});
       afterSave(andContinue);
@@ -256,8 +273,9 @@ export default function AddTransactionScreen() {
     } finally { setLoading(false); }
   };
 
-  const accent     = type === 'expense' ? theme.expense : type === 'income' ? theme.income : theme.tint;
+  const accent     = type === 'expense' ? theme.expense : type === 'income' ? theme.income : type === 'savings' ? SAVINGS_BLUE : theme.tint;
   const accentText = type === 'expense' ? theme.expenseText : type === 'income' ? theme.incomeText : theme.tintText;
+  const selectedGoal = goals.find(goal => goal._id === selectedGoalId) ?? null;
 
   const dateChip = (label: string, onPress: () => void, a11y: string) => (
     <Touchable onPress={onPress} haptic="selection" style={[S.dateBtn, { backgroundColor: theme.cardAlt }]} accessibilityLabel={a11y}>
@@ -283,19 +301,19 @@ export default function AddTransactionScreen() {
         keyboard
         footer={(
           <View style={S.footer}>
-            <Button label="Save" onPress={() => doSave(false)} loading={loading} style={{ flex: 2, backgroundColor: accent }} accessibilityLabel="Save transaction" />
+            <Button label="Save" onPress={() => doSave(false)} loading={loading} color={type === 'savings' ? SAVINGS_BLUE : undefined} style={{ flex: 2, backgroundColor: accent }} accessibilityLabel="Save transaction" />
             <Button label="Continue" variant="secondary" onPress={() => doSave(true)} disabled={loading} style={{ flex: 1 }} accessibilityLabel="Save and add another" />
           </View>
         )}
       >
         {/* Type — the one place the semantic colours paint chrome, because here the chip *is* the type. */}
         <View style={S.chips}>
-          {(['expense', 'income', 'transfer'] as const).map(tab => (
+          {(['expense', 'income', 'savings', 'transfer'] as const).map(tab => (
             <Chip
               key={tab}
-              label={tab === 'expense' ? 'Expense' : tab === 'income' ? 'Income' : 'Transfer'}
+              label={tab === 'expense' ? 'Expense' : tab === 'income' ? 'Income' : tab === 'savings' ? 'Savings' : 'Transfer'}
               selected={type === tab}
-              color={type === tab ? (tab === 'expense' ? theme.expense : tab === 'income' ? theme.income : theme.tint) : undefined}
+              color={type === tab ? (tab === 'expense' ? theme.expense : tab === 'income' ? theme.income : tab === 'savings' ? SAVINGS_BLUE : theme.tint) : undefined}
               onPress={() => handleTypeChange(tab)}
             />
           ))}
@@ -327,13 +345,26 @@ export default function AddTransactionScreen() {
           ) : (
             <Row icon="swap-horizontal-outline" title="Category" right={<Text style={[text.body, { color: theme.secondaryText }]}>Transfer (auto)</Text>} />
           )}
-          {type !== 'transfer' ? (
+          {type === 'savings' ? (
+            <Row icon="bookmark-outline" title="Category" right={<Text style={[text.body, { color: theme.secondaryText }]}>Savings (auto)</Text>} />
+          ) : type !== 'transfer' ? (
             <Row icon="wallet-outline" title="Account" right={<AccountPicker accounts={accounts} selectedId={selectedAccountId} onChange={setSelectedAccountId} theme={theme} />} />
           ) : (
             <>
               <Row icon="arrow-up-circle-outline"   iconColor={theme.expense} title="From" right={<AccountPicker accounts={accounts} selectedId={fromAccountId} onChange={setFromAccountId} theme={theme} />} />
               <Row icon="arrow-down-circle-outline" iconColor={theme.income}  title="To"   right={<AccountPicker accounts={accounts} selectedId={toAccountId}   onChange={setToAccountId}   theme={theme} />} />
             </>
+          )}
+          {type === 'savings' && (
+            <Row
+              icon="flag-outline"
+              iconColor={SAVINGS_BLUE}
+              title="Savings goal"
+              subtitle={selectedGoal ? 'This contribution updates its progress' : 'Required'}
+              right={<Text style={[text.body, { color: selectedGoal ? theme.text : theme.secondaryText }]}>{selectedGoal?.name ?? 'Select'}</Text>}
+              chevron
+              onPress={() => goalSheet.current?.present()}
+            />
           )}
           {type !== 'transfer' && (
             <Row icon="repeat" title="Repeat" right={toggle(isRecurring, setIsRecurring, 'Repeat this transaction')} />
@@ -396,14 +427,31 @@ export default function AddTransactionScreen() {
         ref={categorySheet}
         categories={categories}
         value={category}
-        type={type === 'transfer' ? 'expense' : type}
+        type={type === 'income' ? 'income' : 'expense'}
         onTypeChange={handleTypeChange}
         onChange={setCategory}
         theme={theme}
         loading={categoriesFetching}
         onRetry={loadData}
-        recentCategories={recentCategories[type === 'transfer' ? 'expense' : type]}
+        recentCategories={recentCategories[type === 'income' ? 'income' : 'expense']}
       />
+
+      <Sheet ref={goalSheet} title="Savings goal" scroll keyboard="none">
+        <Text style={[text.label, { color: theme.secondaryText, marginBottom: space.md }]}>Choose the goal this saving is for.</Text>
+        <Card padded={false}>
+          {goals.map((goal, index) => (
+            <Row
+              key={goal._id}
+              icon={goal.icon as any}
+              iconColor={goal.color}
+              title={goal.name}
+              subtitle={`${goal.savedAmount} of ${goal.targetAmount} saved`}
+              onPress={() => { setSelectedGoalId(goal._id); goalSheet.current?.dismiss(); }}
+              last={index === goals.length - 1}
+            />
+          ))}
+        </Card>
+      </Sheet>
     </>
   );
 }

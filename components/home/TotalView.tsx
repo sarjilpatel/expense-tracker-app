@@ -147,7 +147,7 @@ export function TotalView({ transactions, summary, budget, month, year, theme }:
   return (
     <View style={S.wrap}>
       <Card padded={false}>
-        <Row icon="create-outline" title="Budget" subtitle="Monthly limit and progress" onPress={() => router.push('/budget')} last />
+        <Row icon="create-outline" title="Budget" subtitle="Monthly limit and progress" onPress={() => router.push({ pathname: '/explore', params: { tab: 'budget' } })} last />
       </Card>
 
       <SectionHeader title="Accounts" />

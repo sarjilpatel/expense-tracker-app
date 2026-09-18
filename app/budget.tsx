@@ -5,7 +5,7 @@ import { useFocusRefresh } from '@/src/hooks/useFocusRefresh';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme } from '@/src/context/ThemeContext';
 import { usePreferences } from '@/src/context/PreferencesContext';
-import { getBudgets, deleteBudget, getAllTransactions, getPrevMonthCarryForward } from '@/src/services/dataService';
+import { getEffectiveBudgets, deleteBudget, getAllTransactions, getPrevMonthCarryForward } from '@/src/services/dataService';
 import { getPeriodRange, getCalendarMonthsForPeriod, filterByPeriod } from '@/src/utils/dateUtils';
 import { CATEGORY_EMOJIS } from '@/constants/maps';
 import { hexToRGBA } from '@/constants/theme';
@@ -41,7 +41,7 @@ export default function BudgetScreen() {
         txData = await getAllTransactions(month, year);
       }
       const [budgetData, cf] = await Promise.all([
-        getBudgets(month, year),
+        getEffectiveBudgets(month, year),
         getPrevMonthCarryForward(month, year),
       ]);
       setBudgets(budgetData || []);
@@ -127,6 +127,15 @@ export default function BudgetScreen() {
                   <Text style={S.emoji}>{emoji}</Text>
                   <Text style={[type.bodyStrong, { color: theme.text, flex: 1 }]} numberOfLines={1}>{label}</Text>
                   <Amount value={effective} />
+                  <Touchable
+                    onPress={() => router.push({ pathname: '/add-budget', params: { category: item.category ?? '__monthly_total__', amount: String(item.amount), month: String(item.month), year: String(item.year) } })}
+                    size={28}
+                    style={S.trash}
+                    accessibilityLabel={`Edit ${label} budget`}
+                    rippleBorderless
+                  >
+                    <Ionicons name="create-outline" size={iconSize.sm} color={theme.tint} />
+                  </Touchable>
                   <Touchable onPress={() => handleDelete(item._id)} size={28} style={S.trash} accessibilityLabel={`Delete ${label} budget`} rippleBorderless>
                     <Ionicons name="trash-outline" size={iconSize.sm} color={theme.secondaryText} />
                   </Touchable>
@@ -165,6 +174,7 @@ export default function BudgetScreen() {
           })}
         </View>
       )}
+
     </Screen>
   );
 }

@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -24,7 +24,8 @@ import LockScreen from '@/app/lock';
 import { shouldLock, recordBackground, clearBackgroundTime } from '@/src/services/lockService';
 import { hasSeenWelcome, subscribeWelcomeSeen } from '@/src/services/onboardingService';
 import { radius, space, type } from '@/constants/tokens';
-import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+
+type NativeStackNavigationOptions = NonNullable<ComponentProps<typeof Stack.Screen>['options']>;
 
 SplashScreen.preventAutoHideAsync();
 // Screens off the top of a stack, and blurred tabs, are wrapped in React.Suspense-style freeze so
@@ -45,7 +46,7 @@ const EDIT: NativeStackNavigationOptions = { headerShown: false, presentation: '
 const FLOW: NativeStackNavigationOptions = { headerShown: false, animation: 'default', gestureEnabled: false };
 
 const PUSH_SCREENS = [
-  'accounts', 'account-detail', 'budget', 'goals', 'search', 'manage-group', 'manage-categories',
+  'accounts', 'account-detail', 'budget', 'goals', 'goals/[id]', 'search', 'manage-group', 'manage-categories',
   'import-categories', 'trips/index', 'trips/[id]',
   'settings/customization', 'settings/security', 'settings/data', 'settings/help',
 ];
