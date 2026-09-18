@@ -711,10 +711,10 @@ const styles = StyleSheet.create({
   tabText:      { ...text.label },
   tabSubText:   { ...text.label, marginTop: 1 },
 
-  donutWrap:          { alignItems: 'center', marginBottom: space.md },
+  donutWrap:          { alignItems: 'center', marginVertical: space.xl },
 
   sectionHeader:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: space.sm },
-  catSection:   { borderRadius: radius.lg, padding: space.md, gap: 12 },
+  catSection:   { borderRadius: radius.lg, padding: space.lg, gap: 20 },
 
   memberList:   { gap: 12 },
   memberCard:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: space.lg, borderRadius: radius.lg },

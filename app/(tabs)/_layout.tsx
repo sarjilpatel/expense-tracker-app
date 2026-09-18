@@ -4,6 +4,9 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { Touchable } from '@/components/ui';
 
 import { HapticTab } from '@/components/haptic-tab';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Dimensions } from 'react-native';
 import { useTheme } from '@/src/context/ThemeContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { space, type, radius } from '@/constants/tokens';
@@ -25,17 +28,62 @@ const TabBarBackground = ({ theme }: { theme: any }) => {
   );
 };
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 const CustomAddButton = ({ theme }: { theme: any }) => {
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .onStart(() => {
+      startX.value = translateX.value;
+      startY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      translateX.value = startX.value + e.translationX;
+      translateY.value = startY.value + e.translationY;
+    })
+    .onEnd(() => {
+      const maxLeft = -(SCREEN_WIDTH - 76);
+      const maxRight = 10; // Allow a bit of leeway
+      const maxUp = -(SCREEN_HEIGHT - 200);
+      const maxDown = 10;
+      
+      let targetX = translateX.value;
+      if (translateX.value > maxRight) targetX = 0;
+      if (translateX.value < maxLeft) targetX = maxLeft + 10;
+
+      let targetY = translateY.value;
+      if (translateY.value > maxDown) targetY = 0;
+      if (translateY.value < maxUp) targetY = maxUp + 10;
+
+      translateX.value = withSpring(targetX, { damping: 20, stiffness: 200 });
+      translateY.value = withSpring(targetY, { damping: 20, stiffness: 200 });
+    });
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
   return (
-    <Touchable
-      style={[styles.floatingAddBtn, { backgroundColor: theme.tint, shadowColor: theme.tint }]}
-      onPress={() => router.push('/add-transaction')}
-      haptic="medium"
-      rippleColor="rgba(255,255,255,0.3)"
-      accessibilityLabel="Add transaction"
-    >
-      <Ionicons name="add" size={28} color={theme.tintText} />
-    </Touchable>
+    <GestureDetector gesture={panGesture}>
+      <Animated.View style={[styles.floatingAddBtn, { backgroundColor: theme.tint, shadowColor: theme.tint }, animStyle]}>
+        <Touchable
+          style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', borderRadius: radius.full }}
+          onPress={() => router.push('/add-transaction')}
+          haptic="medium"
+          rippleColor="rgba(255,255,255,0.3)"
+          accessibilityLabel="Add transaction"
+        >
+          <Ionicons name="add" size={28} color={theme.tintText} />
+        </Touchable>
+      </Animated.View>
+    </GestureDetector>
   );
 };
 
@@ -88,15 +136,6 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="add"
-          options={{
-            title: '',
-            tabBarLabel: () => null,
-            tabBarButton: () => <View style={{ flex: 1 }} />, // Empty placeholder to keep symmetry
-            tabBarStyle: { display: 'none' },
-          }}
-        />
-        <Tabs.Screen
           name="plan"
           options={{
             title: 'Plan',
@@ -125,18 +164,15 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   floatingAddBtn: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 50 : 30,
-    left: '50%',
-    marginLeft: -28,
+    bottom: Platform.OS === 'ios' ? 100 : 90,
+    right: 20,
     width: 56,
     height: 56,
     borderRadius: radius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // eslint-disable-next-line local/design-tokens -- a shadow is black by definition; this one floats over content
+    // eslint-disable-next-line local/design-tokens
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 8,
     zIndex: 99,

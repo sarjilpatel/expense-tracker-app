@@ -174,17 +174,19 @@ export default function SettingsScreen() {
 
       {/* ── Destinations ── */}
       <SectionHeader title="Settings" />
-      <View style={S.grid}>
-        {GRID_TILES.map((tile) => (
-          <Card key={tile.key} onPress={() => router.push(tile.route as any)} accessibilityLabel={`${tile.label}: ${tile.sub}`} style={S.tile}>
-            <View style={[S.tileIcon, { backgroundColor: hexToRGBA(tile.color, 0.12) }]}>
-              <Ionicons name={tile.icon as any} size={iconSize.lg} color={tile.color} />
-            </View>
-            <Text style={[type.bodyStrong, { color: theme.text }]}>{tile.label}</Text>
-            <Text style={[type.label, { color: theme.secondaryText }]} numberOfLines={2}>{tile.sub}</Text>
-          </Card>
-        ))}
-      </View>
+      <Card padded={false} style={{ marginBottom: space.lg }}>
+          {GRID_TILES.map((tile, i) => (
+            <Row
+              key={tile.key}
+              icon={tile.icon as any}
+              title={tile.label}
+              subtitle={tile.sub}
+              onPress={() => router.push(tile.route as any)}
+              last={i === GRID_TILES.length - 1}
+              iconColor={tile.color}
+            />
+          ))}
+        </Card>
 
       {!isGuest && (
         <Button label="Log out" icon="log-out-outline" variant="secondary" onPress={handleLogout} style={{ marginTop: space.xl }} />

@@ -250,24 +250,19 @@ export default function HomeScreen() {
     const slideInStart = delta > 0 ? SCREEN_WIDTH : -SCREEN_WIDTH;
 
     const performStateChangeAndSlideIn = () => {
-      translateX.value = slideInStart;
-      contentOpacity.value = 0.3;
-
-      if (viewMode === 'monthly') {
-        // Monthly tab: left/right navigates by year
-        setCurrentYear(y => y + delta);
-      } else {
-        setCurrentMonth(m => {
-          const newM = m + delta;
-          if (newM > 12) { setCurrentYear(y => y + 1); return 1; }
-          if (newM < 1)  { setCurrentYear(y => y - 1); return 12; }
-          return newM;
-        });
-      }
-
-      translateX.value = withTiming(0, { duration: 200 });
-      contentOpacity.value = withTiming(1, { duration: 200 });
-    };
+        if (viewMode === 'monthly') {
+          setCurrentYear(y => y + delta);
+        } else {
+          setCurrentMonth(m => {
+            const newM = m + delta;
+            if (newM > 12) { setCurrentYear(y => y + 1); return 1; }
+            if (newM < 1)  { setCurrentYear(y => y - 1); return 12; }
+            return newM;
+          });
+        }
+        translateX.value = 0; // instantly reset position without sliding
+        contentOpacity.value = withTiming(1, { duration: 200 });
+      };
 
     if (isGesture) {
       performStateChangeAndSlideIn();
@@ -287,26 +282,15 @@ export default function HomeScreen() {
         translateX.value = e.translationX;
       })
       .onEnd((e) => {
-        const threshold = SCREEN_WIDTH * 0.25;
-        if (e.translationX < -threshold) {
-          // Swipe right-to-left: Next month
-          translateX.value = withTiming(-SCREEN_WIDTH, { duration: 150 }, (finished) => {
-            if (finished) {
-              runOnJS(changeMonth)(1, true);
-            }
-          });
-        } else if (e.translationX > threshold) {
-          // Swipe left-to-right: Previous month
-          translateX.value = withTiming(SCREEN_WIDTH, { duration: 150 }, (finished) => {
-            if (finished) {
-              runOnJS(changeMonth)(-1, true);
-            }
-          });
-        } else {
-          // Snap back if threshold not met
-          translateX.value = withTiming(0, { duration: 200 });
-        }
-      }),
+          const threshold = SCREEN_WIDTH * 0.25;
+          if (e.translationX < -threshold) {
+            runOnJS(changeMonth)(1, true);
+          } else if (e.translationX > threshold) {
+            runOnJS(changeMonth)(-1, true);
+          } else {
+            translateX.value = withTiming(0, { duration: 200 });
+          }
+        }),
     [changeMonth, SCREEN_WIDTH]
   );
 
@@ -676,9 +660,11 @@ export default function HomeScreen() {
                   accessibilityLabel={`${card.label}, ${active ? 'showing' : 'tap to filter'}`}
                   style={[styles.summaryCard, active && { borderColor: card.color, borderWidth: 1.5 }]}
                 >
-                  <Ionicons name={card.icon as any} size={iconSize.sm} color={card.color} />
-                  <Amount value={card.value} kind={card.kind} unsigned role="label" color={card.color} />
-                  <Text style={[text.label, { color: theme.secondaryText }]}>{card.label}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                    <Ionicons name={card.icon as any} size={14} color={card.color} />
+                    <Text style={[text.label, { color: theme.secondaryText, fontSize: 11 }]}>{card.label}</Text>
+                  </View>
+                  <Amount value={card.value} kind={card.kind} unsigned role="label" color={card.color} style={{ fontSize: 15 }} />
                 </Card>
               );
             })}
@@ -777,7 +763,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
     marginTop: space.xs,
   },
-  summaryCard:   { flex: 1, alignItems: 'center', gap: 2, paddingVertical: space.sm, paddingHorizontal: space.xs },
+  summaryCard:   { flex: 1, alignItems: 'flex-start', paddingVertical: 8, paddingHorizontal: 10 },
 
   budgetCard: {
     marginHorizontal: 12,
